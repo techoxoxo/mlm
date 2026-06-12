@@ -1,0 +1,99 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { eq, sql } from "drizzle-orm";
+import { db, schema } from "@/db";
+import { getSession, hashPassword, genReferralCode } from "@/lib/auth";
+import { enqueueActivation, enqueueDecision } from "@/lib/queue";
+
+const { settings, slabs, users } = schema;
+
+async function requireAdmin() {
+  const s = await getSession();
+  if (!s || s.role !== "admin") throw new Error("Forbidden");
+  return s;
+}
+
+export async function updateSettingsAction(form: FormData) {
+  await requireAdmin();
+  await db
+    .update(settings)
+    .set({
+      joinFee: Number(form.get("joinFee")),
+      companyPercent: Number(form.get("companyPercent")),
+      autoPlace: form.get("autoPlace") === "on",
+      updatedAt: new Date(),
+    })
+    .where(eq(settings.id, 1));
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin");
+}
+
+/**
+ * Spawn N simulated players, sponsor each by a random existing user (forming a
+ * referral tree), activate them through the queue, then run a few rounds of
+ * "upgrade" decisions so the matrix grows in depth. For demos/load testing.
+ */
+export async function simulateAction(form: FormData): Promise<{ created: number; error?: string }> {
+  await requireAdmin();
+  const count = Math.max(1, Math.min(200, Number(form.get("count") || 10)));
+
+  // pool of potential sponsors = existing players (+ admin as fallback root)
+  const pool = (await db.select({ id: users.id }).from(users)).map((u) => u.id);
+
+  const pw = await hashPassword("sim1234");
+  const created: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const sponsor = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    const tag = `${Date.now().toString(36)}${i}`;
+    const [u] = await db
+      .insert(users)
+      .values({
+        name: `Sim ${tag}`,
+        email: `sim_${tag}@sim.local`,
+        passwordHash: pw,
+        sponsorId: sponsor,
+        referralCode: genReferralCode(),
+        status: "registered",
+      })
+      .returning({ id: users.id });
+    created.push(u.id);
+    pool.push(u.id);
+  }
+
+  // activate everyone (durable queue → worker)
+  await Promise.all(created.map((id) => enqueueActivation(id).catch(() => null)));
+
+  // a few upgrade rounds for whoever completed a slab
+  for (let round = 0; round < 3; round++) {
+    const pending = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`${users.pendingChoiceSlab} is not null and ${users.email} like '%@sim.local'`);
+    if (!pending.length) break;
+    await Promise.all(pending.map((p) => enqueueDecision(p.id, "upgrade").catch(() => null)));
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  return { created: created.length };
+}
+
+export async function updateSlabAction(form: FormData) {
+  await requireAdmin();
+  const level = Number(form.get("level"));
+  await db
+    .update(slabs)
+    .set({
+      name: String(form.get("name")),
+      fee: Number(form.get("fee")),
+      slots: Number(form.get("slots")),
+      referralBonus: Number(form.get("referralBonus")),
+      exitPercent: Number(form.get("exitPercent")),
+      upgradeTakePercent: Number(form.get("upgradeTakePercent")),
+      active: form.get("active") === "on",
+    })
+    .where(eq(slabs.level, level));
+  revalidatePath("/admin/slabs");
+  revalidatePath("/admin");
+}
