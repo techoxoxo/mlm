@@ -21,12 +21,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AppShell
       items={items}
-      title="Dashboard"
-      badge={
-        <span className="chip" style={{ color: "var(--color-brand-2)", borderColor: "var(--color-brand)" }}>
-          {user.pointsBalance} pts
-        </span>
-      }
+      title={`Welcome back, ${user.name.split(" ")[0]}`}
+      subtitle="Here's how your matrix is growing"
+      badge={<span className="pill pill-green tnum">{user.pointsBalance.toLocaleString()} pts</span>}
     >
       <LiveRefresh />
       {children}

@@ -19,8 +19,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AppShell
       items={items}
-      title="Admin"
-      badge={<span className="chip" style={{ color: "var(--color-accent)", borderColor: "var(--color-accent)" }}>Administrator</span>}
+      title="Control room"
+      subtitle="Tune the economy and watch the matrix"
+      badge={<span className="pill pill-gold">Administrator</span>}
     >
       {children}
     </AppShell>

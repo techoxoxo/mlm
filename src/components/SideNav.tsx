@@ -39,19 +39,24 @@ export function SideNav({ items }: { items: NavItem[] }) {
             key={it.href}
             href={it.href}
             style={{
+              position: "relative",
               display: "flex",
               alignItems: "center",
-              gap: 11,
-              padding: "10px 13px",
-              borderRadius: 10,
+              gap: 12,
+              padding: "11px 14px",
+              borderRadius: 12,
               fontSize: 14,
               fontWeight: 500,
-              color: active ? "var(--color-text)" : "var(--color-muted)",
-              background: active ? "var(--color-surface-2)" : "transparent",
-              border: active ? "1px solid var(--color-border)" : "1px solid transparent",
+              color: active ? "var(--text)" : "var(--muted)",
+              background: active ? "rgba(24,200,132,0.08)" : "transparent",
+              border: active ? "1px solid rgba(46,232,156,0.2)" : "1px solid transparent",
+              transition: "color 0.15s, background 0.15s",
             }}
           >
-            <Icon size={17} color={active ? "var(--color-brand-2)" : "currentColor"} />
+            {active && (
+              <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 20, borderRadius: 99, background: "var(--green-bright)" }} />
+            )}
+            <Icon size={17} color={active ? "var(--green-bright)" : "currentColor"} />
             {it.label}
           </Link>
         );

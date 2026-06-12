@@ -1,18 +1,56 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg: #0a0b0f;
-  --color-surface: #12141c;
-  --color-surface-2: #181b26;
-  --color-border: #232735;
-  --color-muted: #8b90a3;
-  --color-text: #e7e9f0;
-  --color-brand: #6d5efc;
-  --color-brand-2: #00d4b3;
-  --color-accent: #f59e0b;
-  --color-danger: #ef4444;
-  --color-success: #22c55e;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+/* ------------------------------------------------------------------ tokens */
+:root {
+  --bg: #08090d;
+  --bg-2: #0b0d12;
+  --surface: #0f1219;
+  --surface-2: #141823;
+  --surface-3: #1a1f2c;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-2: rgba(255, 255, 255, 0.1);
+  --border-3: rgba(255, 255, 255, 0.16);
+
+  --text: #eef1f6;
+  --muted: #98a0b3;
+  --faint: #5a6173;
+
+  /* growth / wealth */
+  --green: #18c884;
+  --green-bright: #2ee89c;
+  --green-ink: #052b1d;
+  --lime: #b6f24a;
+  --gold: #e7b35c;
+  --gold-ink: #2e2208;
+
+  --info: #4f93f0;
+  --danger: #f0616d;
+  --success: #22c55e;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 0 1px rgba(46, 232, 156, 0.12), 0 12px 40px rgba(24, 200, 132, 0.12);
+
+  /* backward-compatible aliases (older components use --color-* names) */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-text: var(--text);
+  --color-brand: var(--green);
+  --color-brand-2: var(--green-bright);
+  --color-accent: var(--gold);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
 }
 
 * {
@@ -21,22 +59,231 @@
 
 html,
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-sans);
   margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* textured page backdrop: faint grid + top growth glow */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(900px 500px at 75% -10%, rgba(24, 200, 132, 0.1), transparent 60%),
+    radial-gradient(700px 500px at 10% 0%, rgba(79, 147, 240, 0.07), transparent 55%);
+  pointer-events: none;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 30%, black, transparent 80%);
+  pointer-events: none;
 }
 
 a {
   color: inherit;
   text-decoration: none;
 }
-
 ::selection {
-  background: color-mix(in oklab, var(--color-brand) 40%, transparent);
+  background: rgba(46, 232, 156, 0.28);
 }
 
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  margin: 0;
+}
+
+/* numbers feel intentional with tabular figures */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ------------------------------------------------------------------ layout helpers */
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.mono {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ components */
+@layer components {
+  .kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green-bright);
+  }
+
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+  }
+
+  .card {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 120px),
+      var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-hover:hover {
+    border-color: var(--border-3);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .card-feature {
+    border-color: rgba(46, 232, 156, 0.28);
+    box-shadow: var(--shadow-glow);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 999px;
+    padding: 11px 20px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.16s ease;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, var(--green-bright), var(--green));
+    color: var(--green-ink);
+    box-shadow: 0 6px 20px rgba(24, 200, 132, 0.25);
+  }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.06);
+    box-shadow: 0 8px 26px rgba(24, 200, 132, 0.36);
+  }
+  .btn-ghost {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-2);
+    color: var(--text);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--border-3);
+  }
+  .btn-gold {
+    background: linear-gradient(180deg, #f0c478, var(--gold));
+    color: var(--gold-ink);
+  }
+  .btn-gold:hover:not(:disabled) {
+    filter: brightness(1.05);
+  }
+
+  .input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-sm);
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input::placeholder {
+    color: var(--faint);
+  }
+  .input:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(24, 200, 132, 0.16);
+  }
+  .label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin-bottom: 7px;
+    display: block;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--muted);
+  }
+  .pill-green {
+    color: var(--green-bright);
+    border-color: rgba(46, 232, 156, 0.3);
+    background: rgba(24, 200, 132, 0.1);
+  }
+  .pill-gold {
+    color: var(--gold);
+    border-color: rgba(231, 179, 92, 0.32);
+    background: rgba(231, 179, 92, 0.1);
+  }
+
+  /* legacy alias so older markup keeps working */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--muted);
+  }
+}
+
+/* ------------------------------------------------------------------ motion */
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -45,7 +292,6 @@ a {
 .spin {
   animation: spin 0.8s linear infinite;
 }
-
 @keyframes slidein {
   from {
     transform: translateX(20px);
@@ -56,70 +302,49 @@ a {
     opacity: 1;
   }
 }
-
-@layer components {
-  .card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 16px;
+@keyframes rise {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
   }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border-radius: 12px;
-    padding: 10px 18px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.15s ease;
-    white-space: nowrap;
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
-  .btn-primary {
-    background: var(--color-brand);
-    color: white;
+}
+.rise {
+  animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes pulse-node {
+  0%,
+  100% {
+    opacity: 0.35;
   }
-  .btn-primary:hover {
-    background: color-mix(in oklab, var(--color-brand) 85%, white);
+  50% {
+    opacity: 1;
   }
-  .btn-ghost {
-    background: var(--color-surface-2);
-    border-color: var(--color-border);
-    color: var(--color-text);
+}
+@keyframes marquee {
+  from {
+    transform: translateX(0);
   }
-  .btn-ghost:hover {
-    border-color: var(--color-brand);
+  to {
+    transform: translateX(-50%);
   }
-  .input {
-    width: 100%;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 11px 14px;
-    color: var(--color-text);
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.15s;
+}
+@keyframes grow-bar {
+  from {
+    transform: scaleY(0);
   }
-  .input:focus {
-    border-color: var(--color-brand);
+  to {
+    transform: scaleY(1);
   }
-  .label {
-    font-size: 13px;
-    color: var(--color-muted);
-    margin-bottom: 6px;
-    display: block;
-  }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }

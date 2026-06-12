@@ -1,22 +1,45 @@
-import { Hexagon } from "lucide-react";
-
-export function Logo({ size = 22 }: { size?: number }) {
+export function Logo({ size = 22, withWord = true }: { size?: number; withWord?: boolean }) {
+  const box = size + 8;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 9, fontWeight: 700, fontSize: size }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 11 }}>
       <span
         style={{
           display: "inline-flex",
-          width: size + 10,
-          height: size + 10,
+          width: box,
+          height: box,
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: 9,
-          background: "linear-gradient(135deg, var(--color-brand), var(--color-brand-2))",
+          borderRadius: 11,
+          background: "linear-gradient(150deg, #141823, #0c0f15)",
+          border: "1px solid rgba(46,232,156,0.28)",
+          boxShadow: "0 4px 16px rgba(24,200,132,0.18)",
         }}
       >
-        <Hexagon size={size - 4} color="#fff" strokeWidth={2.4} />
+        <svg width={size - 2} height={size - 2} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <defs>
+            <linearGradient id="lg" x1="0" y1="24" x2="24" y2="0">
+              <stop offset="0" stopColor="#18c884" />
+              <stop offset="1" stopColor="#b6f24a" />
+            </linearGradient>
+          </defs>
+          <rect x="3" y="14" width="4.5" height="7" rx="1.4" fill="url(#lg)" opacity="0.55" />
+          <rect x="9.75" y="9" width="4.5" height="12" rx="1.4" fill="url(#lg)" opacity="0.8" />
+          <rect x="16.5" y="3" width="4.5" height="18" rx="1.4" fill="url(#lg)" />
+          <circle cx="18.75" cy="3.4" r="2.2" fill="#2ee89c" />
+        </svg>
       </span>
-      <span>Apex</span>
+      {withWord && (
+        <span
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 700,
+            fontSize: size,
+            letterSpacing: "-0.03em",
+          }}
+        >
+          Apex
+        </span>
+      )}
     </span>
   );
 }

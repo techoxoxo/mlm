@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { asc } from "drizzle-orm";
-import { ArrowRight, Layers, Repeat, ShieldCheck, Users, Zap, TrendingUp } from "lucide-react";
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { ArrowRight, ArrowUpRight, Network, GitFork, Repeat, ShieldCheck } from "lucide-react";
 import { db, schema } from "@/db";
 import { Logo } from "@/components/Logo";
+import { MatrixVisual } from "@/components/MatrixVisual";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -11,156 +12,213 @@ export default async function Landing() {
   const slabRows = await db.select().from(schema.slabs).orderBy(asc(schema.slabs.level));
   const session = await getSession();
 
+  // live ticker — recent earnings, newest first
+  const ticker = await db
+    .select({ name: schema.users.name, points: schema.transactions.points, slab: schema.transactions.slabLevel })
+    .from(schema.transactions)
+    .innerJoin(schema.users, eq(schema.users.id, schema.transactions.userId))
+    .where(sql`${schema.transactions.points} > 0`)
+    .orderBy(desc(schema.transactions.createdAt))
+    .limit(12);
+
+  const tickerItems =
+    ticker.length >= 4
+      ? ticker.map((t) => `${t.name} earned +${t.points} pts at Tier ${t.slab ?? 1}`)
+      : [
+          "Maya filled both Starter slots",
+          "Devon climbed to Tier 3 · Silver",
+          "Aria earned +150 pts",
+          "Noah cashed out at 30%",
+          "Priya activated · Tier 1",
+          "Leo upgraded to Gold",
+        ];
+
+  const reversed = [...slabRows].reverse(); // apex first
+
   return (
     <main>
       {/* nav */}
-      <nav
+      <header
         style={{
-          maxWidth: 1120,
-          margin: "0 auto",
-          padding: "22px 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          backdropFilter: "blur(14px)",
+          background: "rgba(8,9,13,0.6)",
+          borderBottom: "1px solid var(--border)",
         }}
       >
-        <Logo />
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          {session ? (
-            <Link href={session.role === "admin" ? "/admin" : "/dashboard"} className="btn btn-primary">
-              Open dashboard <ArrowRight size={16} />
-            </Link>
-          ) : (
-            <>
-              <Link href="/login" className="btn btn-ghost">Log in</Link>
-              <Link href="/register" className="btn btn-primary">Get started</Link>
-            </>
-          )}
+        <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 68 }}>
+          <Logo size={21} />
+          <nav style={{ display: "flex", gap: 28, alignItems: "center" }}>
+            <Link href="#ladder" style={{ fontSize: 14, color: "var(--muted)" }}>The ladder</Link>
+            <Link href="#how" style={{ fontSize: 14, color: "var(--muted)" }}>How it works</Link>
+            {session ? (
+              <Link href={session.role === "admin" ? "/admin" : "/dashboard"} className="btn btn-primary">
+                Dashboard <ArrowRight size={15} />
+              </Link>
+            ) : (
+              <div style={{ display: "flex", gap: 10 }}>
+                <Link href="/login" className="btn btn-ghost">Log in</Link>
+                <Link href="/register" className="btn btn-primary">Start climbing</Link>
+              </div>
+            )}
+          </nav>
         </div>
-      </nav>
+      </header>
 
       {/* hero */}
-      <section style={{ maxWidth: 900, margin: "0 auto", padding: "70px 24px 40px", textAlign: "center" }}>
-        <span className="chip" style={{ color: "var(--color-brand-2)", borderColor: "var(--color-brand)" }}>
-          <Zap size={14} /> Virtual points · No real money
-        </span>
-        <h1 style={{ fontSize: 56, lineHeight: 1.05, margin: "22px 0 0", fontWeight: 800, letterSpacing: -1.5 }}>
-          Climb the matrix.
-          <br />
-          <span
-            style={{
-              background: "linear-gradient(120deg, var(--color-brand), var(--color-brand-2))",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Fill your slots. Cash out.
-          </span>
-        </h1>
-        <p style={{ color: "var(--color-muted)", fontSize: 19, maxWidth: 620, margin: "22px auto 0", lineHeight: 1.6 }}>
-          A strategy game built on a 5-slab points matrix. Refer players, fill your slots on a
-          first-in-first-out queue, and choose at every level: take the exit payout or upgrade and keep climbing.
-        </p>
-        <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 34 }}>
-          <Link href="/register" className="btn btn-primary" style={{ padding: "13px 26px", fontSize: 15 }}>
-            Play now <ArrowRight size={17} />
-          </Link>
-          <a href="#how" className="btn btn-ghost" style={{ padding: "13px 26px", fontSize: 15 }}>
-            How it works
-          </a>
+      <section className="container" style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 48, alignItems: "center", padding: "76px 24px 40px" }}>
+        <div className="rise">
+          <span className="kicker"><span style={{ width: 6, height: 6, borderRadius: 99, background: "var(--green-bright)", display: "inline-block" }} />Virtual points · five tiers · zero real money</span>
+          <h1 style={{ fontSize: 64, marginTop: 22, marginBottom: 0 }}>
+            Build your network.
+            <br />
+            <span style={{ background: "linear-gradient(100deg, var(--green-bright), var(--lime))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Watch it compound.
+            </span>
+          </h1>
+          <p style={{ color: "var(--muted)", fontSize: 18, maxWidth: 480, marginTop: 22, lineHeight: 1.65 }}>
+            Apex is a strategy game played on a living matrix. Refer players, fill your slots on a
+            first-in-first-out queue, and at every tier make the call — take the payout or climb higher.
+          </p>
+          <div style={{ display: "flex", gap: 14, marginTop: 34 }}>
+            <Link href="/register" className="btn btn-primary" style={{ padding: "14px 26px", fontSize: 15 }}>
+              Start climbing <ArrowUpRight size={17} />
+            </Link>
+            <Link href="#ladder" className="btn btn-ghost" style={{ padding: "14px 26px", fontSize: 15 }}>
+              See the tiers
+            </Link>
+          </div>
+          <div style={{ display: "flex", gap: 36, marginTop: 44 }}>
+            {[["5", "tiers to climb"], ["62", "slots to the top"], ["FIFO", "fair placement"]].map(([n, l]) => (
+              <div key={l}>
+                <div className="mono" style={{ fontSize: 28, fontWeight: 600 }}>{n}</div>
+                <div style={{ fontSize: 13, color: "var(--faint)" }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rise" style={{ animationDelay: "0.1s" }}>
+          <div className="card" style={{ padding: 28, overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span className="pill pill-green"><Network size={13} /> Your matrix</span>
+              <span style={{ fontSize: 12, color: "var(--faint)" }}>live</span>
+            </div>
+            <MatrixVisual />
+          </div>
         </div>
       </section>
 
-      {/* feature row */}
-      <section style={{ maxWidth: 1120, margin: "0 auto", padding: "30px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 16 }}>
-          {[
-            { icon: Layers, t: "5 slabs", d: "From the Starter tier up to Platinum — each needs more slots filled." },
-            { icon: Users, t: "FIFO placement", d: "First to join and upgrade gets their slots filled first. Fair by design." },
-            { icon: Repeat, t: "Exit or upgrade", d: "At every completed slab, cash a % or roll into the next tier." },
-            { icon: ShieldCheck, t: "Provably consistent", d: "Queue-backed distribution with row-locked, append-only ledger." },
-          ].map((f) => (
-            <div key={f.t} className="card" style={{ padding: 22 }}>
-              <f.icon size={24} color="var(--color-brand-2)" />
-              <h3 style={{ margin: "14px 0 6px", fontSize: 17 }}>{f.t}</h3>
-              <p style={{ color: "var(--color-muted)", fontSize: 14, margin: 0, lineHeight: 1.55 }}>{f.d}</p>
-            </div>
+      {/* live ticker */}
+      <div style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", overflow: "hidden", padding: "13px 0", background: "rgba(255,255,255,0.012)" }}>
+        <div style={{ display: "flex", width: "max-content", animation: "marquee 32s linear infinite", gap: 0 }}>
+          {[...tickerItems, ...tickerItems].map((t, i) => (
+            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "0 28px", fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>
+              <span style={{ width: 5, height: 5, borderRadius: 99, background: "var(--green)" }} />
+              {t}
+            </span>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* slabs */}
-      <section id="slabs" style={{ maxWidth: 1120, margin: "0 auto", padding: "50px 24px" }}>
-        <h2 style={{ fontSize: 30, fontWeight: 700, textAlign: "center", margin: "0 0 8px" }}>The slabs</h2>
-        <p style={{ color: "var(--color-muted)", textAlign: "center", margin: "0 0 34px" }}>
-          Live configuration from the game engine.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 16 }}>
-          {slabRows.map((s, i) => (
-            <div
-              key={s.level}
-              className="card"
-              style={{ padding: 22, position: "relative", borderColor: i === slabRows.length - 1 ? "var(--color-brand)" : undefined }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span className="chip">Slab {s.level}</span>
-                <TrendingUp size={18} color="var(--color-muted)" />
+      {/* the ladder */}
+      <section id="ladder" className="container" style={{ padding: "80px 24px 40px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16, marginBottom: 40 }}>
+          <div>
+            <span className="kicker">The ladder</span>
+            <h2 style={{ fontSize: 38, marginTop: 14 }}>Five tiers. Each one steeper.</h2>
+          </div>
+          <p style={{ color: "var(--muted)", maxWidth: 360, fontSize: 15 }}>
+            More slots to fill, bigger pools to collect. Climb from Starter to the Apex tier — or step off with your payout at any rung.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {reversed.map((s, idx) => {
+            const isApex = idx === 0;
+            const fillPct = 30 + (reversed.length - 1 - idx) * (60 / Math.max(1, reversed.length - 1));
+            return (
+              <div
+                key={s.level}
+                className={`card card-hover ${isApex ? "card-feature" : ""}`}
+                style={{ display: "grid", gridTemplateColumns: "120px 1fr auto", alignItems: "center", gap: 24, padding: "22px 26px" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span className="mono" style={{ fontSize: 30, fontWeight: 600, color: isApex ? "var(--gold)" : "var(--faint)" }}>
+                    {String(s.level).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 17 }}>{s.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--faint)" }}>{s.slots} slots</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ height: 8, borderRadius: 99, background: "var(--surface-3)", overflow: "hidden", maxWidth: 420 }}>
+                    <div style={{ width: `${Math.min(95, fillPct)}%`, height: "100%", borderRadius: 99, background: isApex ? "linear-gradient(90deg, #f0c478, var(--gold))" : "linear-gradient(90deg, var(--green), var(--lime))" }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 18, marginTop: 10, fontSize: 12.5, color: "var(--muted)" }}>
+                    <span>Exit keeps {s.exitPercent}%</span>
+                    <span>·</span>
+                    <span>Upgrade pockets {s.upgradeTakePercent}%</span>
+                    {s.referralBonus > 0 && <><span>·</span><span>+{s.referralBonus} referral</span></>}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{s.fee.toLocaleString()}</div>
+                  <div style={{ fontSize: 12, color: "var(--faint)" }}>points to enter</div>
+                </div>
               </div>
-              <h3 style={{ margin: "16px 0 2px", fontSize: 20 }}>{s.name}</h3>
-              <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>
-                {s.fee}
-                <span style={{ fontSize: 14, color: "var(--color-muted)", fontWeight: 500 }}> pts</span>
-              </div>
-              <div style={{ marginTop: 14, fontSize: 13, color: "var(--color-muted)", lineHeight: 1.9 }}>
-                <div>{s.slots} slots to fill</div>
-                <div>Exit: keep {s.exitPercent}%</div>
-                <div>Upgrade: pocket {s.upgradeTakePercent}%</div>
-                {s.referralBonus > 0 && <div>+{s.referralBonus} referral bonus</div>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       {/* how it works */}
-      <section id="how" style={{ maxWidth: 820, margin: "0 auto", padding: "40px 24px 70px" }}>
-        <h2 style={{ fontSize: 30, fontWeight: 700, textAlign: "center", margin: "0 0 34px" }}>How it works</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <section id="how" className="container" style={{ padding: "60px 24px 40px" }}>
+        <span className="kicker">How it works</span>
+        <h2 style={{ fontSize: 38, marginTop: 14, marginBottom: 36 }}>From join to payout.</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 16 }}>
           {[
-            ["Join", "Sign up with a referral link and pay the small join fee in points."],
-            ["Activate", "Enter Slab 1. Two slots open under you in the global FIFO queue."],
-            ["Fill slots", "As new players activate, they fill the oldest open slots first — you earn each time."],
-            ["Decide", "When your slab fills, exit with a % of points collected, or upgrade to the next slab."],
-            ["Climb", "Repeat up to Platinum (10,000 pts / 32 slots), then take the full payout."],
-          ].map(([t, d], i) => (
-            <div key={t} className="card" style={{ padding: "18px 22px", display: "flex", gap: 18, alignItems: "center" }}>
-              <div
-                style={{
-                  minWidth: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: "var(--color-surface-2)",
-                  border: "1px solid var(--color-border)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  color: "var(--color-brand-2)",
-                }}
-              >
-                {i + 1}
-              </div>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{t}</div>
-                <div style={{ color: "var(--color-muted)", fontSize: 14 }}>{d}</div>
-              </div>
+            { icon: GitFork, t: "Join & activate", d: "Sign up with a referral link, activate into Tier 1, and open your first two slots." },
+            { icon: Network, t: "Fill your slots", d: "New players drop into the oldest open slots first. Every fill credits your balance." },
+            { icon: Repeat, t: "Exit or climb", d: "When a tier completes, take a percentage and leave — or pocket a cut and upgrade." },
+            { icon: ShieldCheck, t: "Provably fair", d: "Queue-backed placement and a row-locked, append-only ledger keep every point honest." },
+          ].map((f, i) => (
+            <div key={f.t} className="card card-hover rise" style={{ padding: 24, animationDelay: `${i * 0.06}s` }}>
+              <span style={{ display: "inline-flex", width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 12, background: "rgba(24,200,132,0.1)", border: "1px solid rgba(46,232,156,0.25)" }}>
+                <f.icon size={20} color="var(--green-bright)" />
+              </span>
+              <h3 style={{ fontSize: 17, marginTop: 16, marginBottom: 7 }}>{f.t}</h3>
+              <p style={{ color: "var(--muted)", fontSize: 14, margin: 0, lineHeight: 1.6 }}>{f.d}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <footer style={{ borderTop: "1px solid var(--color-border)", padding: "26px 24px", textAlign: "center", color: "var(--color-muted)", fontSize: 13 }}>
-        Apex is a virtual-points strategy game. No real money, deposits, or withdrawals are involved.
+      {/* CTA */}
+      <section className="container" style={{ padding: "50px 24px 90px" }}>
+        <div className="card" style={{ padding: "56px 40px", textAlign: "center", overflow: "hidden", borderColor: "rgba(46,232,156,0.22)", background: "radial-gradient(600px 240px at 50% 0%, rgba(24,200,132,0.12), transparent 70%), var(--surface)" }}>
+          <h2 style={{ fontSize: 40 }}>Ready to climb?</h2>
+          <p style={{ color: "var(--muted)", fontSize: 16, maxWidth: 420, margin: "14px auto 28px" }}>
+            Spin up an account, grab your referral link, and start filling your matrix in minutes.
+          </p>
+          <Link href="/register" className="btn btn-primary" style={{ padding: "14px 30px", fontSize: 15 }}>
+            Create your account <ArrowUpRight size={17} />
+          </Link>
+        </div>
+      </section>
+
+      <footer style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14, padding: "28px 24px" }}>
+          <Logo size={18} />
+          <p style={{ color: "var(--faint)", fontSize: 13, margin: 0 }}>
+            A virtual-points strategy game. No real money, deposits, or withdrawals.
+          </p>
+        </div>
       </footer>
     </main>
   );
