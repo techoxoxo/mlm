@@ -8,6 +8,15 @@ export async function middleware(req: NextRequest) {
 
   const isAdminArea = pathname.startsWith("/admin");
   const isUserArea = pathname.startsWith("/dashboard");
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+
+  // already signed in → keep them out of the auth pages
+  if (isAuthPage && session) {
+    const url = req.nextUrl.clone();
+    url.pathname = session.role === "admin" ? "/admin" : "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
 
   if ((isAdminArea || isUserArea) && !session) {
     const url = req.nextUrl.clone();
@@ -26,5 +35,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/register"],
 };

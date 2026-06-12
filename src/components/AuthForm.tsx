@@ -4,12 +4,13 @@ import { useActionState } from "react";
 import { Loader2 } from "lucide-react";
 import { loginAction, registerAction, type ActionState } from "@/app/actions/auth";
 
-export function AuthForm({ mode, refCode }: { mode: "login" | "register"; refCode?: string }) {
+export function AuthForm({ mode, refCode, next }: { mode: "login" | "register"; refCode?: string; next?: string }) {
   const action = mode === "login" ? loginAction : registerAction;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, null);
 
   return (
     <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {next && <input type="hidden" name="next" value={next} />}
       {mode === "register" && (
         <div>
           <label className="label">Full name</label>

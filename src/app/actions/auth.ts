@@ -16,13 +16,27 @@ import { chargeJoinFee } from "@/lib/distribution";
 const { users } = schema;
 
 const registerSchema = z.object({
-  name: z.string().min(2, "Name too short"),
-  email: z.string().email("Invalid email"),
+  name: z.string().trim().min(2, "Name too short").max(80, "Name too long"),
+  email: z.string().trim().email("Invalid email"),
   password: z.string().min(6, "Password must be 6+ characters"),
-  ref: z.string().optional(),
+  ref: z.string().trim().optional(),
 });
 
 export type ActionState = { error?: string } | null;
+
+// only allow internal redirect targets like "/dashboard/network"
+function safeNext(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
+function isUniqueViolation(e: unknown): { constraint?: string } | null {
+  const err = e as { code?: string; constraint?: string; cause?: { code?: string; constraint?: string } };
+  if (err?.code === "23505") return { constraint: err.constraint };
+  if (err?.cause?.code === "23505") return { constraint: err.cause.constraint };
+  return null;
+}
 
 export async function registerAction(_prev: ActionState, form: FormData): Promise<ActionState> {
   const parsed = registerSchema.safeParse({
@@ -32,39 +46,56 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
     ref: form.get("ref") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.errors[0].message };
-  const { name, email, password, ref } = parsed.data;
+  const { name, password, ref } = parsed.data;
+  const email = parsed.data.email.toLowerCase();
 
-  const existing = await db.query.users.findFirst({ where: eq(users.email, email.toLowerCase()) });
+  const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) return { error: "Email already registered" };
 
   let sponsorId: string | null = null;
   if (ref) {
     const sponsor = await db.query.users.findFirst({ where: eq(users.referralCode, ref.toUpperCase()) });
-    if (sponsor) sponsorId = sponsor.id;
+    if (!sponsor) return { error: "Referral code not found — leave it blank to join without one" };
+    sponsorId = sponsor.id;
   }
 
-  const created = await db.transaction(async (tx) => {
-    const [u] = await tx
-      .insert(users)
-      .values({
-        name,
-        email: email.toLowerCase(),
-        passwordHash: await hashPassword(password),
-        sponsorId,
-        referralCode: genReferralCode(),
-        status: "registered",
-      })
-      .returning();
-    await chargeJoinFee(tx, u.id);
-    return u;
-  });
+  const passwordHash = await hashPassword(password);
+
+  // retry a few times: covers the (rare) referral-code collision and the
+  // duplicate-email race where two signups pass the check above together
+  let created: typeof users.$inferSelect | null = null;
+  for (let attempt = 0; attempt < 3 && !created; attempt++) {
+    try {
+      created = await db.transaction(async (tx) => {
+        const [u] = await tx
+          .insert(users)
+          .values({
+            name,
+            email,
+            passwordHash,
+            sponsorId,
+            referralCode: genReferralCode(),
+            status: "registered",
+          })
+          .returning();
+        await chargeJoinFee(tx, u.id);
+        return u;
+      });
+    } catch (e) {
+      const unique = isUniqueViolation(e);
+      if (!unique) throw e;
+      if (unique.constraint?.includes("email")) return { error: "Email already registered" };
+      // referral-code collision → loop and mint a new code
+    }
+  }
+  if (!created) return { error: "Could not create account, please try again" };
 
   await setSession({ uid: created.id, role: created.role, email: created.email });
   redirect("/dashboard");
 }
 
 export async function loginAction(_prev: ActionState, form: FormData): Promise<ActionState> {
-  const email = String(form.get("email") || "").toLowerCase();
+  const email = String(form.get("email") || "").trim().toLowerCase();
   const password = String(form.get("password") || "");
   if (!email || !password) return { error: "Email and password required" };
 
@@ -74,7 +105,12 @@ export async function loginAction(_prev: ActionState, form: FormData): Promise<A
   }
 
   await setSession({ uid: user.id, role: user.role, email: user.email });
-  redirect(user.role === "admin" ? "/admin" : "/dashboard");
+
+  const fallback = user.role === "admin" ? "/admin" : "/dashboard";
+  const next = safeNext(form.get("next"));
+  // never bounce a non-admin into the admin area (middleware would eject them anyway)
+  const target = next && !(next.startsWith("/admin") && user.role !== "admin") ? next : fallback;
+  redirect(target);
 }
 
 export async function logoutAction() {
