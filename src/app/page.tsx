@@ -44,7 +44,7 @@ export default async function Landing() {
           top: 0,
           zIndex: 30,
           backdropFilter: "blur(14px)",
-          background: "rgba(8,9,13,0.6)",
+          background: "rgba(7,6,5,0.6)",
           borderBottom: "1px solid var(--border)",
         }}
       >
@@ -189,7 +189,7 @@ export default async function Landing() {
             { icon: ShieldCheck, t: "Provably fair", d: "Queue-backed placement and a row-locked, append-only ledger keep every point honest." },
           ].map((f, i) => (
             <div key={f.t} className="card card-hover rise" style={{ padding: 24, animationDelay: `${i * 0.06}s` }}>
-              <span style={{ display: "inline-flex", width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 12, background: "rgba(24,200,132,0.1)", border: "1px solid rgba(46,232,156,0.25)" }}>
+              <span style={{ display: "inline-flex", width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 12, background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.25)" }}>
                 <f.icon size={20} color="var(--green-bright)" />
               </span>
               <h3 style={{ fontSize: 17, marginTop: 16, marginBottom: 7 }}>{f.t}</h3>
@@ -201,7 +201,7 @@ export default async function Landing() {
 
       {/* CTA */}
       <section className="container" style={{ padding: "50px 24px 90px" }}>
-        <div className="card" style={{ padding: "56px 40px", textAlign: "center", overflow: "hidden", borderColor: "rgba(46,232,156,0.22)", background: "radial-gradient(600px 240px at 50% 0%, rgba(24,200,132,0.12), transparent 70%), var(--surface)" }}>
+        <div className="card" style={{ padding: "56px 40px", textAlign: "center", overflow: "hidden", borderColor: "rgba(212,175,55,0.22)", background: "radial-gradient(600px 240px at 50% 0%, rgba(212,175,55,0.12), transparent 70%), var(--surface)" }}>
           <h2 style={{ fontSize: 40 }}>Ready to climb?</h2>
           <p style={{ color: "var(--muted)", fontSize: 16, maxWidth: 420, margin: "14px auto 28px" }}>
             Spin up an account, grab your referral link, and start filling your matrix in minutes.

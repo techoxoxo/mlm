@@ -52,7 +52,7 @@ export function AppShell({
             top: 0,
             zIndex: 10,
             backdropFilter: "blur(12px)",
-            background: "rgba(8,9,13,0.55)",
+            background: "rgba(7,6,5,0.55)",
           }}
         >
           <div>

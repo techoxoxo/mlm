@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter } from "next/font/google";
+import { Playfair_Display, Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 
-const display = Space_Grotesk({
+const display = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-display",
+  weight: ["500", "600", "700"],
+});
+
+const num = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-num",
   weight: ["400", "500", "600", "700"],
 });
 
@@ -22,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+    <html lang="en" className={`${display.variable} ${num.variable} ${sans.variable}`}>
       <body>{children}</body>
     </html>
   );

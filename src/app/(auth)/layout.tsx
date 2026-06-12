@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           justifyContent: "space-between",
           padding: "40px 48px",
           borderRight: "1px solid var(--border)",
-          background: "radial-gradient(600px 400px at 30% 10%, rgba(24,200,132,0.1), transparent 60%), var(--bg-2)",
+          background: "radial-gradient(600px 400px at 30% 10%, rgba(212,175,55,0.1), transparent 60%), var(--bg-2)",
         }}
       >
         <Link href="/"><Logo size={22} /></Link>

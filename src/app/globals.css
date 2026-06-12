@@ -2,55 +2,60 @@
 
 /* ------------------------------------------------------------------ tokens */
 :root {
-  --bg: #08090d;
-  --bg-2: #0b0d12;
-  --surface: #0f1219;
-  --surface-2: #141823;
-  --surface-3: #1a1f2c;
-  --border: rgba(255, 255, 255, 0.06);
-  --border-2: rgba(255, 255, 255, 0.1);
-  --border-3: rgba(255, 255, 255, 0.16);
+  --bg: #070605;
+  --bg-2: #0b0907;
+  --surface: #110e0a;
+  --surface-2: #18130d;
+  --surface-3: #221b12;
+  --border: rgba(212, 175, 55, 0.1);
+  --border-2: rgba(212, 175, 55, 0.18);
+  --border-3: rgba(212, 175, 55, 0.32);
 
-  --text: #eef1f6;
-  --muted: #98a0b3;
-  --faint: #5a6173;
+  --text: #f6efe0;
+  --muted: #b7ac95;
+  --faint: #79705e;
 
-  /* growth / wealth */
-  --green: #18c884;
-  --green-bright: #2ee89c;
-  --green-ink: #052b1d;
-  --lime: #b6f24a;
-  --gold: #e7b35c;
-  --gold-ink: #2e2208;
+  /* gold / champagne */
+  --gold: #d4af37;
+  --gold-bright: #f1d785;
+  --gold-soft: #e8c66a;
+  --gold-deep: #a8842a;
+  --gold-ink: #1c1505;
 
-  --info: #4f93f0;
-  --danger: #f0616d;
-  --success: #22c55e;
+  --rose: #c98a7e;
+  --danger: #c4685e;
+  --success: #d4af37;
 
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-num: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 20px;
-  --r-xl: 28px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 0 1px rgba(46, 232, 156, 0.12), 0 12px 40px rgba(24, 200, 132, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 0 1px rgba(212, 175, 55, 0.18), 0 16px 50px rgba(212, 175, 55, 0.1);
 
-  /* backward-compatible aliases (older components use --color-* names) */
+  /* legacy aliases — older markup uses these */
+  --bg-3: var(--surface-3);
+  --green: var(--gold);
+  --green-bright: var(--gold-bright);
+  --green-ink: var(--gold-ink);
+  --lime: var(--gold-soft);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-text: var(--text);
-  --color-brand: var(--green);
-  --color-brand-2: var(--green-bright);
-  --color-accent: var(--gold);
+  --color-brand: var(--gold);
+  --color-brand-2: var(--gold-bright);
+  --color-accent: var(--gold-soft);
   --color-danger: var(--danger);
-  --color-success: var(--success);
+  --color-success: var(--gold-bright);
 }
 
 * {
@@ -70,15 +75,15 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* textured page backdrop: faint grid + top growth glow */
+/* luxurious backdrop: warm gold glow up top, deep vignette, faint hairline grid */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(900px 500px at 75% -10%, rgba(24, 200, 132, 0.1), transparent 60%),
-    radial-gradient(700px 500px at 10% 0%, rgba(79, 147, 240, 0.07), transparent 55%);
+    radial-gradient(1000px 520px at 70% -12%, rgba(212, 175, 55, 0.12), transparent 60%),
+    radial-gradient(1200px 700px at 50% 120%, rgba(0, 0, 0, 0.6), transparent 60%);
   pointer-events: none;
 }
 body::after {
@@ -87,10 +92,10 @@ body::after {
   inset: 0;
   z-index: -2;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(circle at 50% 30%, black, transparent 80%);
+    linear-gradient(to right, rgba(212, 175, 55, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(212, 175, 55, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle at 50% 24%, black, transparent 78%);
   pointer-events: none;
 }
 
@@ -99,7 +104,8 @@ a {
   text-decoration: none;
 }
 ::selection {
-  background: rgba(46, 232, 156, 0.28);
+  background: rgba(212, 175, 55, 0.32);
+  color: #fff;
 }
 
 h1,
@@ -108,13 +114,14 @@ h3,
 h4 {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.08;
+  letter-spacing: -0.005em;
+  line-height: 1.12;
   margin: 0;
 }
 
-/* numbers feel intentional with tabular figures */
-.tnum {
+.tnum,
+.mono {
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
@@ -126,9 +133,18 @@ h4 {
   padding-left: 24px;
   padding-right: 24px;
 }
-.mono {
-  font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
+
+.gold-text {
+  background: linear-gradient(100deg, var(--gold-bright), var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hr {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-2), transparent);
+  border: 0;
+  margin: 0;
 }
 
 /* ------------------------------------------------------------------ components */
@@ -137,11 +153,12 @@ h4 {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: var(--green-bright);
+    color: var(--gold);
+    font-family: var(--font-sans);
   }
 
   .surface {
@@ -153,12 +170,12 @@ h4 {
   .card {
     position: relative;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 120px),
+      linear-gradient(180deg, rgba(212, 175, 55, 0.025), transparent 140px),
       var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-sm);
-    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
   }
   .card-hover:hover {
     border-color: var(--border-3);
@@ -166,7 +183,7 @@ h4 {
     box-shadow: var(--shadow-md);
   }
   .card-feature {
-    border-color: rgba(46, 232, 156, 0.28);
+    border-color: var(--border-3);
     box-shadow: var(--shadow-glow);
   }
 
@@ -176,45 +193,45 @@ h4 {
     justify-content: center;
     gap: 8px;
     border-radius: 999px;
-    padding: 11px 20px;
+    padding: 11px 22px;
     font-family: var(--font-sans);
     font-weight: 600;
     font-size: 14px;
     line-height: 1;
     cursor: pointer;
     border: 1px solid transparent;
-    transition: all 0.16s ease;
+    transition: all 0.18s ease;
     white-space: nowrap;
     text-decoration: none;
   }
   .btn:disabled {
-    opacity: 0.55;
+    opacity: 0.5;
     cursor: not-allowed;
   }
   .btn-primary {
-    background: linear-gradient(180deg, var(--green-bright), var(--green));
-    color: var(--green-ink);
-    box-shadow: 0 6px 20px rgba(24, 200, 132, 0.25);
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: var(--gold-ink);
+    box-shadow: 0 6px 22px rgba(212, 175, 55, 0.28);
   }
   .btn-primary:hover:not(:disabled) {
-    filter: brightness(1.06);
-    box-shadow: 0 8px 26px rgba(24, 200, 132, 0.36);
+    filter: brightness(1.08);
+    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.42);
   }
   .btn-ghost {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(212, 175, 55, 0.04);
     border-color: var(--border-2);
     color: var(--text);
   }
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(212, 175, 55, 0.09);
     border-color: var(--border-3);
   }
   .btn-gold {
-    background: linear-gradient(180deg, #f0c478, var(--gold));
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
     color: var(--gold-ink);
   }
   .btn-gold:hover:not(:disabled) {
-    filter: brightness(1.05);
+    filter: brightness(1.06);
   }
 
   .input {
@@ -233,8 +250,8 @@ h4 {
     color: var(--faint);
   }
   .input:focus {
-    border-color: var(--green);
-    box-shadow: 0 0 0 3px rgba(24, 200, 132, 0.16);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.16);
   }
   .label {
     font-size: 12px;
@@ -245,30 +262,7 @@ h4 {
     display: block;
   }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 4px 11px;
-    border-radius: 999px;
-    border: 1px solid var(--border-2);
-    background: rgba(255, 255, 255, 0.025);
-    color: var(--muted);
-  }
-  .pill-green {
-    color: var(--green-bright);
-    border-color: rgba(46, 232, 156, 0.3);
-    background: rgba(24, 200, 132, 0.1);
-  }
-  .pill-gold {
-    color: var(--gold);
-    border-color: rgba(231, 179, 92, 0.32);
-    background: rgba(231, 179, 92, 0.1);
-  }
-
-  /* legacy alias so older markup keeps working */
+  .pill,
   .chip {
     display: inline-flex;
     align-items: center;
@@ -278,9 +272,48 @@ h4 {
     padding: 4px 11px;
     border-radius: 999px;
     border: 1px solid var(--border-2);
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(212, 175, 55, 0.04);
     color: var(--muted);
   }
+  .pill-green,
+  .pill-gold {
+    color: var(--gold-bright);
+    border-color: var(--border-3);
+    background: rgba(212, 175, 55, 0.1);
+  }
+
+  /* refined data tables */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .table thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 0 0 12px;
+  }
+  .table tbody td {
+    padding: 13px 0;
+    border-top: 1px solid var(--border);
+  }
+  .table tbody tr:hover td {
+    background: rgba(212, 175, 55, 0.025);
+  }
+}
+
+/* section heading helper */
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
 }
 
 /* ------------------------------------------------------------------ motion */
@@ -318,7 +351,7 @@ h4 {
 @keyframes pulse-node {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.4;
   }
   50% {
     opacity: 1;
@@ -330,14 +363,6 @@ h4 {
   }
   to {
     transform: translateX(-50%);
-  }
-}
-@keyframes grow-bar {
-  from {
-    transform: scaleY(0);
-  }
-  to {
-    transform: scaleY(1);
   }
 }
 @media (prefers-reduced-motion: reduce) {
