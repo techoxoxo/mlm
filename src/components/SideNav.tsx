@@ -48,8 +48,8 @@ export function SideNav({ items }: { items: NavItem[] }) {
               fontSize: 14,
               fontWeight: 500,
               color: active ? "var(--text)" : "var(--muted)",
-              background: active ? "rgba(212,175,55,0.08)" : "transparent",
-              border: active ? "1px solid rgba(212,175,55,0.2)" : "1px solid transparent",
+              background: active ? "rgba(248,198,23,0.08)" : "transparent",
+              border: active ? "1px solid rgba(248,198,23,0.2)" : "1px solid transparent",
               transition: "color 0.15s, background 0.15s",
             }}
           >

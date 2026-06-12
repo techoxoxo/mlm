@@ -13,7 +13,7 @@ function Stat({ icon: Icon, label, value, accent }: { icon: typeof Wallet; label
     <div className="card card-hover" style={{ padding: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span style={{ fontSize: 13, color: "var(--muted)" }}>{label}</span>
-        <span style={{ display: "inline-flex", width: 32, height: 32, alignItems: "center", justifyContent: "center", borderRadius: 9, background: accent ? "rgba(231,179,92,0.12)" : "rgba(212,175,55,0.1)", border: `1px solid ${accent ? "rgba(231,179,92,0.25)" : "rgba(212,175,55,0.22)"}` }}>
+        <span style={{ display: "inline-flex", width: 32, height: 32, alignItems: "center", justifyContent: "center", borderRadius: 9, background: accent ? "rgba(248,198,23,0.12)" : "rgba(248,198,23,0.1)", border: `1px solid ${accent ? "rgba(248,198,23,0.25)" : "rgba(248,198,23,0.22)"}` }}>
           <Icon size={16} color={accent ? "var(--gold)" : "var(--green-bright)"} />
         </span>
       </div>
@@ -34,7 +34,7 @@ export default async function DashboardHome() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
       {/* hero balance */}
-      <div className="card" style={{ padding: 28, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20, background: "radial-gradient(520px 200px at 90% -20%, rgba(212,175,55,0.1), transparent 70%), var(--surface)" }}>
+      <div className="card" style={{ padding: 28, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20, background: "radial-gradient(520px 200px at 90% -20%, rgba(248,198,23,0.1), transparent 70%), var(--surface)" }}>
         <div>
           <span style={{ fontSize: 13, color: "var(--muted)" }}>Points balance</span>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 6 }}>
@@ -109,10 +109,10 @@ export default async function DashboardHome() {
                 style={{
                   height: 56,
                   borderRadius: 12,
-                  border: `1px solid ${s.status === "filled" ? "rgba(212,175,55,0.4)" : "var(--border-2)"}`,
+                  border: `1px solid ${s.status === "filled" ? "rgba(248,198,23,0.4)" : "var(--border-2)"}`,
                   background:
                     s.status === "filled"
-                      ? "linear-gradient(160deg, rgba(212,175,55,0.22), rgba(212,175,55,0.08))"
+                      ? "linear-gradient(160deg, rgba(248,198,23,0.22), rgba(248,198,23,0.08))"
                       : "var(--surface-2)",
                   display: "flex",
                   alignItems: "center",
@@ -144,7 +144,7 @@ export default async function DashboardHome() {
               return (
                 <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ display: "inline-flex", width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 8, background: positive ? "rgba(212,175,55,0.1)" : "rgba(255,255,255,0.04)" }}>
+                    <span style={{ display: "inline-flex", width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 8, background: positive ? "rgba(248,198,23,0.1)" : "rgba(255,255,255,0.04)" }}>
                       {positive ? <ArrowUpRight size={15} color="var(--green-bright)" /> : <ArrowDownRight size={15} color="var(--faint)" />}
                     </span>
                     <span style={{ fontSize: 14, color: "var(--text)" }}>{t.note ?? t.type}</span>

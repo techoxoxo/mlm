@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Space_Grotesk, Inter } from "next/font/google";
+import { Baloo_2, Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 
-const display = Playfair_Display({
+const display = Baloo_2({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["500", "600", "700"],
+  weight: ["500", "600", "700", "800"],
 });
 
 const num = Space_Grotesk({
@@ -17,7 +17,7 @@ const num = Space_Grotesk({
 const sans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {

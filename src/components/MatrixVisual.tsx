@@ -33,12 +33,12 @@ export function MatrixVisual() {
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "visible" }} aria-hidden>
       <defs>
         <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#d4af37" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#d4af37" stopOpacity="0.08" />
+          <stop offset="0" stopColor="#f8c617" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#f8c617" stopOpacity="0.08" />
         </linearGradient>
         <radialGradient id="nodeFill" cx="0.5" cy="0.4" r="0.6">
-          <stop offset="0" stopColor="#f1d785" />
-          <stop offset="1" stopColor="#a8842a" />
+          <stop offset="0" stopColor="#ffd84d" />
+          <stop offset="1" stopColor="#c89a0e" />
         </radialGradient>
         <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="6" result="b" />
@@ -69,14 +69,14 @@ export function MatrixVisual() {
         return (
           <g key={`${n.lvl}-${n.i}`} style={{ animation: `rise 0.6s ease ${0.15 + n.lvl * 0.12 + n.i * 0.02}s both` }}>
             {filled && (
-              <circle cx={n.x} cy={n.y} r={r + 5} fill="#d4af37" opacity="0.14" filter="url(#soft)" />
+              <circle cx={n.x} cy={n.y} r={r + 5} fill="#f8c617" opacity="0.14" filter="url(#soft)" />
             )}
             <circle
               cx={n.x}
               cy={n.y}
               r={r}
-              fill={isApex ? "#f7e6a8" : filled ? "url(#nodeFill)" : "#1a140c"}
-              stroke={isApex ? "#f7e6a8" : filled ? "rgba(212,175,55,0.55)" : "rgba(212,175,55,0.18)"}
+              fill={isApex ? "#fff0b8" : filled ? "url(#nodeFill)" : "#1d1a10"}
+              stroke={isApex ? "#fff0b8" : filled ? "rgba(248,198,23,0.55)" : "rgba(248,198,23,0.18)"}
               strokeWidth="1.5"
               style={filled ? { animation: `pulse-node ${2.4 + idx * 0.1}s ease-in-out infinite` } : undefined}
             />
