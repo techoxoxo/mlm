@@ -16,7 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getSession();
   if (!session) redirect("/login");
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, session.uid) });
-  if (!user) redirect("/login");
+  if (!user) redirect("/logout");
 
   return (
     <AppShell

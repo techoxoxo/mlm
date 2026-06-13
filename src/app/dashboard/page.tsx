@@ -26,7 +26,7 @@ export default async function DashboardHome() {
   const session = await getSession();
   if (!session) redirect("/login");
   const data = await getDashboard(session.uid);
-  if (!data) redirect("/login");
+  if (!data) redirect("/logout");
 
   const { user, currentSlab, nextSlab, mySlots, filled, collected, pending } = data;
   const pct = currentSlab ? Math.round((filled / currentSlab.slots) * 100) : 0;

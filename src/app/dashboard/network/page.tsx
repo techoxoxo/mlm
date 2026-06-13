@@ -13,7 +13,7 @@ export default async function NetworkPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   const data = await getDashboard(session.uid);
-  if (!data) redirect("/login");
+  if (!data) redirect("/logout");
 
   // who has filled my slots (matrix downline)
   const placed = await db
