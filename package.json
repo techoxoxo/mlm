@@ -12,7 +12,9 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "sim": "tsx scripts/simulate.ts"
+    "sim": "tsx scripts/simulate.ts",
+    "stress": "tsx scripts/stress.ts",
+    "test:1000": "tsx scripts/test-1000.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
