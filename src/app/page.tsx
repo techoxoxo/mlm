@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { ArrowRight, Sparkles, Network, GitFork, Repeat, ShieldCheck, Wallet } from "lucide-react";
 import { db, schema } from "@/db";
@@ -9,18 +10,28 @@ import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function Landing() {
-  const slabRows = await db.select().from(schema.slabs).orderBy(asc(schema.slabs.level));
-  const session = await getSession();
+// slabs and the ticker change slowly — cache for 30s instead of hitting
+// Postgres on every landing-page visit
+const getLandingData = unstable_cache(
+  async () => {
+    const [slabRows, ticker] = await Promise.all([
+      db.select().from(schema.slabs).orderBy(asc(schema.slabs.level)),
+      db
+        .select({ name: schema.users.name, points: schema.transactions.points, slab: schema.transactions.slabLevel })
+        .from(schema.transactions)
+        .innerJoin(schema.users, eq(schema.users.id, schema.transactions.userId))
+        .where(sql`${schema.transactions.points} > 0`)
+        .orderBy(desc(schema.transactions.createdAt))
+        .limit(14),
+    ]);
+    return { slabRows, ticker };
+  },
+  ["landing-data"],
+  { revalidate: 30 },
+);
 
-  // live ticker — recent credits, newest first
-  const ticker = await db
-    .select({ name: schema.users.name, points: schema.transactions.points, slab: schema.transactions.slabLevel })
-    .from(schema.transactions)
-    .innerJoin(schema.users, eq(schema.users.id, schema.transactions.userId))
-    .where(sql`${schema.transactions.points} > 0`)
-    .orderBy(desc(schema.transactions.createdAt))
-    .limit(14);
+export default async function Landing() {
+  const [{ slabRows, ticker }, session] = await Promise.all([getLandingData(), getSession()]);
 
   const tickerItems =
     ticker.length >= 5

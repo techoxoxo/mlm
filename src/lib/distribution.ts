@@ -8,6 +8,24 @@ const { users, slabs, slots, transactions, settings, slabCompletions } = schema;
 type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
 type TxType = (typeof schema.txType.enumValues)[number];
 
+/** Postgres deadlock (40P01) / serialization (40001) — safe to retry whole tx. */
+function isRetryableTxError(e: unknown): boolean {
+  const err = e as { code?: string; cause?: { code?: string } };
+  const code = err?.code ?? err?.cause?.code;
+  return code === "40P01" || code === "40001";
+}
+
+async function withTxRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (i >= attempts - 1 || !isRetryableTxError(e)) throw e;
+      await new Promise((r) => setTimeout(r, 30 * (i + 1) + Math.random() * 60));
+    }
+  }
+}
+
 /**
  * The distribution engine.
  *
@@ -118,16 +136,11 @@ export async function enterSlab(
   const slab = await getSlab(tx, level);
   const cfg = await getSettings(tx);
 
-  const [member] = await tx.select().from(users).where(eq(users.id, userId)).for("update");
+  const [member] = await tx.select().from(users).where(eq(users.id, userId));
   if (!member) throw new Error("member not found");
 
-  // 1) Member pays the slab fee (debit).
-  await post(tx, userId, level === 1 ? "activation_fee" : "upgrade_fee", -slab.fee, {
-    slabLevel: level,
-    note: `Enter ${slab.name} (slab ${level})`,
-  });
-
-  // 2) Fill the oldest open slot at this level — atomic via SKIP LOCKED.
+  // 1) Claim the oldest open slot at this level — atomic via SKIP LOCKED
+  //    (never blocks, so slots can't participate in a deadlock cycle).
   const [openSlot] = await tx
     .select()
     .from(slots)
@@ -135,6 +148,29 @@ export async function enterSlab(
     .orderBy(slots.queueSeq)
     .limit(1)
     .for("update", { skipLocked: true });
+
+  // 2) Lock every participant's user row in canonical (id) order BEFORE any
+  //    balance write. Without this, two entries whose members are each
+  //    other's slot-owners acquire the same row locks in opposite order and
+  //    deadlock. (withTxRetry remains the safety net for residual cases.)
+  const participants = [
+    userId,
+    ...(openSlot && openSlot.ownerId !== userId ? [openSlot.ownerId] : []),
+    ...(member.sponsorId && slab.referralBonus > 0 ? [member.sponsorId] : []),
+  ];
+  const ordered = [...new Set(participants)].sort();
+  await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(sql`${users.id} in ${ordered}`)
+    .orderBy(users.id)
+    .for("update");
+
+  // 3) Member pays the slab fee (debit).
+  await post(tx, userId, level === 1 ? "activation_fee" : "upgrade_fee", -slab.fee, {
+    slabLevel: level,
+    note: `Enter ${slab.name} (slab ${level})`,
+  });
 
   let uplineOwnerId: string | null = null;
   let uplineSlotPosition: number | null = null;
@@ -252,7 +288,7 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
  * Runs in its own transaction.
  */
 export async function decideChoice(userId: string, choice: "exit" | "upgrade") {
-  const result = await db.transaction(async (tx) => {
+  const result = await withTxRetry(() => db.transaction(async (tx) => {
     const [user] = await tx.select().from(users).where(eq(users.id, userId)).for("update");
     if (!user) throw new Error("user not found");
     if (user.pendingChoiceSlab == null) throw new Error("No pending slab decision");
@@ -317,7 +353,7 @@ export async function decideChoice(userId: string, choice: "exit" | "upgrade") {
 
     const entry = await enterSlab(tx, userId, nextLevel);
     return { choice: "upgrade" as const, fromLevel: level, toLevel: nextLevel, take, entry };
-  });
+  }));
 
   if (result.choice === "upgrade") await notifyEntry(userId, result.entry);
   return result;
@@ -325,12 +361,12 @@ export async function decideChoice(userId: string, choice: "exit" | "upgrade") {
 
 /** First-time activation: registered → slab 1. Runs in its own transaction. */
 export async function activate(userId: string) {
-  const result = await db.transaction(async (tx) => {
-    const [user] = await tx.select().from(users).where(eq(users.id, userId)).for("update");
+  const result = await withTxRetry(() => db.transaction(async (tx) => {
+    const [user] = await tx.select().from(users).where(eq(users.id, userId));
     if (!user) throw new Error("user not found");
     if (user.currentSlab !== 0) throw new Error("Already activated");
     return enterSlab(tx, userId, 1);
-  });
+  }));
   await notifyEntry(userId, result);
   return result;
 }

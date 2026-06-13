@@ -7,58 +7,54 @@ export async function getDashboard(uid: string) {
   const user = await db.query.users.findFirst({ where: eq(users.id, uid) });
   if (!user) return null;
 
-  const allSlabs = await db.select().from(slabs).orderBy(slabs.level);
+  // everything below only depends on `user` — run it all in parallel
+  const [allSlabs, mySlots, collectedRows, pending, recentTx, referrals, earnedRows] =
+    await Promise.all([
+      db.select().from(slabs).orderBy(slabs.level),
+      user.currentSlab
+        ? db
+            .select()
+            .from(slots)
+            .where(and(eq(slots.ownerId, uid), eq(slots.slabLevel, user.currentSlab)))
+            .orderBy(slots.position)
+        : Promise.resolve([]),
+      db
+        .select({ collected: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, uid),
+            eq(transactions.slabLevel, user.currentSlab),
+            sql`${transactions.type} in ('slot_credit','referral_bonus')`,
+          ),
+        ),
+      user.pendingChoiceSlab != null
+        ? db.query.slabCompletions.findFirst({
+            where: and(eq(slabCompletions.userId, uid), eq(slabCompletions.slabLevel, user.pendingChoiceSlab)),
+          })
+        : Promise.resolve(null),
+      db
+        .select()
+        .from(transactions)
+        .where(eq(transactions.userId, uid))
+        .orderBy(desc(transactions.createdAt))
+        .limit(12),
+      db
+        .select({ id: users.id, name: users.name, slab: users.currentSlab, status: users.status, createdAt: users.createdAt })
+        .from(users)
+        .where(eq(users.sponsorId, uid))
+        .orderBy(desc(users.createdAt)),
+      db
+        .select({ earned: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+        .from(transactions)
+        .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`)),
+    ]);
+
   const currentSlab = allSlabs.find((s) => s.level === user.currentSlab) ?? null;
   const nextSlab = allSlabs.find((s) => s.level === user.currentSlab + 1) ?? null;
-
-  // my slots at current slab
-  const mySlots = user.currentSlab
-    ? await db
-        .select()
-        .from(slots)
-        .where(and(eq(slots.ownerId, uid), eq(slots.slabLevel, user.currentSlab)))
-        .orderBy(slots.position)
-    : [];
   const filled = mySlots.filter((s) => s.status === "filled").length;
-
-  // collected at current slab
-  const [{ collected }] = await db
-    .select({ collected: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.userId, uid),
-        eq(transactions.slabLevel, user.currentSlab),
-        sql`${transactions.type} in ('slot_credit','referral_bonus')`,
-      ),
-    );
-
-  // pending choice
-  const pending =
-    user.pendingChoiceSlab != null
-      ? await db.query.slabCompletions.findFirst({
-          where: and(eq(slabCompletions.userId, uid), eq(slabCompletions.slabLevel, user.pendingChoiceSlab)),
-        })
-      : null;
-
-  const recentTx = await db
-    .select()
-    .from(transactions)
-    .where(eq(transactions.userId, uid))
-    .orderBy(desc(transactions.createdAt))
-    .limit(12);
-
-  // direct referrals
-  const referrals = await db
-    .select({ id: users.id, name: users.name, slab: users.currentSlab, status: users.status, createdAt: users.createdAt })
-    .from(users)
-    .where(eq(users.sponsorId, uid))
-    .orderBy(desc(users.createdAt));
-
-  const [{ earned }] = await db
-    .select({ earned: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
-    .from(transactions)
-    .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`));
+  const collected = collectedRows[0]?.collected ?? 0;
+  const earned = earnedRows[0]?.earned ?? 0;
 
   return {
     user,
@@ -86,8 +82,11 @@ export type TreeNode = {
   children: TreeNode[];
 };
 
-/** Build the referral downline tree rooted at `uid` via a recursive CTE. */
-export async function getDownlineTree(uid: string, maxDepth = 6): Promise<TreeNode | null> {
+/**
+ * Build the referral downline tree rooted at `uid` via a recursive CTE.
+ * Depth- and row-capped so a huge network can't blow up the page render.
+ */
+export async function getDownlineTree(uid: string, maxDepth = 6, maxRows = 500): Promise<TreeNode | null> {
   const res = await db.execute(sql`
     WITH RECURSIVE tree AS (
       SELECT id, name, sponsor_id, current_slab, status, 0 AS depth
@@ -98,7 +97,8 @@ export async function getDownlineTree(uid: string, maxDepth = 6): Promise<TreeNo
       JOIN tree t ON u.sponsor_id = t.id
       WHERE t.depth < ${maxDepth}
     )
-    SELECT id, name, sponsor_id, current_slab, status, depth FROM tree ORDER BY depth
+    SELECT id, name, sponsor_id, current_slab, status, depth
+    FROM tree ORDER BY depth LIMIT ${maxRows}
   `);
 
   const rows = res.rows as {

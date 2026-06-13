@@ -1,0 +1,1 @@
+CREATE INDEX "tx_user_slab_idx" ON "transactions" USING btree ("user_id","slab_level");

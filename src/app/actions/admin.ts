@@ -41,25 +41,26 @@ export async function simulateAction(form: FormData): Promise<{ created: number;
   // pool of potential sponsors = existing players (+ admin as fallback root)
   const pool = (await db.select({ id: users.id }).from(users)).map((u) => u.id);
 
+  // pre-generate ids so sponsors can reference earlier members of the same
+  // batch, then insert everyone in one round-trip
   const pw = await hashPassword("sim1234");
-  const created: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const sponsor = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  const rows = Array.from({ length: count }, (_, i) => {
+    const id = crypto.randomUUID();
+    const sponsorId = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    pool.push(id);
     const tag = `${Date.now().toString(36)}${i}`;
-    const [u] = await db
-      .insert(users)
-      .values({
-        name: `Sim ${tag}`,
-        email: `sim_${tag}@sim.local`,
-        passwordHash: pw,
-        sponsorId: sponsor,
-        referralCode: genReferralCode(),
-        status: "registered",
-      })
-      .returning({ id: users.id });
-    created.push(u.id);
-    pool.push(u.id);
-  }
+    return {
+      id,
+      name: `Sim ${tag}`,
+      email: `sim_${tag}@sim.local`,
+      passwordHash: pw,
+      sponsorId,
+      referralCode: genReferralCode(),
+      status: "registered" as const,
+    };
+  });
+  await db.insert(users).values(rows);
+  const created = rows.map((r) => r.id);
 
   // activate everyone (durable queue → worker)
   await Promise.all(created.map((id) => enqueueActivation(id).catch(() => null)));

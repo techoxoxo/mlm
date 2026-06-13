@@ -7,26 +7,33 @@ export const dynamic = "force-dynamic";
 
 const { users, slots, transactions } = schema;
 
-async function scalar(q: Promise<{ v: number }[]>) {
-  return (await q)[0]?.v ?? 0;
-}
-
 export default async function AdminOverview() {
-  const totalUsers = await scalar(db.select({ v: sql<number>`count(*)::int` }).from(users).where(sql`role = 'user'`));
-  const active = await scalar(db.select({ v: sql<number>`count(*)::int` }).from(users).where(sql`status = 'active'`));
-  const exited = await scalar(db.select({ v: sql<number>`count(*)::int` }).from(users).where(sql`status = 'exited'`));
-  const completed = await scalar(db.select({ v: sql<number>`count(*)::int` }).from(users).where(sql`status = 'completed'`));
-  const filledSlots = await scalar(db.select({ v: sql<number>`count(*)::int` }).from(slots).where(sql`status = 'filled'`));
-  const distributed = await scalar(
-    db.select({ v: sql<number>`coalesce(sum(points),0)::int` }).from(transactions).where(sql`points > 0`),
-  );
+  // one aggregate per table, in parallel — not a round-trip per stat
+  const [[userAgg], [slotAgg], [txAgg], bySlab] = await Promise.all([
+    db
+      .select({
+        total: sql<number>`count(*) filter (where role = 'user')::int`,
+        active: sql<number>`count(*) filter (where role = 'user' and status = 'active')::int`,
+        exited: sql<number>`count(*) filter (where role = 'user' and status = 'exited')::int`,
+        completed: sql<number>`count(*) filter (where role = 'user' and status = 'completed')::int`,
+      })
+      .from(users),
+    db.select({ filled: sql<number>`count(*) filter (where status = 'filled')::int` }).from(slots),
+    db.select({ distributed: sql<number>`coalesce(sum(points) filter (where points > 0),0)::int` }).from(transactions),
+    db
+      .select({ slab: users.currentSlab, n: sql<number>`count(*)::int` })
+      .from(users)
+      .where(sql`role = 'user'`)
+      .groupBy(users.currentSlab)
+      .orderBy(users.currentSlab),
+  ]);
 
-  const bySlab = await db
-    .select({ slab: users.currentSlab, n: sql<number>`count(*)::int` })
-    .from(users)
-    .where(sql`role = 'user'`)
-    .groupBy(users.currentSlab)
-    .orderBy(users.currentSlab);
+  const totalUsers = userAgg.total;
+  const active = userAgg.active;
+  const exited = userAgg.exited;
+  const completed = userAgg.completed;
+  const filledSlots = slotAgg.filled;
+  const distributed = txAgg.distributed;
 
   const stats = [
     { icon: Users, label: "Total players", value: totalUsers },

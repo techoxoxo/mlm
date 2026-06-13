@@ -153,6 +153,8 @@ export const transactions = pgTable(
   },
   (t) => ({
     userIdx: index("tx_user_idx").on(t.userId, t.createdAt),
+    // serves the per-slab "collected" sums in the engine and dashboard
+    userSlabIdx: index("tx_user_slab_idx").on(t.userId, t.slabLevel),
     idemIdx: uniqueIndex("tx_idem_idx").on(t.idempotencyKey),
   }),
 );
