@@ -15,6 +15,13 @@
       "when": 1781297657837,
       "tag": "0001_fluffy_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781510750844,
+      "tag": "0002_damp_war_machine",
+      "breakpoints": true
     }
   ]
 }

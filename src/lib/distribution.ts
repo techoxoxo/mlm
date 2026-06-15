@@ -277,9 +277,10 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
     .values({ userId, slabLevel: level, collected, status: "pending" })
     .onConflictDoNothing();
 
+  // clearing a stage resets the royalty-reserve inactivity clock
   await tx
     .update(users)
-    .set({ pendingChoiceSlab: level })
+    .set({ pendingChoiceSlab: level, lastStageClearedAt: sql`now()` })
     .where(eq(users.id, userId));
 }
 
@@ -371,10 +372,24 @@ export async function activate(userId: string) {
   return result;
 }
 
-/** Charge the one-time join fee at registration. */
-export async function chargeJoinFee(tx: Tx, userId: string) {
+/**
+ * Charge the registration fees that are NOT the autopool entry:
+ *   id_pin_fee (→ system) + royalty_fee (→ royalty pool).
+ * The autopool portion (slab 1 fee) is charged separately by enterSlab.
+ */
+export async function chargeRegistration(tx: Tx, userId: string) {
   const cfg = await getSettings(tx);
-  await post(tx, userId, "join_fee", -cfg.joinFee, { note: "Join fee" });
+  if (cfg.idPinFee > 0) {
+    await post(tx, userId, "id_pin_fee", -cfg.idPinFee, { note: "ID & PIN fee" });
+  }
+  if (cfg.royaltyFee > 0) {
+    await post(tx, userId, "royalty_fee", -cfg.royaltyFee, { note: "Royalty program contribution" });
+    // the contribution flows into the shared royalty pool
+    await tx
+      .update(schema.pools)
+      .set({ royaltyPool: sql`${schema.pools.royaltyPool} + ${cfg.royaltyFee}`, updatedAt: sql`now()` })
+      .where(eq(schema.pools.id, 1));
+  }
 }
 
 /** Read a user's per-slab collected total (for display). */
@@ -392,4 +407,4 @@ export async function collectedAtSlab(userId: string, level: number) {
   return collected;
 }
 
-export { post, getSlab, getSettings };
+export { post, getSlab, getSettings, withTxRetry };

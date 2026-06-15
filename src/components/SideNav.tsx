@@ -10,6 +10,7 @@ import {
   Settings,
   Users,
   ListChecks,
+  Gift,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ const ICONS: Record<string, LucideIcon> = {
   settings: Settings,
   users: Users,
   queue: ListChecks,
+  gift: Gift,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };

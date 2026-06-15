@@ -25,6 +25,8 @@ export const userStatus = pgEnum("user_status", [
 export const slotStatus = pgEnum("slot_status", ["open", "filled"]);
 export const txType = pgEnum("tx_type", [
   "join_fee",
+  "id_pin_fee", // 10pt registration fee → system
+  "royalty_fee", // 10pt registration contribution → royalty pool
   "activation_fee",
   "upgrade_fee",
   "slot_credit", // points earned when a downline fills your slot
@@ -32,6 +34,8 @@ export const txType = pgEnum("tx_type", [
   "exit_payout",
   "upgrade_take", // the % you pocket when you choose to upgrade
   "company_fee", // the house cut
+  "royalty_payout", // rank-band royalty reward
+  "royalty_reserve_reward", // 5% reserve reward to 6-month non-achievers
   "adjustment", // manual admin adjustment
 ]);
 export const choiceStatus = pgEnum("choice_status", [
@@ -44,7 +48,14 @@ export const choiceStatus = pgEnum("choice_status", [
 
 export const settings = pgTable("settings", {
   id: integer("id").primaryKey().default(1),
-  joinFee: integer("join_fee").notNull().default(10),
+  joinFee: integer("join_fee").notNull().default(10), // legacy; unused with split registration
+  // registration breakdown — total = idPinFee + slab1.fee (autopool) + royaltyFee
+  idPinFee: integer("id_pin_fee").notNull().default(10),
+  royaltyFee: integer("royalty_fee").notNull().default(10),
+  // % of the royalty pool held back on each distribution for the reserve fund
+  royaltyReservePercent: integer("royalty_reserve_percent").notNull().default(5),
+  // months of no stage-clear that qualifies a user for a reserve reward
+  reserveInactivityMonths: integer("reserve_inactivity_months").notNull().default(6),
   // global default cut taken by the house on every slot credit (percent 0-100)
   companyPercent: integer("company_percent").notNull().default(0),
   // whether new activations auto-place into the global FIFO pool
@@ -53,6 +64,54 @@ export const settings = pgTable("settings", {
     .notNull()
     .defaultNow(),
 });
+
+/* ------------------------------------------------------------------ pools (singleton) */
+
+export const pools = pgTable("pools", {
+  id: integer("id").primaryKey().default(1),
+  royaltyPool: integer("royalty_pool").notNull().default(0), // undistributed royalty points
+  royaltyReserve: integer("royalty_reserve").notNull().default(0), // 5% safety fund
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ------------------------------------------------------------------ royalty rank tiers (admin-configurable) */
+
+export const royaltyTiers = pgTable("royalty_tiers", {
+  minDirects: integer("min_directs").primaryKey(), // 10, 25, 50, 100, 200
+  percent: integer("percent").notNull(), // share of the pool for this band
+  label: text("label").notNull(),
+});
+
+/* ------------------------------------------------------------------ royalty distribution audit */
+
+export const royaltyRuns = pgTable("royalty_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  poolBefore: integer("pool_before").notNull(),
+  reserveAdded: integer("reserve_added").notNull(),
+  rankDistributed: integer("rank_distributed").notNull(),
+  reserveDistributed: integer("reserve_distributed").notNull(),
+  rankRecipients: integer("rank_recipients").notNull(),
+  reserveRecipients: integer("reserve_recipients").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const royaltyPayouts = pgTable(
+  "royalty_payouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    kind: text("kind").notNull(), // 'rank' | 'reserve'
+    directs: integer("directs"),
+    bandPercent: integer("band_percent"),
+    amount: integer("amount").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    runIdx: index("royalty_payouts_run_idx").on(t.runId),
+    userIdx: index("royalty_payouts_user_idx").on(t.userId),
+  }),
+);
 
 /* ------------------------------------------------------------------ slabs (admin-configurable) */
 
@@ -99,6 +158,9 @@ export const users = pgTable(
       .defaultNow(),
     activatedAt: timestamp("activated_at", { withTimezone: true }),
     exitedAt: timestamp("exited_at", { withTimezone: true }),
+    // royalty bookkeeping
+    lastStageClearedAt: timestamp("last_stage_cleared_at", { withTimezone: true }),
+    lastReserveRewardAt: timestamp("last_reserve_reward_at", { withTimezone: true }),
   },
   (t) => ({
     emailIdx: uniqueIndex("users_email_idx").on(t.email),
@@ -208,5 +270,9 @@ export type Slot = typeof slots.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
 export type SlabCompletion = typeof slabCompletions.$inferSelect;
+export type Pools = typeof pools.$inferSelect;
+export type RoyaltyTier = typeof royaltyTiers.$inferSelect;
+export type RoyaltyRun = typeof royaltyRuns.$inferSelect;
+export type RoyaltyPayout = typeof royaltyPayouts.$inferSelect;
 
 export const sqlNow = sql`now()`;

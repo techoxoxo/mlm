@@ -80,6 +80,19 @@ export async function simulateAction(form: FormData): Promise<{ created: number;
   return { created: created.length };
 }
 
+export async function runRoyaltyAction() {
+  await requireAdmin();
+  const { distributeRoyalty } = await import("@/lib/royalty");
+  try {
+    const res = await distributeRoyalty();
+    revalidatePath("/admin/royalty");
+    revalidatePath("/admin");
+    return { ok: true as const, res };
+  } catch (e) {
+    return { ok: false as const, error: (e as Error).message };
+  }
+}
+
 export async function updateSlabAction(form: FormData) {
   await requireAdmin();
   const level = Number(form.get("level"));

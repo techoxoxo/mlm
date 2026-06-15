@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { db, pool, schema } from "@/db";
-import { activate, decideChoice, chargeJoinFee, post } from "@/lib/distribution";
+import { activate, decideChoice, chargeRegistration, post } from "@/lib/distribution";
+import { distributeRoyalty } from "@/lib/royalty";
 import { genReferralCode, hashPassword } from "@/lib/auth";
 import { and, eq, sql } from "drizzle-orm";
 
-const { users, slots, transactions, slabCompletions, slabs, settings } = schema;
+const { users, slots, transactions, slabCompletions, slabs, settings, pools } = schema;
 
 const N = Number(process.argv[2] ?? 1000);
 
@@ -38,7 +39,7 @@ async function makeUser(i: number, sponsorId: string | null, pw: string) {
         status: "registered",
       })
       .returning({ id: users.id });
-    await chargeJoinFee(tx, u.id);
+    await chargeRegistration(tx, u.id); // id-pin + royalty; autopool charged on activate()
     return u.id;
   });
 }
@@ -65,11 +66,14 @@ async function main() {
   await db
     .update(users)
     .set({ pointsBalance: 0, currentSlab: 0, pendingChoiceSlab: null, status: "active" });
+  // reset royalty pool/reserve and wipe distribution audit
+  await db.execute(sql`truncate ${schema.royaltyRuns}, ${schema.royaltyPayouts}`);
+  await db.update(pools).set({ royaltyPool: 0, royaltyReserve: 0 }).where(eq(pools.id, 1));
 
   const [cfg] = await db.select().from(settings).where(eq(settings.id, 1));
   const slabRows = await db.select().from(slabs).orderBy(slabs.level);
   const maxLevel = Math.max(...slabRows.map((s) => s.level));
-  const joinFee = cfg.joinFee;
+  const regFee = cfg.idPinFee + (slabRows.find((s) => s.level === 1)?.fee ?? 0) + cfg.royaltyFee;
 
   const pw = await hashPassword("test1234");
   const ids: string[] = [];
@@ -159,6 +163,51 @@ async function main() {
   counts.completed++;
   console.log(`  topper completed at tier ${maxLevel}, full payout ${TOP_COLLECTED}\n`);
 
+  // ---- Phase 2c: royalty distribution (rank bands + reserve) ----
+  console.log("Phase 2c: royalty distribution…");
+  // give one influencer 12 fresh direct referrals so a rank band actually pays
+  // (new sponsored users keep the referral-bonus invariant consistent)
+  const influencer = ids[0];
+  for (let k = 0; k < 12; k++) {
+    const fid = await makeUser(N + k, influencer, pw);
+    await activate(fid);
+  }
+  // backdate some never-cleared players >6mo so the reserve fund pays out
+  await db.execute(sql`
+    update ${users} set created_at = now() - interval '8 months',
+                        last_stage_cleared_at = null
+    where id in (
+      select id from ${users}
+      where role='user' and current_slab >= 1 and pending_choice_slab is null
+        and id not in (select user_id from ${slabCompletions})
+      limit 5
+    )`);
+  const [poolRow] = await db.select().from(pools).where(eq(pools.id, 1));
+  const royaltyPoolBefore = poolRow.royaltyPool;
+  const rr = await distributeRoyalty();
+  console.log(`  pool ${rr.poolBefore} → rank ${rr.rankDistributed} to ${rr.rankRecipients}, reserve +${rr.reserveAdded} paid ${rr.reserveDistributed} to ${rr.reserveRecipients}\n`);
+
+  // pool conservation: nothing created or lost
+  check(rr.poolBefore === royaltyPoolBefore, "royalty run sees full pool");
+  check(rr.poolBefore === rr.reserveAdded + rr.rankDistributed + rr.carryPool, "pool conserved (reserve + rank + carry)");
+  const [{ payoutSum }] = await db
+    .select({ payoutSum: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+    .from(transactions)
+    .where(sql`${transactions.type}='royalty_payout'`);
+  check(payoutSum === rr.rankDistributed, "royalty_payout ledger == rank distributed");
+  const [{ reserveSum }] = await db
+    .select({ reserveSum: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+    .from(transactions)
+    .where(sql`${transactions.type}='royalty_reserve_reward'`);
+  check(reserveSum === rr.reserveDistributed, "reserve ledger == reserve distributed");
+  check(rr.reserveRecipients > 0, "reserve reward reached backdated non-achievers");
+  check(rr.rankRecipients > 0 && rr.rankDistributed > 0, "rank band paid the qualifying influencer");
+  const [{ infEarned }] = await db
+    .select({ infEarned: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+    .from(transactions)
+    .where(and(eq(transactions.userId, influencer), eq(transactions.type, "royalty_payout")));
+  check(infEarned > 0, "influencer received a royalty rank payout");
+
   // ---- Phase 3: edge-case / negative assertions ----
   console.log("Phase 3: edge-case assertions…");
   // double activation
@@ -213,8 +262,10 @@ async function main() {
     select count(*)::int n from owned o join ${slabs} sl on sl.level=o.slab_level where o.n <> sl.slots`)) === 0, "each entered level has exactly slab.slots owned slots");
 
   // join fee charged exactly once per player (admin never registers, so scope to role=user)
-  // synthetic topper is created directly (no registration), so exclude it
-  check((await scalar(sql`select count(*)::int n from ${users} u where u.role='user' and u.id <> ${finalId} and (select count(*) from ${transactions} t where t.user_id=u.id and t.type='join_fee') <> 1`)) === 0, "exactly one join_fee per player");
+  // synthetic topper is created directly (no registration), so exclude it.
+  // every registered player pays exactly one id_pin_fee and one royalty_fee.
+  check((await scalar(sql`select count(*)::int n from ${users} u where u.role='user' and u.id <> ${finalId} and (select count(*) from ${transactions} t where t.user_id=u.id and t.type='id_pin_fee') <> 1`)) === 0, "exactly one id_pin_fee per player");
+  check((await scalar(sql`select count(*)::int n from ${users} u where u.role='user' and u.id <> ${finalId} and (select count(*) from ${transactions} t where t.user_id=u.id and t.type='royalty_fee') <> 1`)) === 0, "exactly one royalty_fee per player");
 
   // referral bonuses: count == entries by sponsored users at levels with bonus>0
   check((await scalar(sql`
@@ -236,7 +287,7 @@ async function main() {
 
   console.log("Status:", byStatus.map((r) => `${r.s}=${r.n}`).join("  "));
   console.log("Highest slab reached:", bySlab.map((r) => `L${r.l}=${r.n}`).join("  "));
-  console.log("Slots filled:", filled, " | join fee:", joinFee);
+  console.log("Slots filled:", filled, " | registration fee:", regFee);
   console.log("\nLedger by type:");
   for (const l of ledger) console.log(`  ${l.type.padEnd(16)} n=${String(l.n).padStart(5)}  sum=${l.sum}`);
 

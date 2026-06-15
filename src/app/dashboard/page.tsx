@@ -3,8 +3,10 @@ import { Wallet, Layers, TrendingUp, Users, ArrowUpRight, ArrowDownRight } from 
 import { getSession } from "@/lib/auth";
 import { getDashboard } from "@/lib/queries";
 import { env } from "@/lib/env";
+import { Gift } from "lucide-react";
 import { ActivateButton, DecisionPanel } from "@/components/GameActions";
 import { ReferralCard } from "@/components/ReferralCard";
+import { getRoyaltyOverview } from "@/lib/royalty";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,8 @@ export default async function DashboardHome() {
 
   const { user, currentSlab, nextSlab, mySlots, filled, collected, pending } = data;
   const pct = currentSlab ? Math.round((filled / currentSlab.slots) * 100) : 0;
+  const royalty = await getRoyaltyOverview(session.uid);
+  const nextTier = royalty.tiers.find((t) => t.minDirects > (royalty.me?.directs ?? 0));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
@@ -131,6 +135,36 @@ export default async function DashboardHome() {
       )}
 
       <ReferralCard code={user.referralCode} appUrl={env.APP_URL} />
+
+      {/* royalty program */}
+      <div className="card" style={{ padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <Gift size={17} color="var(--gold-bright)" />
+          <h3 style={{ fontSize: 16 }}>Royalty program</h3>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 14 }}>
+          <div style={{ background: "var(--surface-2)", borderRadius: "var(--r-md)", padding: 16 }}>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Direct referrals</div>
+            <div className="mono" style={{ fontSize: 26, fontWeight: 700 }}>{royalty.me?.directs ?? 0}</div>
+          </div>
+          <div style={{ background: "var(--surface-2)", borderRadius: "var(--r-md)", padding: 16 }}>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Current rank</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4, color: royalty.me?.band ? "var(--gold-bright)" : "var(--faint)" }}>
+              {royalty.me?.band ? `${royalty.me.band.label} · ${royalty.me.band.percent}%` : "Unranked"}
+            </div>
+          </div>
+          <div style={{ background: "var(--surface-2)", borderRadius: "var(--r-md)", padding: 16 }}>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Royalty earned</div>
+            <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: "var(--gold-bright)" }}>{(royalty.me?.earned ?? 0).toLocaleString()}</div>
+          </div>
+        </div>
+        {nextTier && (
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: "14px 0 0" }}>
+            {nextTier.minDirects - (royalty.me?.directs ?? 0)} more direct referrals to reach{" "}
+            <b style={{ color: "var(--text)" }}>{nextTier.label}</b> ({nextTier.percent}% share).
+          </p>
+        )}
+      </div>
 
       {/* recent activity */}
       <div className="card" style={{ padding: 24 }}>
