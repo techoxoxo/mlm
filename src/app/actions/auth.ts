@@ -13,13 +13,14 @@ import {
 } from "@/lib/auth";
 import { chargeRegistration } from "@/lib/distribution";
 import { enqueueActivation } from "@/lib/queue";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 const { users } = schema;
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Name too short").max(80, "Name too long"),
   email: z.string().trim().email("Invalid email"),
-  password: z.string().min(6, "Password must be 6+ characters"),
+  password: z.string().min(8, "Password must be 8+ characters"),
   ref: z.string().trim().optional(),
 });
 
@@ -40,6 +41,10 @@ function isUniqueViolation(e: unknown): { constraint?: string } | null {
 }
 
 export async function registerAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const ip = await clientIp();
+  const rl = await rateLimit(`register:${ip}`, 5, 600); // 5 signups / 10 min / IP
+  if (!rl.ok) return { error: `Too many attempts. Try again in ${rl.retryAfter}s.` };
+
   const parsed = registerSchema.safeParse({
     name: form.get("name"),
     email: form.get("email"),
@@ -104,6 +109,10 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
 }
 
 export async function loginAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const ip = await clientIp();
+  const rl = await rateLimit(`login:${ip}`, 10, 300); // 10 attempts / 5 min / IP
+  if (!rl.ok) return { error: `Too many attempts. Try again in ${rl.retryAfter}s.` };
+
   const email = String(form.get("email") || "").trim().toLowerCase();
   const password = String(form.get("password") || "");
   if (!email || !password) return { error: "Email and password required" };

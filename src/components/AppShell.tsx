@@ -17,8 +17,9 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "264px 1fr", minHeight: "100vh" }}>
+    <div className="app-shell" style={{ display: "grid", gridTemplateColumns: "264px 1fr", minHeight: "100vh" }}>
       <aside
+        className="app-aside"
         style={{
           borderRight: "1px solid var(--border)",
           padding: "24px 18px",
@@ -61,7 +62,7 @@ export function AppShell({
           </div>
           {badge}
         </header>
-        <main style={{ padding: "32px 36px", maxWidth: 1080, width: "100%" }}>{children}</main>
+        <main className="app-main" style={{ padding: "32px 36px", maxWidth: 1080, width: "100%" }}>{children}</main>
       </div>
     </div>
   );

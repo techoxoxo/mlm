@@ -36,7 +36,6 @@ export function DecisionPanel({
   level,
   collected,
   exitPercent,
-  upgradeTakePercent,
   nextName,
   nextFee,
   isFinal,
@@ -44,14 +43,14 @@ export function DecisionPanel({
   level: number;
   collected: number;
   exitPercent: number;
-  upgradeTakePercent: number;
   nextName: string | null;
   nextFee: number | null;
   isFinal: boolean;
 }) {
   const { run, pending, error } = useRun();
   const exitPayout = Math.floor((collected * exitPercent) / 100);
-  const upgradeTake = Math.floor((collected * upgradeTakePercent) / 100);
+  // upgrade keeps everything beyond the next level's entry fee (the "seed")
+  const upgradeKeep = Math.max(0, collected - (nextFee ?? 0));
 
   return (
     <div className="card" style={{ padding: 22, borderColor: "var(--color-brand)" }}>
@@ -89,9 +88,9 @@ export function DecisionPanel({
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
               <ArrowUpCircle size={16} color="var(--color-accent)" /> Upgrade to {nextName}
             </div>
-            <div style={{ fontSize: 26, fontWeight: 800, margin: "10px 0 2px" }}>+{upgradeTake} pts</div>
+            <div style={{ fontSize: 26, fontWeight: 800, margin: "10px 0 2px" }}>keep {upgradeKeep} pts</div>
             <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
-              Pocket {upgradeTakePercent}%, enter {nextName} ({nextFee} pts)
+              Pay the {nextName} entry ({nextFee} pts) from your earnings, keep the rest
             </div>
             <button
               className="btn btn-primary"

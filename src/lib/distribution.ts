@@ -339,21 +339,23 @@ export async function decideChoice(userId: string, choice: "exit" | "upgrade") {
       return { choice: "exit" as const, level, payout, keepPct };
     }
 
-    // UPGRADE: pocket upgradeTakePercent of collected (informational — already in
-    // balance), then enter the next slab (which charges the next fee + opens slots).
-    const take = Math.floor((collected * slab.upgradeTakePercent) / 100);
+    // UPGRADE: the next level's entry fee is the "seed"; everything collected
+    // beyond it stays in the player's balance. enterSlab charges that fee, so
+    // the net kept = collected - nextFee (clamped at 0). Recorded as a 0-point
+    // marker since the balance already reflects it.
+    const kept = Math.max(0, collected - nextSlab.fee);
     await post(tx, userId, "upgrade_take", 0, {
       slabLevel: level,
-      note: `Upgrade from slab ${level}: pocketed ${slab.upgradeTakePercent}% = ${take}`,
-      meta: { take },
+      note: `Upgrade to ${nextSlab.name}: seed ${nextSlab.fee}, kept ${kept} of ${collected}`,
+      meta: { kept, seed: nextSlab.fee, collected },
     });
     await tx
       .update(slabCompletions)
-      .set({ status: "upgraded", payout: take, decidedAt: sql`now()` })
+      .set({ status: "upgraded", payout: kept, decidedAt: sql`now()` })
       .where(eq(slabCompletions.id, completion.id));
 
     const entry = await enterSlab(tx, userId, nextLevel);
-    return { choice: "upgrade" as const, fromLevel: level, toLevel: nextLevel, take, entry };
+    return { choice: "upgrade" as const, fromLevel: level, toLevel: nextLevel, kept, entry };
   }));
 
   if (result.choice === "upgrade") await notifyEntry(userId, result.entry);

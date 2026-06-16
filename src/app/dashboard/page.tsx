@@ -86,7 +86,6 @@ export default async function DashboardHome() {
           level={pending.slabLevel}
           collected={collected}
           exitPercent={currentSlab.exitPercent}
-          upgradeTakePercent={currentSlab.upgradeTakePercent}
           nextName={nextSlab?.name ?? null}
           nextFee={nextSlab?.fee ?? null}
           isFinal={!nextSlab}

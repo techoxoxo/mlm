@@ -14,13 +14,21 @@ async function requireAdmin() {
   return s;
 }
 
+// parse a numeric form field with bounds; ignore (return fallback) if invalid
+function int(form: FormData, key: string, min: number, max: number, fallback: number): number {
+  const n = Number(form.get(key));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
 export async function updateSettingsAction(form: FormData) {
   await requireAdmin();
+  const [cur] = await db.select().from(settings).where(eq(settings.id, 1));
   await db
     .update(settings)
     .set({
-      joinFee: Number(form.get("joinFee")),
-      companyPercent: Number(form.get("companyPercent")),
+      joinFee: int(form, "joinFee", 0, 1_000_000, cur.joinFee),
+      companyPercent: int(form, "companyPercent", 0, 100, cur.companyPercent),
       autoPlace: form.get("autoPlace") === "on",
       updatedAt: new Date(),
     })
@@ -96,15 +104,19 @@ export async function runRoyaltyAction() {
 export async function updateSlabAction(form: FormData) {
   await requireAdmin();
   const level = Number(form.get("level"));
+  if (!Number.isInteger(level)) return;
+  const [cur] = await db.select().from(slabs).where(eq(slabs.level, level));
+  if (!cur) return;
+  const name = String(form.get("name") || "").trim().slice(0, 40) || cur.name;
   await db
     .update(slabs)
     .set({
-      name: String(form.get("name")),
-      fee: Number(form.get("fee")),
-      slots: Number(form.get("slots")),
-      referralBonus: Number(form.get("referralBonus")),
-      exitPercent: Number(form.get("exitPercent")),
-      upgradeTakePercent: Number(form.get("upgradeTakePercent")),
+      name,
+      fee: int(form, "fee", 1, 100_000_000, cur.fee),
+      slots: int(form, "slots", 1, 1024, cur.slots),
+      referralBonus: int(form, "referralBonus", 0, 1_000_000, cur.referralBonus),
+      exitPercent: int(form, "exitPercent", 0, 100, cur.exitPercent),
+      upgradeTakePercent: int(form, "upgradeTakePercent", 0, 100, cur.upgradeTakePercent),
       active: form.get("active") === "on",
     })
     .where(eq(slabs.level, level));
