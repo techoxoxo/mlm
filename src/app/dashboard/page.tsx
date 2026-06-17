@@ -7,6 +7,7 @@ import { Gift } from "lucide-react";
 import { ActivateButton, DecisionPanel } from "@/components/GameActions";
 import { ReferralCard } from "@/components/ReferralCard";
 import { getRoyaltyOverview } from "@/lib/royalty";
+import { memberCode } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,8 @@ export default async function DashboardHome() {
             <span className="mono" style={{ fontSize: 48, fontWeight: 600, letterSpacing: "-0.03em" }}>{user.pointsBalance.toLocaleString()}</span>
             <span style={{ color: "var(--faint)", fontSize: 15 }}>pts</span>
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+          <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+            <span className="pill pill-gold mono">{memberCode(user.serialNo)}</span>
             <span className={currentSlab ? "pill pill-green" : "pill"}>
               {currentSlab ? `Tier ${currentSlab.level} · ${currentSlab.name}` : "Not activated"}
             </span>

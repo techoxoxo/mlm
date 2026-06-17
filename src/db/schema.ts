@@ -138,6 +138,8 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    // human-friendly sequential member number → rendered as APX-000123
+    serialNo: serial("serial_no").notNull(),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
     name: text("name").notNull(),
@@ -168,6 +170,7 @@ export const users = pgTable(
   (t) => ({
     emailIdx: uniqueIndex("users_email_idx").on(t.email),
     refCodeIdx: uniqueIndex("users_referral_code_idx").on(t.referralCode),
+    serialIdx: uniqueIndex("users_serial_idx").on(t.serialNo),
     sponsorIdx: index("users_sponsor_idx").on(t.sponsorId),
   }),
 );
@@ -279,3 +282,8 @@ export type RoyaltyRun = typeof royaltyRuns.$inferSelect;
 export type RoyaltyPayout = typeof royaltyPayouts.$inferSelect;
 
 export const sqlNow = sql`now()`;
+
+/** Render a user's sequential number as a member code, e.g. 123 → "APX-000123". */
+export function memberCode(serialNo: number): string {
+  return `APX-${String(serialNo).padStart(6, "0")}`;
+}

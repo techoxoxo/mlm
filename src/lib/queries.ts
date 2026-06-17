@@ -1,7 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@/db";
 
-const { users, slabs, slots, transactions, slabCompletions } = schema;
+const { users, slabs, slots, transactions, slabCompletions, royaltyPayouts } = schema;
 
 export async function getDashboard(uid: string) {
   const user = await db.query.users.findFirst({ where: eq(users.id, uid) });
@@ -81,6 +82,69 @@ export type TreeNode = {
   depth: number;
   children: TreeNode[];
 };
+
+/** Full per-user activity for the admin journey page. */
+export async function getUserJourney(uid: string) {
+  const sponsor = alias(users, "sponsor");
+  const [user] = await db
+    .select({
+      u: users,
+      sponsorName: sponsor.name,
+      sponsorSerial: sponsor.serialNo,
+      sponsorId: sponsor.id,
+    })
+    .from(users)
+    .leftJoin(sponsor, eq(users.sponsorId, sponsor.id))
+    .where(eq(users.id, uid));
+  if (!user) return null;
+
+  const occupant = alias(users, "occupant");
+  const [
+    earnedRow,
+    directs,
+    ownedSlots,
+    completions,
+    ledger,
+    royalties,
+  ] = await Promise.all([
+    db
+      .select({ earned: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0),0)::int` })
+      .from(transactions)
+      .where(eq(transactions.userId, uid)),
+    db
+      .select({ id: users.id, serialNo: users.serialNo, name: users.name, slab: users.currentSlab, status: users.status, createdAt: users.createdAt })
+      .from(users)
+      .where(eq(users.sponsorId, uid))
+      .orderBy(desc(users.createdAt)),
+    db
+      .select({
+        slabLevel: slots.slabLevel,
+        position: slots.position,
+        status: slots.status,
+        filledAt: slots.filledAt,
+        occName: occupant.name,
+        occSerial: occupant.serialNo,
+      })
+      .from(slots)
+      .leftJoin(occupant, eq(slots.occupantId, occupant.id))
+      .where(eq(slots.ownerId, uid))
+      .orderBy(slots.slabLevel, slots.position),
+    db.select().from(slabCompletions).where(eq(slabCompletions.userId, uid)).orderBy(slabCompletions.slabLevel),
+    db.select().from(transactions).where(eq(transactions.userId, uid)).orderBy(desc(transactions.createdAt)).limit(300),
+    db.select().from(royaltyPayouts).where(eq(royaltyPayouts.userId, uid)).orderBy(desc(royaltyPayouts.createdAt)),
+  ]);
+
+  return {
+    user: user.u,
+    sponsor: user.sponsorId ? { id: user.sponsorId, name: user.sponsorName, serialNo: user.sponsorSerial } : null,
+    totalEarned: earnedRow[0]?.earned ?? 0,
+    directs,
+    ownedSlots,
+    completions,
+    ledger,
+    royalties,
+  };
+}
 
 /**
  * Build the referral downline tree rooted at `uid` via a recursive CTE.
