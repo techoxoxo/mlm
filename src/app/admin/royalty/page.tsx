@@ -2,6 +2,7 @@ import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getRoyaltyOverview } from "@/lib/royalty";
 import { RoyaltyRunButton } from "@/components/RoyaltyRunButton";
+import { updateRoyaltyTierAction } from "@/app/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -34,26 +35,24 @@ export default async function RoyaltyAdmin() {
       </div>
 
       <div className="card" style={{ padding: 24 }}>
-        <h3 style={{ fontSize: 16, marginBottom: 14 }}>Rank tiers</h3>
-        <table className="table">
-          <thead>
-            <tr><th>Rank</th><th>Direct referrals</th><th style={{ textAlign: "right" }}>Pool share</th></tr>
-          </thead>
-          <tbody>
-            {tiers.map((t) => (
-              <tr key={t.minDirects}>
-                <td>{t.label}</td>
-                <td>{t.minDirects}+</td>
-                <td style={{ textAlign: "right", fontWeight: 600 }}>{t.percent}%</td>
-              </tr>
-            ))}
-            <tr>
-              <td style={{ color: "var(--muted)" }}>Reserve</td>
-              <td style={{ color: "var(--muted)" }}>inactive 6 mo</td>
-              <td style={{ textAlign: "right", fontWeight: 600, color: "var(--muted)" }}>5%</td>
-            </tr>
-          </tbody>
-        </table>
+        <h3 style={{ fontSize: 16, marginBottom: 4 }}>Rank tiers</h3>
+        <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 16px" }}>
+          Editable pool-share bands by direct-referral count. The reserve hold-back % is set on the Distribution page.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {tiers.map((t) => (
+            <form key={t.minDirects} action={updateRoyaltyTierAction} style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 90px", gap: 10, alignItems: "center" }}>
+              <input type="hidden" name="minDirects" value={t.minDirects} />
+              <span className="pill">{t.minDirects}+ refs</span>
+              <input name="label" defaultValue={t.label} className="input" />
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input name="percent" type="number" min={0} max={100} defaultValue={t.percent} className="input" style={{ width: 70 }} />
+                <span style={{ color: "var(--muted)", fontSize: 13 }}>%</span>
+              </div>
+              <button type="submit" className="btn btn-ghost" style={{ padding: "8px 12px", fontSize: 13 }}>Save</button>
+            </form>
+          ))}
+        </div>
       </div>
 
       <div className="card" style={{ padding: 24 }}>

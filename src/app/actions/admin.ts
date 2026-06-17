@@ -27,7 +27,11 @@ export async function updateSettingsAction(form: FormData) {
   await db
     .update(settings)
     .set({
-      joinFee: int(form, "joinFee", 0, 1_000_000, cur.joinFee),
+      idPinFee: int(form, "idPinFee", 0, 1_000_000, cur.idPinFee),
+      sponsorReward: int(form, "sponsorReward", 0, cur.idPinFee, cur.sponsorReward),
+      royaltyFee: int(form, "royaltyFee", 0, 1_000_000, cur.royaltyFee),
+      royaltyReservePercent: int(form, "royaltyReservePercent", 0, 100, cur.royaltyReservePercent),
+      reserveInactivityMonths: int(form, "reserveInactivityMonths", 1, 60, cur.reserveInactivityMonths),
       companyPercent: int(form, "companyPercent", 0, 100, cur.companyPercent),
       autoPlace: form.get("autoPlace") === "on",
       updatedAt: new Date(),
@@ -35,6 +39,20 @@ export async function updateSettingsAction(form: FormData) {
     .where(eq(settings.id, 1));
   revalidatePath("/admin/settings");
   revalidatePath("/admin");
+}
+
+export async function updateRoyaltyTierAction(form: FormData) {
+  await requireAdmin();
+  const minDirects = Number(form.get("minDirects"));
+  if (!Number.isInteger(minDirects)) return;
+  await db
+    .update(schema.royaltyTiers)
+    .set({
+      percent: int(form, "percent", 0, 100, 0),
+      label: String(form.get("label") || "").trim().slice(0, 40) || "Rank",
+    })
+    .where(eq(schema.royaltyTiers.minDirects, minDirects));
+  revalidatePath("/admin/royalty");
 }
 
 /**
