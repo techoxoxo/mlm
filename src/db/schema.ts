@@ -51,6 +51,9 @@ export const settings = pgTable("settings", {
   joinFee: integer("join_fee").notNull().default(10), // legacy; unused with split registration
   // registration breakdown — total = idPinFee + slab1.fee (autopool) + royaltyFee
   idPinFee: integer("id_pin_fee").notNull().default(10),
+  // portion of the ID-PIN fee paid to the sponsor (rest is the system's take;
+  // direct signups with no sponsor send the whole id_pin_fee to the system)
+  sponsorReward: integer("sponsor_reward").notNull().default(5),
   royaltyFee: integer("royalty_fee").notNull().default(10),
   // % of the royalty pool held back on each distribution for the reserve fund
   royaltyReservePercent: integer("royalty_reserve_percent").notNull().default(5),

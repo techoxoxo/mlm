@@ -381,8 +381,22 @@ export async function activate(userId: string) {
  */
 export async function chargeRegistration(tx: Tx, userId: string) {
   const cfg = await getSettings(tx);
+  const [member] = await tx
+    .select({ sponsorId: users.sponsorId, name: users.name })
+    .from(users)
+    .where(eq(users.id, userId));
+
+  // registrant pays the full ID & PIN fee…
   if (cfg.idPinFee > 0) {
     await post(tx, userId, "id_pin_fee", -cfg.idPinFee, { note: "ID & PIN fee" });
+  }
+  // …of which the sponsor reward is routed to the referrer (if any). With no
+  // sponsor the whole id_pin_fee stays with the system. Not tied to a slab.
+  if (member?.sponsorId && cfg.sponsorReward > 0) {
+    await post(tx, member.sponsorId, "referral_bonus", cfg.sponsorReward, {
+      counterpartyId: userId,
+      note: `Sponsor reward for ${member?.name ?? "referral"}`,
+    });
   }
   if (cfg.royaltyFee > 0) {
     await post(tx, userId, "royalty_fee", -cfg.royaltyFee, { note: "Royalty program contribution" });

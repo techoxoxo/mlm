@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "sponsor_reward" integer DEFAULT 5 NOT NULL;

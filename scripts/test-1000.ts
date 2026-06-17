@@ -267,15 +267,13 @@ async function main() {
   check((await scalar(sql`select count(*)::int n from ${users} u where u.role='user' and u.id <> ${finalId} and (select count(*) from ${transactions} t where t.user_id=u.id and t.type='id_pin_fee') <> 1`)) === 0, "exactly one id_pin_fee per player");
   check((await scalar(sql`select count(*)::int n from ${users} u where u.role='user' and u.id <> ${finalId} and (select count(*) from ${transactions} t where t.user_id=u.id and t.type='royalty_fee') <> 1`)) === 0, "exactly one royalty_fee per player");
 
-  // referral bonuses: count == entries by sponsored users at levels with bonus>0
+  // sponsor reward: exactly one referral_bonus per sponsored registration
   check((await scalar(sql`
-    with expected as (
-      select count(*)::int n from ${transactions} t
-      join ${users} u on u.id=t.user_id
-      join ${slabs} sl on sl.level=t.slab_level
-      where t.type in ('activation_fee','upgrade_fee') and u.sponsor_id is not null and sl.referral_bonus>0
-    ), actual as (select count(*)::int n from ${transactions} where type='referral_bonus')
-    select abs((select n from expected)-(select n from actual))::int n`)) === 0, "referral bonus count matches sponsored entries");
+    with expected as (select count(*)::int n from ${users} where role='user' and sponsor_id is not null),
+         actual as (select count(*)::int n from ${transactions} where type='referral_bonus')
+    select abs((select n from expected)-(select n from actual))::int n`)) === 0, "one sponsor reward per sponsored registration");
+  // sponsor reward never carries a slab level (it's a registration event)
+  check((await scalar(sql`select count(*)::int n from ${transactions} where type='referral_bonus' and slab_level is not null`)) === 0, "sponsor reward not tied to a slab");
 
   console.log(`  ${checks} checks run\n`);
 

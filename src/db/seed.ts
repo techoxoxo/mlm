@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 // Stage 1: 100% exit (or upgrade keeping 25%). Stages 2-4: 30% exit.
 // Stage 5 (final): full payout, handled in code.
 const SLABS = [
-  { level: 1, name: "Starter", fee: 30, slots: 2, referralBonus: 5, exitPercent: 100, upgradeTakePercent: 25 },
+  { level: 1, name: "Starter", fee: 30, slots: 2, referralBonus: 0, exitPercent: 100, upgradeTakePercent: 25 },
   { level: 2, name: "Bronze", fee: 50, slots: 4, referralBonus: 0, exitPercent: 30, upgradeTakePercent: 25 },
   { level: 3, name: "Silver", fee: 150, slots: 8, referralBonus: 0, exitPercent: 30, upgradeTakePercent: 25 },
   { level: 4, name: "Gold", fee: 1000, slots: 16, referralBonus: 0, exitPercent: 30, upgradeTakePercent: 25 },
@@ -26,10 +26,10 @@ async function main() {
   console.log("Seeding settings…");
   await db
     .insert(settings)
-    .values({ id: 1, idPinFee: 10, royaltyFee: 10, royaltyReservePercent: 5, reserveInactivityMonths: 6, companyPercent: 0, autoPlace: true })
+    .values({ id: 1, idPinFee: 10, sponsorReward: 5, royaltyFee: 10, royaltyReservePercent: 5, reserveInactivityMonths: 6, companyPercent: 0, autoPlace: true })
     .onConflictDoUpdate({
       target: settings.id,
-      set: { idPinFee: 10, royaltyFee: 10, royaltyReservePercent: 5, reserveInactivityMonths: 6 },
+      set: { idPinFee: 10, sponsorReward: 5, royaltyFee: 10, royaltyReservePercent: 5, reserveInactivityMonths: 6 },
     });
 
   console.log("Seeding pools…");
