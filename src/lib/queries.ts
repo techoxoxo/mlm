@@ -74,6 +74,52 @@ export async function getDashboard(uid: string) {
 
 export type DashboardData = NonNullable<Awaited<ReturnType<typeof getDashboard>>>;
 
+export type MatrixNode = {
+  id: string;
+  serialNo: number;
+  name: string;
+  position: number | null; // which of the parent's slots this user filled
+  depth: number;
+  children: MatrixNode[];
+};
+
+/**
+ * The autopool placement forest for one stage: owner → the occupants of their
+ * slots, recursively. Roots are stage entrants who filled no upline slot.
+ * Each entrant fills exactly one upline slot per stage, so this is a clean tree.
+ */
+export async function getSlotHierarchy(level: number, maxDepth = 12, maxRows = 2000) {
+  const res = await db.execute(sql`
+    WITH RECURSIVE tree AS (
+      SELECT u.id, u.serial_no, u.name, 0 AS depth, NULL::int AS position, NULL::uuid AS parent
+      FROM ${users} u
+      WHERE u.id IN (SELECT DISTINCT owner_id FROM ${slots} WHERE slab_level = ${level})
+        AND NOT EXISTS (SELECT 1 FROM ${slots} s WHERE s.slab_level = ${level} AND s.occupant_id = u.id)
+      UNION ALL
+      SELECT u.id, u.serial_no, u.name, t.depth + 1, s.position, t.id
+      FROM ${slots} s
+      JOIN ${users} u ON u.id = s.occupant_id
+      JOIN tree t ON s.owner_id = t.id
+      WHERE s.slab_level = ${level} AND s.occupant_id IS NOT NULL AND t.depth < ${maxDepth}
+    )
+    SELECT id, serial_no, name, depth, position, parent FROM tree ORDER BY depth, position LIMIT ${maxRows}
+  `);
+
+  const rows = res.rows as {
+    id: string; serial_no: number; name: string; depth: number; position: number | null; parent: string | null;
+  }[];
+
+  const byId = new Map<string, MatrixNode>();
+  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: r.name, position: r.position, depth: r.depth, children: [] });
+  const roots: MatrixNode[] = [];
+  for (const r of rows) {
+    const node = byId.get(r.id)!;
+    if (r.parent && byId.has(r.parent)) byId.get(r.parent)!.children.push(node);
+    else roots.push(node);
+  }
+  return { roots, total: rows.length, capped: rows.length >= maxRows };
+}
+
 export type TreeNode = {
   id: string;
   name: string;

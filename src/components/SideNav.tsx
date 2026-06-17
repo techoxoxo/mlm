@@ -25,6 +25,7 @@ const ICONS: Record<string, LucideIcon> = {
   users: Users,
   queue: ListChecks,
   gift: Gift,
+  matrix: Network,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
