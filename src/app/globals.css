@@ -453,6 +453,94 @@ h4 {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-12px); }
 }
+/* ------------------------------------------------------------------ matrix org-chart tree */
+.mtree ul {
+  position: relative;
+  padding: 22px 0 0 0;
+  display: flex;
+  justify-content: center;
+  margin: 0;
+}
+.mtree li {
+  list-style: none;
+  position: relative;
+  padding: 22px 10px 0 10px;
+  text-align: center;
+}
+.mtree li::before,
+.mtree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  border-top: 1px solid var(--border-2);
+  width: 50%;
+  height: 22px;
+}
+.mtree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 1px solid var(--border-2);
+}
+.mtree li:only-child::after,
+.mtree li:only-child::before {
+  display: none;
+}
+.mtree li:only-child {
+  padding-top: 0;
+}
+.mtree li:first-child::before,
+.mtree li:last-child::after {
+  border: 0 none;
+}
+.mtree li:last-child::before {
+  border-right: 1px solid var(--border-2);
+  border-radius: 0 6px 0 0;
+}
+.mtree li:first-child::after {
+  border-radius: 6px 0 0 0;
+}
+.mtree ul ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 1px solid var(--border-2);
+  width: 0;
+  height: 22px;
+}
+.mtree > ul {
+  padding-top: 0;
+}
+.mtree > ul > li {
+  padding-top: 0;
+}
+.mtree > ul > li::before,
+.mtree > ul > li::after {
+  display: none;
+}
+.mnode {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  min-width: 92px;
+}
+.mnode:hover {
+  border-color: var(--border-3);
+  transform: translateY(-1px);
+}
+.mnode.root {
+  border-color: var(--border-3);
+  background: var(--surface-2);
+}
+
 /* ------------------------------------------------------------------ responsive app shell */
 @media (max-width: 820px) {
   .app-shell {
