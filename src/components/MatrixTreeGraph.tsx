@@ -30,6 +30,7 @@ function Node({ node, level, isRoot, onOpen }: { node: MatrixNode; level: number
           )}
           <span className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--gold-bright)" }}>{memberCode(node.serialNo)}</span>
         </div>
+        {/* whole card opens the modal — the modal links to the full journey */}
         <span style={{ fontSize: 11.5, color: "var(--text)", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.name}</span>
         {hasKids && (
           <button
@@ -69,7 +70,7 @@ function NodeModal({ id, level, onClose }: { id: string; level: number; onClose:
     let live = true;
     setLoading(true);
     fetch(`/api/admin/node?id=${id}&level=${level}`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (live) { setData(d); setLoading(false); } })
       .catch(() => { if (live) setLoading(false); });
     return () => { live = false; };
