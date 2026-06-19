@@ -83,6 +83,47 @@ export type MatrixNode = {
   children: MatrixNode[];
 };
 
+/** Compact summary for the matrix node modal: earnings + matrix line + downline. */
+export async function getNodeSummary(id: string, level: number) {
+  const [user] = await db
+    .select({ id: users.id, serialNo: users.serialNo, name: users.name, status: users.status, slab: users.currentSlab, balance: users.pointsBalance })
+    .from(users)
+    .where(eq(users.id, id));
+  if (!user) return null;
+
+  const [[earned], [royalty], [directsRow], upRes, downRes] = await Promise.all([
+    db.select({ v: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0),0)::int` }).from(transactions).where(eq(transactions.userId, id)),
+    db.select({ v: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.type} in ('royalty_payout','royalty_reserve_reward')),0)::int` }).from(transactions).where(eq(transactions.userId, id)),
+    db.select({ v: sql<number>`count(*)::int` }).from(users).where(eq(users.sponsorId, id)),
+    // matrix upline: walk occupant → owner up to the root, at this stage
+    db.execute(sql`
+      WITH RECURSIVE up AS (
+        SELECT s.owner_id, 1 AS depth FROM ${slots} s WHERE s.occupant_id = ${id} AND s.slab_level = ${level}
+        UNION ALL
+        SELECT s.owner_id, u.depth + 1 FROM ${slots} s JOIN up u ON s.occupant_id = u.owner_id WHERE s.slab_level = ${level}
+      )
+      SELECT us.serial_no, us.name, up.depth FROM up JOIN ${users} us ON us.id = up.owner_id ORDER BY up.depth DESC
+    `),
+    // immediate slot fills beneath this user at this stage
+    db
+      .select({ position: slots.position, status: slots.status, serialNo: users.serialNo, name: users.name })
+      .from(slots)
+      .leftJoin(users, eq(users.id, slots.occupantId))
+      .where(and(eq(slots.ownerId, id), eq(slots.slabLevel, level)))
+      .orderBy(slots.position),
+  ]);
+
+  return {
+    ...user,
+    totalEarned: earned?.v ?? 0,
+    royaltyEarned: royalty?.v ?? 0,
+    directs: directsRow?.v ?? 0,
+    upline: (upRes.rows as { serial_no: number; name: string; depth: number }[]).map((r) => ({ serialNo: r.serial_no, name: r.name })),
+    downline: downRes,
+  };
+}
+export type NodeSummary = NonNullable<Awaited<ReturnType<typeof getNodeSummary>>>;
+
 /**
  * The autopool placement forest for one stage: owner → the occupants of their
  * slots, recursively. Roots are stage entrants who filled no upline slot.

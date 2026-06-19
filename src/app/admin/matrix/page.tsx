@@ -49,7 +49,7 @@ export default async function MatrixAdmin({ searchParams }: { searchParams: Prom
             </div>
           </div>
         </div>
-        {view === "tree" ? <MatrixTreeGraph roots={roots} /> : <MatrixTree roots={roots} />}
+        {view === "tree" ? <MatrixTreeGraph roots={roots} level={level} /> : <MatrixTree roots={roots} />}
       </div>
     </div>
   );
