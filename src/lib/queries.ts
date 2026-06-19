@@ -9,7 +9,7 @@ export async function getDashboard(uid: string) {
   if (!user) return null;
 
   // everything below only depends on `user` — run it all in parallel
-  const [allSlabs, mySlots, collectedRows, pending, recentTx, referrals, earnedRows] =
+  const [allSlabs, mySlots, collectedRows, pending, recentTx, referrals, earnedRows, earningsByType, leaderboard] =
     await Promise.all([
       db.select().from(slabs).orderBy(slabs.level),
       user.currentSlab
@@ -49,6 +49,21 @@ export async function getDashboard(uid: string) {
         .select({ earned: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
         .from(transactions)
         .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`)),
+      // earnings by source (positive only)
+      db
+        .select({ type: transactions.type, total: sql<number>`sum(${transactions.points})::int` })
+        .from(transactions)
+        .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`))
+        .groupBy(transactions.type),
+      // global leaderboard — top earners
+      db
+        .select({ serialNo: users.serialNo, name: users.name, earned: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0),0)::int` })
+        .from(users)
+        .leftJoin(transactions, eq(transactions.userId, users.id))
+        .where(eq(users.role, "user"))
+        .groupBy(users.id, users.serialNo, users.name)
+        .orderBy(desc(sql`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0),0)`))
+        .limit(5),
     ]);
 
   const currentSlab = allSlabs.find((s) => s.level === user.currentSlab) ?? null;
@@ -69,6 +84,8 @@ export async function getDashboard(uid: string) {
     recentTx,
     referrals,
     totalEarned: earned,
+    earningsByType,
+    leaderboard,
   };
 }
 
