@@ -141,6 +141,44 @@ export async function getNodeSummary(id: string, level: number) {
 }
 export type NodeSummary = NonNullable<Awaited<ReturnType<typeof getNodeSummary>>>;
 
+/** The placement subtree rooted at one user, for a stage (their "My matrix" view). */
+export async function getMatrixSubtree(rootId: string, level: number, maxDepth = 12, maxRows = 1000) {
+  const res = await db.execute(sql`
+    WITH RECURSIVE tree AS (
+      SELECT u.id, u.serial_no, u.name, 0 AS depth, NULL::int AS position, NULL::uuid AS parent
+      FROM ${users} u WHERE u.id = ${rootId}
+      UNION ALL
+      SELECT u.id, u.serial_no, u.name, t.depth + 1, s.position, t.id
+      FROM ${slots} s
+      JOIN ${users} u ON u.id = s.occupant_id
+      JOIN tree t ON s.owner_id = t.id
+      WHERE s.slab_level = ${level} AND s.occupant_id IS NOT NULL AND t.depth < ${maxDepth}
+    )
+    SELECT id, serial_no, name, depth, position, parent FROM tree ORDER BY depth, position LIMIT ${maxRows}
+  `);
+  const rows = res.rows as { id: string; serial_no: number; name: string; depth: number; position: number | null; parent: string | null }[];
+  const byId = new Map<string, MatrixNode>();
+  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: r.name, position: r.position, depth: r.depth, children: [] });
+  let root: MatrixNode | null = null;
+  for (const r of rows) {
+    const node = byId.get(r.id)!;
+    if (r.id === rootId) root = node;
+    else if (r.parent && byId.has(r.parent)) byId.get(r.parent)!.children.push(node);
+  }
+  return { root, total: rows.length - 1 /* exclude self */ };
+}
+
+/** A user's royalty standing + payout history (for the My Royalty page). */
+export async function getMyRoyalty(uid: string) {
+  const payouts = await db
+    .select()
+    .from(schema.royaltyPayouts)
+    .where(eq(schema.royaltyPayouts.userId, uid))
+    .orderBy(desc(schema.royaltyPayouts.createdAt))
+    .limit(50);
+  return { payouts };
+}
+
 /**
  * The autopool placement forest for one stage: owner → the occupants of their
  * slots, recursively. Roots are stage entrants who filled no upline slot.

@@ -11,6 +11,8 @@ import {
   Users,
   ListChecks,
   Gift,
+  GitFork,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +28,8 @@ const ICONS: Record<string, LucideIcon> = {
   queue: ListChecks,
   gift: Gift,
   matrix: Network,
+  tree: GitFork,
+  guide: BookOpen,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };

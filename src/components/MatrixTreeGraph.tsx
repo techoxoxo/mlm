@@ -10,14 +10,14 @@ function descendants(n: MatrixNode): number {
   return n.children.reduce((a, c) => a + 1 + descendants(c), 0);
 }
 
-function Node({ node, level, isRoot, onOpen }: { node: MatrixNode; level: number; isRoot?: boolean; onOpen: (id: string) => void }) {
+function Node({ node, level, isRoot, onOpen }: { node: MatrixNode; level: number; isRoot?: boolean; onOpen?: (id: string) => void }) {
   const [open, setOpen] = useState(node.depth < 2);
   const hasKids = node.children.length > 0;
   const total = hasKids ? descendants(node) : 0;
 
   return (
     <li>
-      <div className={`mnode${isRoot ? " root" : ""}`} onClick={() => onOpen(node.id)} title="Click for details">
+      <div className={`mnode${isRoot ? " root" : ""}`} onClick={onOpen ? () => onOpen(node.id) : undefined} style={onOpen ? undefined : { cursor: "default" }} title={onOpen ? "Click for details" : undefined}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
           {node.position != null ? (
             <span style={{ fontSize: 9, fontWeight: 700, color: "var(--gold-ink)", background: "var(--gold)", borderRadius: 5, padding: "2px 6px" }}>
@@ -144,7 +144,7 @@ function NodeModal({ id, level, onClose }: { id: string; level: number; onClose:
   );
 }
 
-export function MatrixTreeGraph({ roots, level }: { roots: MatrixNode[]; level: number }) {
+export function MatrixTreeGraph({ roots, level, readOnly = false }: { roots: MatrixNode[]; level: number; readOnly?: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (roots.length === 0) {
@@ -153,20 +153,24 @@ export function MatrixTreeGraph({ roots, level }: { roots: MatrixNode[]; level: 
   return (
     <>
       <p style={{ fontSize: 12.5, color: "var(--faint)", margin: "0 0 14px" }}>
-        Tap a card for full details · use <b style={{ color: "var(--muted)" }}>below / collapse</b> to expand the branch.
+        {readOnly ? (
+          <>Each card is a player placed beneath you · use <b style={{ color: "var(--muted)" }}>below / collapse</b> to expand the branch.</>
+        ) : (
+          <>Tap a card for full details · use <b style={{ color: "var(--muted)" }}>below / collapse</b> to expand the branch.</>
+        )}
       </p>
       <div style={{ overflowX: "auto", paddingBottom: 8 }}>
         <div style={{ display: "inline-flex", flexDirection: "column", gap: 22, minWidth: "100%" }}>
           {roots.map((r) => (
             <div key={r.id} className="mtree">
               <ul>
-                <Node node={r} level={level} isRoot onOpen={setOpenId} />
+                <Node node={r} level={level} isRoot onOpen={readOnly ? undefined : setOpenId} />
               </ul>
             </div>
           ))}
         </div>
       </div>
-      {openId && <NodeModal id={openId} level={level} onClose={() => setOpenId(null)} />}
+      {!readOnly && openId && <NodeModal id={openId} level={level} onClose={() => setOpenId(null)} />}
     </>
   );
 }

@@ -9,7 +9,10 @@ import { eq } from "drizzle-orm";
 const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: "dashboard" },
   { href: "/dashboard/network", label: "My network", icon: "network" },
+  { href: "/dashboard/matrix", label: "My matrix", icon: "tree" },
+  { href: "/dashboard/royalty", label: "Royalty", icon: "gift" },
   { href: "/dashboard/transactions", label: "Transactions", icon: "receipt" },
+  { href: "/dashboard/guide", label: "How to play", icon: "guide" },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
