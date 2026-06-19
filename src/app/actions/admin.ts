@@ -106,6 +106,24 @@ export async function simulateAction(form: FormData): Promise<{ created: number;
   return { created: created.length };
 }
 
+/** Wipe all players + game data, back to a fresh 0-user system. Keeps admin, slabs, tiers, settings. */
+export async function resetSystemAction() {
+  await requireAdmin();
+  await db.execute(sql`truncate ${schema.transactions}, ${schema.slots}, ${schema.slabCompletions}, ${schema.royaltyRuns}, ${schema.royaltyPayouts} restart identity`);
+  await db.delete(users).where(sql`role = 'user'`);
+  await db
+    .update(users)
+    .set({ pointsBalance: 0, currentSlab: 0, pendingChoiceSlab: null, lastStageClearedAt: null, lastReserveRewardAt: null })
+    .where(sql`role = 'admin'`);
+  await db.update(schema.pools).set({ royaltyPool: 0, royaltyReserve: 0 }).where(eq(schema.pools.id, 1));
+  // restart member-code numbering after the surviving (admin) row
+  await db.execute(sql`select setval(pg_get_serial_sequence('users','serial_no'), coalesce((select max(serial_no) from ${users}),1))`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/matrix");
+  return { ok: true as const };
+}
+
 export async function runRoyaltyAction() {
   await requireAdmin();
   const { distributeRoyalty } = await import("@/lib/royalty");

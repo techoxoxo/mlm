@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { Users, UserCheck, Layers, Coins, LogOut, Trophy } from "lucide-react";
 import { db, schema } from "@/db";
 import { SimulatePanel } from "@/components/SimulatePanel";
+import { ResetSystemButton } from "@/components/ResetSystemButton";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,8 @@ export default async function AdminOverview() {
           })}
         </div>
       </div>
+
+      <ResetSystemButton />
     </div>
   );
 }

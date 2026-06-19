@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "sim": "tsx scripts/simulate.ts",
     "stress": "tsx scripts/stress.ts",
-    "test:1000": "tsx scripts/test-1000.ts"
+    "test:1000": "tsx scripts/test-1000.ts",
+    "demo:users": "tsx scripts/demo-users.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
