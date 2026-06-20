@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 
 const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: "dashboard" },
+  { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   { href: "/dashboard/network", label: "My network", icon: "network" },
   { href: "/dashboard/matrix", label: "My matrix", icon: "tree" },
   { href: "/dashboard/royalty", label: "Royalty", icon: "gift" },

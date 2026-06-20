@@ -13,6 +13,7 @@ import {
   Gift,
   GitFork,
   BookOpen,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ const ICONS: Record<string, LucideIcon> = {
   matrix: Network,
   tree: GitFork,
   guide: BookOpen,
+  wallet: Wallet,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };

@@ -10,7 +10,8 @@ export type GameEvent =
   | { type: "slot_filled"; level: number; position: number; by?: string }
   | { type: "slab_complete"; level: number }
   | { type: "entered"; level: number }
-  | { type: "referral"; level: number };
+  | { type: "referral"; level: number }
+  | { type: "payment_update"; status: string };
 
 export function channel(uid: string) {
   return `events:user:${uid}`;

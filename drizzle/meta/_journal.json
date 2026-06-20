@@ -36,6 +36,13 @@
       "when": 1781718262437,
       "tag": "0004_flaky_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781948188296,
+      "tag": "0005_freezing_violations",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   index,
   serial,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -37,12 +38,23 @@ export const txType = pgEnum("tx_type", [
   "royalty_payout", // rank-band royalty reward
   "royalty_reserve_reward", // 5% reserve reward to 6-month non-achievers
   "adjustment", // manual admin adjustment
+  "usdt_deposit", // purchase points via NowPayments USDT
+  "usdt_withdrawal", // convert points back to USDT payout
 ]);
 export const choiceStatus = pgEnum("choice_status", [
   "pending",
   "exited",
   "upgraded",
 ]);
+export const cryptoTxStatus = pgEnum("crypto_tx_status", [
+  "pending",
+  "pending_admin_approval",
+  "processing",
+  "completed",
+  "failed",
+  "expired",
+]);
+export const cryptoTxType = pgEnum("crypto_tx_type", ["deposit", "withdrawal"]);
 
 /* ------------------------------------------------------------------ settings (singleton) */
 
@@ -260,11 +272,38 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   referrals: many(users, { relationName: "sponsor" }),
   transactions: many(transactions),
   ownedSlots: many(slots),
+  cryptoTransactions: many(cryptoTransactions),
 }));
 
 export const slotsRelations = relations(slots, ({ one }) => ({
   owner: one(users, { fields: [slots.ownerId], references: [users.id] }),
   occupant: one(users, { fields: [slots.occupantId], references: [users.id] }),
+}));
+
+/* ------------------------------------------------------------------ crypto transactions */
+
+export const cryptoTransactions = pgTable("crypto_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  type: cryptoTxType("type").notNull(),
+  status: cryptoTxStatus("status").notNull().default("pending"),
+  amountUsdt: numeric("amount_usdt", { precision: 18, scale: 6 }).notNull(),
+  amountPoints: integer("amount_points").notNull(),
+  feeUsdt: numeric("fee_usdt", { precision: 18, scale: 6 }).notNull().default("0.000000"),
+  network: text("network").notNull(),
+  paymentId: text("payment_id"),
+  txHash: text("tx_hash"),
+  encryptedWalletAddress: text("encrypted_wallet_address"),
+  hashedWalletAddress: text("hashed_wallet_address"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index("crypto_tx_user_idx").on(t.userId),
+  paymentIdx: uniqueIndex("crypto_tx_payment_idx").on(t.paymentId),
+}));
+
+export const cryptoTransactionsRelations = relations(cryptoTransactions, ({ one }) => ({
+  user: one(users, { fields: [cryptoTransactions.userId], references: [users.id] }),
 }));
 
 /* ------------------------------------------------------------------ inferred types */
@@ -280,6 +319,8 @@ export type Pools = typeof pools.$inferSelect;
 export type RoyaltyTier = typeof royaltyTiers.$inferSelect;
 export type RoyaltyRun = typeof royaltyRuns.$inferSelect;
 export type RoyaltyPayout = typeof royaltyPayouts.$inferSelect;
+export type CryptoTransaction = typeof cryptoTransactions.$inferSelect;
+export type NewCryptoTransaction = typeof cryptoTransactions.$inferInsert;
 
 export const sqlNow = sql`now()`;
 
