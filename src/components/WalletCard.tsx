@@ -196,7 +196,7 @@ export function WalletCard({
             <form onSubmit={handleDepositSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, color: "var(--color-muted)", marginBottom: 6 }}>
-                  USDT Amount to Spend (TRC-20)
+                  USDT Amount to Spend (TRC-20, Min: 1 USDT)
                 </label>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <input

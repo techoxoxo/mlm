@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSession, hashPassword, genReferralCode } from "@/lib/auth";
-import { enqueueActivation, enqueueDecision } from "@/lib/queue";
+import { activate, decideChoice } from "@/lib/distribution";
 
 const { settings, slabs, users } = schema;
 
@@ -88,8 +88,8 @@ export async function simulateAction(form: FormData): Promise<{ created: number;
   await db.insert(users).values(rows);
   const created = rows.map((r) => r.id);
 
-  // activate everyone (durable queue → worker)
-  await Promise.all(created.map((id) => enqueueActivation(id).catch(() => null)));
+  // activate everyone directly (no queue needed)
+  await Promise.all(created.map((id) => activate(id).catch(() => null)));
 
   // a few upgrade rounds for whoever completed a slab
   for (let round = 0; round < 3; round++) {
@@ -98,7 +98,7 @@ export async function simulateAction(form: FormData): Promise<{ created: number;
       .from(users)
       .where(sql`${users.pendingChoiceSlab} is not null and ${users.email} like '%@sim.local'`);
     if (!pending.length) break;
-    await Promise.all(pending.map((p) => enqueueDecision(p.id, "upgrade").catch(() => null)));
+    await Promise.all(pending.map((p) => decideChoice(p.id, "upgrade").catch(() => null)));
   }
 
   revalidatePath("/admin");
