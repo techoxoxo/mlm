@@ -54,13 +54,13 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
     const session = await requireUser();
     const userId = session.uid;
 
-    if (amountUsdt < 10) {
-      return { ok: false, error: "Minimum deposit amount is 10 USDT" };
+    if (amountUsdt < 1) {
+      return { ok: false, error: "Minimum deposit amount is 1 USDT" };
     }
 
-    // Math from section 11.6: 1 USDT = 10 points base, with a 2% buffer deducted
-    // amountPoints = amountUsdt * 10 * 0.98
-    const amountPoints = Math.floor(amountUsdt * 10 * 0.98);
+    // Rate: 1 USDT = 1 point. A 2% conversion buffer is deducted.
+    // amountPoints = amountUsdt * 1 * 0.98
+    const amountPoints = Math.floor(amountUsdt * 1 * 0.98);
 
     // orderId formatted for webhook parser: dep:${userId}:${amountPoints}
     const orderId = `dep:${userId}:${amountPoints}`;
@@ -109,14 +109,13 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
       return { ok: false, error: "Invalid USDT TRC-20 wallet address" };
     }
 
-    // Minimum withdrawal threshold is 200 points ($20)
-    if (amountPoints < 200) {
-      return { ok: false, error: "Minimum withdrawal threshold is 200 points ($20)" };
+    // Minimum withdrawal threshold is 20 points ($20)
+    if (amountPoints < 20) {
+      return { ok: false, error: "Minimum withdrawal threshold is 20 points ($20)" };
     }
 
-    // Math from section 11.6:
-    // 10 points = 1 USDT base. 2% buffer added. Flat 2.00 USDT network surcharge.
-    const baseUsdt = amountPoints / 10;
+    // Rate: 1 point = 1 USDT. 2% conversion buffer. Flat 2.00 USDT network surcharge.
+    const baseUsdt = amountPoints * 1;
     const payoutUsdt = baseUsdt * 0.98;
     const netUsdt = payoutUsdt - 2; // Subtract flat gas fee
 
@@ -124,9 +123,9 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
       return { ok: false, error: "Withdrawal amount too small to cover the 2.00 USDT network fee" };
     }
 
-    // Auto-approve withdrawals below 1000 points ($100)
-    // Withdrawals of 1000 points ($100) or more require admin approval
-    const status = amountPoints < 1000 ? "pending" : "pending_admin_approval";
+    // Auto-approve withdrawals below 100 points ($100)
+    // Withdrawals of 100 points ($100) or more require admin approval
+    const status = amountPoints < 100 ? "pending" : "pending_admin_approval";
 
     // Encrypt the target wallet address before database write
     const encryptedWalletAddress = encrypt(trimmedAddress);

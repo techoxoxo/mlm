@@ -46,7 +46,7 @@ export function WalletCard({
   );
 
   // Withdrawal states
-  const [withdrawPoints, setWithdrawPoints] = useState<number>(200);
+  const [withdrawPoints, setWithdrawPoints] = useState<number>(20);
   const [withdrawAddress, setWithdrawAddress] = useState<string>("");
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
@@ -112,14 +112,14 @@ export function WalletCard({
             : "Withdrawal processed successfully! Points deducted and enqueued for USDT transfer."
         );
         setWithdrawAddress("");
-        setWithdrawPoints(200);
+        setWithdrawPoints(20);
         router.refresh();
       }
     });
   };
 
-  // Live Payout USDT Estimations (10 Points = 1 USDT, minus 2% conversion buffer, minus 2 USDT network gas fee)
-  const estimatedPayout = Math.max(0, (withdrawPoints / 10) * 0.98 - 2);
+  // Live Payout USDT Estimations (1 Point = 1 USDT, minus 2% conversion buffer, minus 2 USDT network gas fee)
+  const estimatedPayout = Math.max(0, withdrawPoints * 1 * 0.98 - 2);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -201,7 +201,7 @@ export function WalletCard({
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <input
                     type="number"
-                    min="10"
+                    min="1"
                     step="1"
                     className="input"
                     value={depositAmount}
@@ -213,7 +213,7 @@ export function WalletCard({
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--color-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>
                   <Coins size={12} color="var(--color-brand)" />
-                  <span>You will receive: <b>{Math.floor(depositAmount * 10 * 0.98)} points</b> (includes 2% buffer)</span>
+                  <span>You will receive: <b>{Math.floor(depositAmount * 1 * 0.98)} points</b> (includes 2% buffer)</span>
                 </div>
               </div>
 
@@ -241,12 +241,12 @@ export function WalletCard({
           <form onSubmit={handleWithdrawalSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <label style={{ display: "block", fontSize: 12, color: "var(--color-muted)", marginBottom: 6 }}>
-                Points to Cash Out (Min: 200 pts)
+                Points to Cash Out (Min: 20 pts)
               </label>
               <input
                 type="number"
-                min="200"
-                step="10"
+                min="20"
+                step="1"
                 className="input"
                 value={withdrawPoints}
                 onChange={(e) => setWithdrawPoints(Number(e.target.value))}
@@ -274,11 +274,11 @@ export function WalletCard({
             <div style={{ fontSize: 11.5, background: "var(--color-surface-2)", padding: 12, borderRadius: 8, display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--color-muted)" }}>Base Value:</span>
-                <span className="mono">${(withdrawPoints / 10).toFixed(2)} USDT</span>
+                <span className="mono">${(withdrawPoints * 1).toFixed(2)} USDT</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--color-muted)" }}>Conversion Buffer (2%):</span>
-                <span className="mono" style={{ color: "var(--color-muted)" }}>-${((withdrawPoints / 10) * 0.02).toFixed(2)} USDT</span>
+                <span className="mono" style={{ color: "var(--color-muted)" }}>-${(withdrawPoints * 1 * 0.02).toFixed(2)} USDT</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--color-muted)" }}>Network Gas Surcharge:</span>
@@ -290,10 +290,10 @@ export function WalletCard({
               </div>
             </div>
 
-            {withdrawPoints >= 1000 && (
+            {withdrawPoints >= 100 && (
               <div style={{ display: "flex", gap: 6, background: "rgba(248,198,23,0.06)", border: "1px solid rgba(248,198,23,0.15)", padding: 10, borderRadius: 8, fontSize: 11, color: "var(--color-muted)", lineHeight: 1.4 }}>
                 <AlertTriangle size={14} color="var(--color-brand)" style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>Large withdrawals ($\ge$ 1,000 points / $100) are flagged for manual review and will process within 24 hours.</span>
+                <span>Large withdrawals (≥ 100 points / $100) are flagged for manual review and will process within 24 hours.</span>
               </div>
             )}
 

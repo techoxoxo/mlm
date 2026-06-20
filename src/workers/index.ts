@@ -90,7 +90,7 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
           userId,
           type: "deposit",
           status: "completed",
-          amountUsdt: (amountPoints / 10).toFixed(6),
+          amountUsdt: (amountPoints * 1).toFixed(6),
           amountPoints,
           network: "unknown",
           paymentId,
