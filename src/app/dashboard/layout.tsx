@@ -10,6 +10,7 @@ const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: "dashboard" },
   { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   { href: "/dashboard/network", label: "My network", icon: "network" },
+  { href: "/dashboard/referral", label: "Referrals", icon: "users" },
   { href: "/dashboard/matrix", label: "My matrix", icon: "tree" },
   { href: "/dashboard/royalty", label: "Royalty", icon: "gift" },
   { href: "/dashboard/transactions", label: "Transactions", icon: "receipt" },

@@ -378,7 +378,7 @@ To ensure player anonymity and avoid linkability between depositing wallets and 
 
 ### 11.3 · Deposit Webhook/IPN Pipeline
 
-1. **Invoice Creation:** The user triggers a server action requesting a point deposit (e.g., buying 100 points). Next.js calls NowPayments `POST /v1/payment` specifying `price_amount = 10.00`, `price_currency = "usd"`, `pay_currency = "usdttrc20"` (TRON network is recommended to minimise gas), and a unique `order_id` linking to the user.
+1. **Invoice Creation:** The user triggers a server action requesting a point deposit (e.g., buying 100 points). Next.js calls NowPayments `POST /v1/payment` specifying `price_amount = 10.00`, `price_currency = "usd"`, `pay_currency = "usdtbsc"` (BSC BEP-20 network is recommended to minimise gas), and a unique `order_id` linking to the user.
 2. **Dynamic Address Display:** The API returns a dynamic deposit address and payment ID. The frontend displays this to the user with a payment expiration countdown timer (e.g., 20 minutes).
 3. **IPN Webhook Reception:** When the blockchain transaction receives confirmation, NowPayments hits the `/api/webhooks/nowpayments` endpoint.
 4. **Signature Verification:** The endpoint verifies the payload authenticity:
@@ -504,7 +504,7 @@ To guarantee the game remains mathematically profitable and immune to exchange r
 
 2. **Network Gas Fee Surcharge:**
    NowPayments charges network fees which vary by chain. To avoid depletion of reserve funds:
-   - **TRC-20 & BEP-20:** Flat fee of **2.00 USDT** per withdrawal.
+   - **BEP-20:** Flat fee of **2.00 USDT** per withdrawal.
    - **ERC-20:** Flat fee of **15.00 USDT** per withdrawal (due to Ethereum network congestion).
    - **Minimum Withdrawal:** Locked to a minimum of **20.00 USDT** to prevent network fee overhead from devouring micro-withdrawals.
 

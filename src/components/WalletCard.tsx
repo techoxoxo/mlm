@@ -155,7 +155,7 @@ export function WalletCard({
                 <span style={{ fontSize: 13, fontWeight: 600 }}>Active Deposit Invoice Generated</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--color-muted)", lineHeight: 1.4 }}>
-                Send exactly <b style={{ color: "var(--color-text)" }}>{Number(depositSuccess.amountUsdt).toFixed(2)} USDT (TRC-20)</b> to the address below. Your balance will credit <b style={{ color: "var(--color-success)" }}>+{depositSuccess.amountPoints} points</b> automatically upon confirmation.
+                Send exactly <b style={{ color: "var(--color-text)" }}>{Number(depositSuccess.amountUsdt).toFixed(2)} USDT (BEP-20)</b> to the address below. Your balance will credit <b style={{ color: "var(--color-success)" }}>+{depositSuccess.amountPoints} points</b> automatically upon confirmation.
               </div>
 
               {depositSuccess.payAddress && (
@@ -167,7 +167,7 @@ export function WalletCard({
                     style={{ background: "#fff", padding: 6, borderRadius: 8, border: "1px solid var(--color-border)" }}
                   />
                   <div style={{ width: "100%" }}>
-                    <span style={{ fontSize: 11, color: "var(--color-muted)" }}>TRC-20 Destination Address:</span>
+                    <span style={{ fontSize: 11, color: "var(--color-muted)" }}>BEP-20 Destination Address:</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, background: "var(--color-surface-3)", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--color-border)", overflow: "hidden" }}>
                       <span className="mono" style={{ fontSize: 11, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{depositSuccess.payAddress}</span>
                       <button type="button" onClick={() => handleCopy(depositSuccess.payAddress!)} style={{ cursor: "pointer", background: "none", border: "none", padding: 4, display: "flex", color: copied ? "var(--color-success)" : "var(--color-muted)" }}>
@@ -196,7 +196,7 @@ export function WalletCard({
             <form onSubmit={handleDepositSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, color: "var(--color-muted)", marginBottom: 6 }}>
-                  USDT Amount to Spend (TRC-20, Min: 1 USDT)
+                  USDT Amount to Spend (BEP-20, Min: 1 USDT)
                 </label>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <input
@@ -257,11 +257,11 @@ export function WalletCard({
 
             <div>
               <label style={{ display: "block", fontSize: 12, color: "var(--color-muted)", marginBottom: 6 }}>
-                Destination USDT (TRC-20) Address
+                Destination USDT (BEP-20) Address
               </label>
               <input
                 type="text"
-                placeholder="T..."
+                placeholder="0x..."
                 className="input"
                 value={withdrawAddress}
                 onChange={(e) => setWithdrawAddress(e.target.value)}

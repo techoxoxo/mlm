@@ -51,7 +51,7 @@ export default async function WalletPage() {
         <div>
           <h2 style={{ fontSize: 22, margin: "0 0 4px" }}>Crypto Wallet</h2>
           <p style={{ color: "var(--faint)", fontSize: 13, margin: 0 }}>
-            Deposit USDT to buy points · Cash out points to USDT (TRC-20)
+            Deposit USDT to buy points · Cash out points to USDT (BEP-20)
           </p>
         </div>
         <div

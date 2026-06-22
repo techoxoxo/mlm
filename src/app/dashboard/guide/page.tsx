@@ -23,7 +23,7 @@ export default async function Guide() {
         <Kicker>How to play</Kicker>
         <h2 style={{ fontSize: 26, margin: "0 0 8px" }}>Build your network, climb the matrix.</h2>
         <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-          Apex is a strategy game on a fair, first-in-first-out queue. You join once, take a position, and earn points
+          Revolutionary Income Plan is a strategy game on a fair, first-in-first-out queue. You join once, take a position, and earn points
           as new players fill your slots. At every stage you choose: cash out, or climb higher.
         </p>
       </Card>
@@ -103,7 +103,7 @@ export default async function Guide() {
       </Card>
 
       <p style={{ textAlign: "center", color: "var(--faint)", fontSize: 12.5, margin: "4px 0 8px" }}>
-        Apex is a virtual-points game — no real money, deposits, or withdrawals.
+        Revolutionary Income Plan is a virtual-points game — no real money, deposits, or withdrawals.
       </p>
     </div>
   );

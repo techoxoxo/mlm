@@ -23,7 +23,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           marginBottom: 16,
         }}
       >
-        ✦ Apex MLM
+        ✦ Revolutionary Income Plan
       </div>
 
       <h1 style={{ fontSize: 30, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Welcome back</h1>

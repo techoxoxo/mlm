@@ -41,7 +41,7 @@ export async function getDashboard(uid: string) {
         .orderBy(desc(transactions.createdAt))
         .limit(12),
       db
-        .select({ id: users.id, name: users.name, slab: users.currentSlab, status: users.status, createdAt: users.createdAt })
+        .select({ id: users.id, name: users.name, serialNo: users.serialNo, slab: users.currentSlab, status: users.status, createdAt: users.createdAt })
         .from(users)
         .where(eq(users.sponsorId, uid))
         .orderBy(desc(users.createdAt)),

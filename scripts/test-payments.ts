@@ -26,7 +26,7 @@ async function main() {
 
   // 1) Test Cryptographic Helpers
   console.log("\n1. Testing Cryptography...");
-  const sampleWallet = "TY7R8sP1zE2g3B4H5K6N7Q8W9X0Z1Y2V3M";
+  const sampleWallet = "0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
   const encrypted = encrypt(sampleWallet);
   const decrypted = decrypt(encrypted);
   if (decrypted !== sampleWallet) {
@@ -107,7 +107,7 @@ async function main() {
             status: "completed",
             amountUsdt: (amountPoints / 10).toFixed(6),
             amountPoints,
-            network: "trc20",
+            network: "bep20",
             paymentId,
             updatedAt: new Date(),
           });
@@ -252,8 +252,8 @@ async function main() {
   console.log(`    ✓ User balance now: ${userAfterCredit.pointsBalance} pts`);
 
   console.log("  c) Initiating valid withdrawal server action...");
-  // Withdrawal: 200 points ($20 base). Net payout: 200/10 * 0.98 - 2 = 17.6 USDT
-  const payoutRes = await requestWithdrawalAction(200, sampleWallet);
+  // Withdrawal: 50 points ($50 base). Net payout: 50 * 0.98 - 2 = 47 USDT
+  const payoutRes = await requestWithdrawalAction(50, sampleWallet);
   if (!payoutRes.ok || !payoutRes.data) {
     throw new Error(`FAIL: Withdrawal request failed: ${payoutRes.error}`);
   }
@@ -262,7 +262,7 @@ async function main() {
 
   // Assert points debited immediately
   const [userAfterWithdrawal] = await db.select().from(schema.users).where(eq(schema.users.id, user.id));
-  if (userAfterWithdrawal.pointsBalance !== userAfterCredit.pointsBalance - 200) {
+  if (userAfterWithdrawal.pointsBalance !== userAfterCredit.pointsBalance - 50) {
     throw new Error(`FAIL: Points were not debited. Balance: ${userAfterWithdrawal.pointsBalance}`);
   }
   console.log(`    ✓ Points lock-step debit confirmed. Remaining: ${userAfterWithdrawal.pointsBalance} pts`);

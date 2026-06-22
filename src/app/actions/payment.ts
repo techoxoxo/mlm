@@ -46,7 +46,7 @@ async function requireAdmin() {
 }
 
 /**
- * Initiate a points purchase using NowPayments USDT (TRC-20).
+ * Initiate a points purchase using NowPayments USDT (BEP-20).
  * amountUsdt is the amount of USDT the user wants to spend (minimum 10 USDT).
  */
 export async function initiateDepositAction(amountUsdt: number): Promise<ActionState<{ payAddress: string; paymentId: string; amountUsdt: number; amountPoints: number }>> {
@@ -66,7 +66,7 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
     const orderId = `dep:${userId}:${amountPoints}`;
 
     // Create payment in NowPayments
-    const payment = await createPayment(orderId, amountUsdt, "usdttrc20");
+    const payment = await createPayment(orderId, amountUsdt, "usdtbsc");
 
     // Write pending row to database
     await db.insert(cryptoTransactions).values({
@@ -75,7 +75,7 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
       status: "pending",
       amountUsdt: amountUsdt.toFixed(6),
       amountPoints,
-      network: "trc20",
+      network: "bep20",
       paymentId: payment.payment_id,
       updatedAt: new Date(),
     });
@@ -96,7 +96,7 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
 }
 
 /**
- * Request a withdrawal, converting virtual points to USDT TRC-20.
+ * Request a withdrawal, converting virtual points to USDT BEP-20.
  * amountPoints is the amount of points the user wants to cash out (minimum 200 points = $20 base value).
  */
 export async function requestWithdrawalAction(amountPoints: number, walletAddress: string): Promise<ActionState<{ cryptoTxId: string; status: string; amountUsdt: number }>> {
@@ -105,8 +105,8 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
     const userId = session.uid;
 
     const trimmedAddress = walletAddress.trim();
-    if (!trimmedAddress || trimmedAddress.length < 20) {
-      return { ok: false, error: "Invalid USDT TRC-20 wallet address" };
+    if (!trimmedAddress.startsWith("0x") || trimmedAddress.length !== 42) {
+      return { ok: false, error: "Invalid USDT BEP-20 wallet address" };
     }
 
     // Minimum withdrawal threshold is 20 points ($20)
@@ -158,7 +158,7 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
           amountUsdt: netUsdt.toFixed(6),
           amountPoints,
           feeUsdt: "2.000000",
-          network: "trc20",
+          network: "bep20",
           encryptedWalletAddress,
           updatedAt: new Date(),
         })

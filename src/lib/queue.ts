@@ -51,6 +51,10 @@ export function enqueueActivation(userId: string) {
   return runJob(`activate_${userId}`, { kind: "activate", userId });
 }
 
+export async function enqueueActivationAsync(userId: string) {
+  await distributionQueue.add("activate", { kind: "activate", userId }, { jobId: `activate_${userId}` });
+}
+
 export function enqueueDecision(userId: string, choice: "exit" | "upgrade") {
   return runJob(`decide_${userId}_${choice}`, { kind: "decide", userId, choice });
 }

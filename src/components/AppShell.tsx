@@ -81,7 +81,7 @@ export function AppShell({
               marginBottom: 10,
             }}
           >
-            Apex MLM v2.0
+            Revolutionary Income Plan
           </div>
           <LogoutButton />
         </div>

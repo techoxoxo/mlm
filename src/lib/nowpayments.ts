@@ -77,17 +77,24 @@ export function verifyWebhookSignature(body: Record<string, unknown>, signature:
 export async function createPayment(
   orderId: string,
   amountUsd: number,
-  payCurrency: string = "usdttrc20"
+  payCurrency: string = "usdtbsc"
 ): Promise<CreatePaymentResponse> {
+  let apiCurrency = payCurrency.toLowerCase();
+  if (apiCurrency === "bep20" || apiCurrency === "bsc") {
+    apiCurrency = "usdtbsc";
+  } else if (apiCurrency === "trc20" || apiCurrency === "tron") {
+    apiCurrency = "usdttrc20";
+  }
+
   if (isMockMode()) {
     return {
       payment_id: `mock_pay_${crypto.randomUUID().slice(0, 8)}`,
       payment_status: "waiting",
-      pay_address: `TRON_MOCK_WALLET_${crypto.randomUUID().slice(0, 16).toUpperCase()}`,
+      pay_address: `BSC_MOCK_WALLET_${crypto.randomUUID().slice(0, 16).toUpperCase()}`,
       price_amount: amountUsd,
       price_currency: "usd",
       pay_amount: amountUsd, // assume 1:1 peg for currency in mockup
-      pay_currency: payCurrency,
+      pay_currency: apiCurrency,
       order_id: orderId,
       created_at: new Date().toISOString(),
     };
@@ -103,7 +110,7 @@ export async function createPayment(
     body: JSON.stringify({
       price_amount: amountUsd,
       price_currency: "usd",
-      pay_currency: payCurrency,
+      pay_currency: apiCurrency,
       order_id: orderId,
       ipn_callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nowpayments`,
     }),
@@ -150,8 +157,15 @@ async function getPayoutToken(): Promise<string> {
 export async function createPayout(
   address: string,
   amountUsdt: number,
-  currency: string = "usdttrc20"
+  currency: string = "usdtbsc"
 ): Promise<CreatePayoutResponse> {
+  let apiCurrency = currency.toLowerCase();
+  if (apiCurrency === "bep20" || apiCurrency === "bsc") {
+    apiCurrency = "usdtbsc";
+  } else if (apiCurrency === "trc20" || apiCurrency === "tron") {
+    apiCurrency = "usdttrc20";
+  }
+
   if (isMockMode()) {
     return {
       id: `mock_payout_${crypto.randomUUID().slice(0, 8)}`,
@@ -160,7 +174,7 @@ export async function createPayout(
           id: `mock_w_${crypto.randomUUID().slice(0, 8)}`,
           address,
           amount: amountUsdt.toString(),
-          currency,
+          currency: apiCurrency,
           status: "processing",
           txid: null,
         },
@@ -183,7 +197,7 @@ export async function createPayout(
         {
           address,
           amount: amountUsdt,
-          currency,
+          currency: apiCurrency,
           ipn_callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nowpayments`,
         },
       ],

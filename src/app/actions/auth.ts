@@ -12,7 +12,7 @@ import {
   genReferralCode,
 } from "@/lib/auth";
 import { chargeRegistration } from "@/lib/distribution";
-import { enqueueActivation } from "@/lib/queue";
+import { enqueueActivationAsync } from "@/lib/queue";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 const { users } = schema;
@@ -96,10 +96,10 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
   }
   if (!created) return { error: "Could not create account, please try again" };
 
-  // auto-enter the autopool (Stage 1) via the durable queue. If the worker is
+  // auto-enter the autopool (Stage 1) via the durable queue asynchronously. If the worker is
   // unavailable, the account still exists and the dashboard offers Activate.
   try {
-    await enqueueActivation(created.id);
+    await enqueueActivationAsync(created.id);
   } catch {
     /* fall back to manual activation */
   }

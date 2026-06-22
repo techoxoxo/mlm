@@ -98,7 +98,7 @@ const TESTIMONIALS = [
 ];
 
 const FAQ_ITEMS = [
-  { q: "Is this real money?", a: "No. Apex is a virtual-points strategy game. No real money is deposited, withdrawn, or invested. All balances are game points with no monetary value." },
+  { q: "Is this real money?", a: "No. Revolutionary Income Plan is a virtual-points strategy game. No real money is deposited, withdrawn, or invested. All balances are game points with no monetary value." },
   { q: "How does the queue work?", a: "Every player who joins opens slots at their tier. New joiners fill the oldest open slot first — globally, across all players. This is enforced at the database level with row locks, so no one can jump the queue." },
   { q: "What happens when my slots are all filled?", a: "You get a choice: cash out (keep your exit %) and leave the game, or upgrade to the next tier using your earnings as the entry fee and keep anything left over." },
   { q: "Where does the royalty pool come from?", a: "10 points from every player's registration flow into the shared royalty pool. It's distributed 3× a month to players with 10+ direct referrals, split by rank band." },
@@ -176,7 +176,7 @@ export default async function Landing() {
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ed87a", boxShadow: "0 0 8px #2ed87a", flexShrink: 0 }} />
                 <span style={{ fontSize: 12.5, fontWeight: 700, color: "#3d2f06" }}>{totalMembers.toLocaleString()} players active now</span>
               </div>
-              <h1 style={{ fontSize: 50, lineHeight: 1.04 }}>Climb the<br />Apex matrix.</h1>
+              <h1 style={{ fontSize: 50, lineHeight: 1.04 }}>Build Your<br />Revolutionary Income.</h1>
               <p style={{ fontSize: 16, fontWeight: 500, color: "#3d2f06", maxWidth: 340, margin: "14px 0 26px", lineHeight: 1.55 }}>
                 Join the FIFO queue, fill your slots, and earn points through five tiers. Exit or upgrade — the strategy is yours.
               </p>
@@ -476,10 +476,10 @@ export default async function Landing() {
       {/* ─── why apex ─────────────────────────────────────────── */}
       <section className="container" style={{ padding: "20px 24px 60px" }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <span className="kicker">Why Apex</span>
+          <span className="kicker">Why RIP</span>
           <h2 style={{ fontSize: 38, marginTop: 10 }}>Built different.</h2>
           <p style={{ color: "var(--muted)", fontSize: 15, marginTop: 12, maxWidth: 500, marginLeft: "auto", marginRight: "auto" }}>
-            We made choices that favour players over the house. Here&apos;s what makes Apex fair.
+            We made choices that favour players over the house. Here&apos;s what makes Revolutionary Income Plan fair.
           </p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
@@ -601,7 +601,7 @@ export default async function Landing() {
             </div>
           </div>
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>© {new Date().getFullYear()} Apex — virtual-points game only</span>
+            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>© {new Date().getFullYear()} Revolutionary Income Plan — virtual-points game only</span>
             <span style={{ color: "var(--faint)", fontSize: 12.5 }}>No real money · No deposits · No withdrawals</span>
           </div>
         </div>
