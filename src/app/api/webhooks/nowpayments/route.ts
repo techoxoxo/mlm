@@ -27,8 +27,8 @@ export async function POST(req: Request) {
       if (paymentStatus === "finished") {
         const orderId = body.order_id || "";
         
-        // Expected format: dep:${userId}:${amountPoints}
-        if (orderId.startsWith("dep:")) {
+        // Expected format: dep:${userId}:${amountPoints} or act:${userId}:${amountPoints}
+        if (orderId.startsWith("dep:") || orderId.startsWith("act:")) {
           const parts = orderId.split(":");
           const userId = parts[1];
           const amountPoints = parseInt(parts[2], 10);

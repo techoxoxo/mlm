@@ -80,6 +80,16 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
         return;
       }
 
+      const [user] = await tx
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, userId))
+        .for("update");
+
+      if (!user) {
+        throw new Error(`User ${userId} not found`);
+      }
+
       if (ctx) {
         await tx
           .update(schema.cryptoTransactions)
@@ -92,16 +102,31 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
           status: "completed",
           amountUsdt: (amountPoints * 1).toFixed(6),
           amountPoints,
-          network: "unknown",
+          network: "bep20",
           paymentId,
           updatedAt: new Date(),
         });
       }
 
-      await post(tx, userId, "usdt_deposit", amountPoints, {
-        note: `USDT Deposit (ID: ${paymentId})`,
-        idempotencyKey: `dep:${paymentId}`,
-      });
+      if (user.status === "registered") {
+        // Credit the activation deposit
+        await post(tx, userId, "usdt_deposit", amountPoints, {
+          note: `USDT Activation Deposit (ID: ${paymentId})`,
+          idempotencyKey: `dep:${paymentId}`,
+        });
+
+        // Run registration charges (debits 20 points)
+        const { chargeRegistration, enterSlab } = await import("@/lib/distribution");
+        await chargeRegistration(tx, userId);
+
+        // Run first-time slab 1 activation (debits 30 points)
+        await enterSlab(tx, userId, 1);
+      } else {
+        await post(tx, userId, "usdt_deposit", amountPoints, {
+          note: `USDT Deposit (ID: ${paymentId})`,
+          idempotencyKey: `dep:${paymentId}`,
+        });
+      }
     });
 
     await publishEvent(userId, { type: "payment_update", status: "completed" });

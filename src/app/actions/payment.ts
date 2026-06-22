@@ -223,3 +223,64 @@ export async function adminApprovePayoutAction(cryptoTxId: string): Promise<Acti
     return { ok: false, error: (error as Error).message };
   }
 }
+
+/**
+ * Initiate the registration + activation payment (50 USDT).
+ */
+export async function initiateActivationDepositAction(): Promise<ActionState<{ payAddress: string; paymentId: string; amountUsdt: number; amountPoints: number }>> {
+  try {
+    const session = await requireUser();
+    const userId = session.uid;
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) {
+      return { ok: false, error: "User not found" };
+    }
+    if (user.status !== "registered") {
+      return { ok: false, error: "Account is already active" };
+    }
+
+    // Dynamic fee computation from settings & slab 1
+    const [cfg] = await db.select().from(schema.settings).where(eq(schema.settings.id, 1));
+    const [slab1] = await db.select().from(schema.slabs).where(eq(schema.slabs.level, 1));
+    const idPinFee = cfg?.idPinFee ?? 10;
+    const royaltyFee = cfg?.royaltyFee ?? 10;
+    const activationFee = slab1?.fee ?? 30;
+    const totalUsdt = idPinFee + royaltyFee + activationFee; // Default: 50 USDT
+
+    // Rate: 1 USDT = 1 point, so we need exactly totalUsdt points
+    const amountPoints = totalUsdt;
+
+    // orderId formatted for webhook parser: act:${userId}:${amountPoints}
+    const orderId = `act:${userId}:${amountPoints}`;
+
+    // Create payment in NowPayments
+    const payment = await createPayment(orderId, totalUsdt, "usdtbsc");
+
+    // Write pending row to database
+    await db.insert(cryptoTransactions).values({
+      userId,
+      type: "deposit",
+      status: "pending",
+      amountUsdt: totalUsdt.toFixed(6),
+      amountPoints,
+      network: "bep20",
+      paymentId: payment.payment_id,
+      updatedAt: new Date(),
+    });
+
+    return {
+      ok: true,
+      data: {
+        payAddress: payment.pay_address,
+        paymentId: payment.payment_id,
+        amountUsdt: payment.pay_amount,
+        amountPoints,
+      },
+    };
+  } catch (error) {
+    console.error("initiateActivationDepositAction failed:", error);
+    return { ok: false, error: (error as Error).message };
+  }
+}
+

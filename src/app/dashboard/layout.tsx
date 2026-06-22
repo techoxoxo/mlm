@@ -5,6 +5,7 @@ import type { NavItem } from "@/components/SideNav";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
+import { ActivationPaymentScreen } from "@/components/ActivationPaymentScreen";
 
 const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: "dashboard" },
@@ -22,6 +23,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/login");
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, session.uid) });
   if (!user) redirect("/logout");
+
+  if (user.status === "registered") {
+    return (
+      <>
+        <LiveRefresh />
+        <ActivationPaymentScreen userId={user.id} />
+      </>
+    );
+  }
 
   return (
     <AppShell

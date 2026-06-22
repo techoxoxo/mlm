@@ -30,8 +30,8 @@ export type CreatePayoutResponse = {
  * Check if we are running in mock mode.
  */
 function isMockMode(): boolean {
-  const apiKey = process.env.NOWPAYMENTS_API_KEY;
-  return !apiKey || apiKey === "mock_api_key_for_testing" || process.env.NODE_ENV === "test";
+  if (process.env.NODE_ENV === "test") return true;
+  return process.env.NOWPAYMENTS_MODE !== "production";
 }
 
 /**
