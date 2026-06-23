@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/nowpayments";
+import type { NowPaymentStatus } from "@/lib/nowpayments";
 import { enqueuePaymentCredit } from "@/lib/queue";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
+import { publishEvent } from "@/lib/events";
 
 export async function POST(req: Request) {
   try {
@@ -10,24 +12,29 @@ export async function POST(req: Request) {
     const body = JSON.parse(rawBody);
     const signature = req.headers.get("x-nowpayments-sig") || "";
 
-    // 1) Verify payload authenticity
     const isValid = verifyWebhookSignature(body, signature);
     if (!isValid) {
       console.warn("NowPayments Webhook: Invalid signature received");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    // 2) Handle Deposit payment IPN
+    // Handle Deposit payment IPN
     if (body.payment_id) {
       const paymentId = String(body.payment_id);
-      const paymentStatus = body.payment_status;
+      const paymentStatus: NowPaymentStatus = body.payment_status;
 
       console.log(`NowPayments Webhook: Payment ID ${paymentId} status: ${paymentStatus}`);
 
+      // Look up the transaction to get the userId for SSE events
+      const [ctx] = await db
+        .select()
+        .from(schema.cryptoTransactions)
+        .where(eq(schema.cryptoTransactions.paymentId, paymentId))
+        .limit(1);
+
       if (paymentStatus === "finished") {
         const orderId = body.order_id || "";
-        
-        // Expected format: dep:${userId}:${amountPoints} or act:${userId}:${amountPoints}
+
         if (orderId.startsWith("dep:") || orderId.startsWith("act:")) {
           const parts = orderId.split(":");
           const userId = parts[1];
@@ -39,25 +46,37 @@ export async function POST(req: Request) {
           } else {
             console.error(`NowPayments Webhook: Malformed order_id: ${orderId}`);
           }
+        } else if (ctx) {
+          console.log(`NowPayments Webhook (Fallback): Enqueuing credit of ${ctx.amountPoints} points to user ${ctx.userId}`);
+          await enqueuePaymentCredit(ctx.userId, paymentId, ctx.amountPoints);
         } else {
-          // Fallback: look up in database if order_id format is different
-          const [ctx] = await db
-            .select()
-            .from(schema.cryptoTransactions)
-            .where(eq(schema.cryptoTransactions.paymentId, paymentId))
-            .limit(1);
-
-          if (ctx) {
-            console.log(`NowPayments Webhook (Fallback): Enqueuing credit of ${ctx.amountPoints} points to user ${ctx.userId}`);
-            await enqueuePaymentCredit(ctx.userId, paymentId, ctx.amountPoints);
-          } else {
-            console.error(`NowPayments Webhook: Unknown transaction order ID: ${orderId}`);
-          }
+          console.error(`NowPayments Webhook: Unknown transaction order ID: ${orderId}`);
+        }
+      } else if (paymentStatus === "expired" || paymentStatus === "failed" || paymentStatus === "refunded") {
+        if (ctx && ctx.status === "pending") {
+          const dbStatus = paymentStatus === "refunded" ? "failed" as const : paymentStatus;
+          await db
+            .update(schema.cryptoTransactions)
+            .set({ status: dbStatus, updatedAt: new Date() })
+            .where(eq(schema.cryptoTransactions.id, ctx.id));
+          await publishEvent(ctx.userId, { type: "payment_update", status: paymentStatus });
+        }
+      } else if (
+        paymentStatus === "confirming" ||
+        paymentStatus === "confirmed" ||
+        paymentStatus === "sending"
+      ) {
+        if (ctx) {
+          await publishEvent(ctx.userId, { type: "payment_update", status: paymentStatus });
+        }
+      } else if (paymentStatus === "partially_paid") {
+        if (ctx) {
+          await publishEvent(ctx.userId, { type: "payment_update", status: "partially_paid" });
         }
       }
     }
 
-    // 3) Handle Payout withdrawal IPN
+    // Handle Payout withdrawal IPN
     if (body.payout_id || body.payout_status) {
       const payoutId = String(body.payout_id || body.id);
       const payoutStatus = body.payout_status || body.status;
@@ -65,7 +84,6 @@ export async function POST(req: Request) {
       console.log(`NowPayments Webhook: Payout ID ${payoutId} status: ${payoutStatus}`);
 
       if (payoutStatus === "finished" || payoutStatus === "failed") {
-        // Find matching transaction
         const [ctx] = await db
           .select()
           .from(schema.cryptoTransactions)
@@ -74,18 +92,16 @@ export async function POST(req: Request) {
 
         if (ctx) {
           if (payoutStatus === "finished" && ctx.status !== "completed") {
-            // Update transaction to completed and save transaction hash if provided
             await db
               .update(schema.cryptoTransactions)
               .set({
                 status: "completed",
                 txHash: body.txid || ctx.txHash,
-                encryptedWalletAddress: null, // Wipe address
+                encryptedWalletAddress: null,
                 updatedAt: new Date(),
               })
               .where(eq(schema.cryptoTransactions.id, ctx.id));
           } else if (payoutStatus === "failed" && ctx.status !== "failed") {
-            // Mark failed, clear wallet, and trigger compensating refund transaction
             await db
               .update(schema.cryptoTransactions)
               .set({
@@ -95,7 +111,6 @@ export async function POST(req: Request) {
               })
               .where(eq(schema.cryptoTransactions.id, ctx.id));
 
-            // Refund points
             const { post } = await import("@/lib/distribution");
             await db.transaction(async (tx) => {
               await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {

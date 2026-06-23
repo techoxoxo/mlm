@@ -2,9 +2,20 @@ import crypto from "crypto";
 
 const NOWPAYMENTS_API_URL = "https://api.nowpayments.io/v1";
 
+export type NowPaymentStatus =
+  | "waiting"
+  | "confirming"
+  | "confirmed"
+  | "sending"
+  | "partially_paid"
+  | "finished"
+  | "failed"
+  | "refunded"
+  | "expired";
+
 export type CreatePaymentResponse = {
   payment_id: string;
-  payment_status: string;
+  payment_status: NowPaymentStatus;
   pay_address: string;
   price_amount: number;
   price_currency: string;
@@ -12,6 +23,39 @@ export type CreatePaymentResponse = {
   pay_currency: string;
   order_id: string;
   created_at: string;
+};
+
+export type GetPaymentStatusResponse = {
+  payment_id: number;
+  payment_status: NowPaymentStatus;
+  pay_address: string;
+  price_amount: number;
+  price_currency: string;
+  pay_amount: number;
+  actually_paid: number;
+  pay_currency: string;
+  order_id: string;
+  order_description: string | null;
+  purchase_id: number;
+  outcome_amount: number;
+  outcome_currency: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateInvoiceResponse = {
+  id: string;
+  order_id: string;
+  order_description: string;
+  price_amount: string;
+  price_currency: string;
+  pay_currency: string | null;
+  ipn_callback_url: string;
+  invoice_url: string;
+  success_url: string;
+  cancel_url: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CreatePayoutResponse = {
@@ -119,6 +163,89 @@ export async function createPayment(
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(`NowPayments createPayment failed (${res.status}): ${errorText}`);
+  }
+
+  return res.json();
+}
+
+export async function getPaymentStatus(paymentId: string): Promise<GetPaymentStatusResponse> {
+  if (isMockMode()) {
+    return {
+      payment_id: Number(paymentId) || 0,
+      payment_status: "waiting",
+      pay_address: "BSC_MOCK_WALLET",
+      price_amount: 50,
+      price_currency: "usd",
+      pay_amount: 50,
+      actually_paid: 0,
+      pay_currency: "usdtbsc",
+      order_id: "",
+      order_description: null,
+      purchase_id: 0,
+      outcome_amount: 0,
+      outcome_currency: "usdtbsc",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  const apiKey = process.env.NOWPAYMENTS_API_KEY;
+  const res = await fetch(`${NOWPAYMENTS_API_URL}/payment/${paymentId}`, {
+    method: "GET",
+    headers: { "x-api-key": apiKey! },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`NowPayments getPaymentStatus failed (${res.status}): ${errorText}`);
+  }
+
+  return res.json();
+}
+
+export async function createInvoice(
+  orderId: string,
+  amountUsd: number,
+  opts: { successUrl: string; cancelUrl: string }
+): Promise<CreateInvoiceResponse> {
+  if (isMockMode()) {
+    return {
+      id: `mock_inv_${crypto.randomUUID().slice(0, 8)}`,
+      order_id: orderId,
+      order_description: `Activation payment ${orderId}`,
+      price_amount: amountUsd.toString(),
+      price_currency: "usd",
+      pay_currency: null,
+      ipn_callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nowpayments`,
+      invoice_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?mock_invoice=true`,
+      success_url: opts.successUrl,
+      cancel_url: opts.cancelUrl,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  const apiKey = process.env.NOWPAYMENTS_API_KEY;
+  const res = await fetch(`${NOWPAYMENTS_API_URL}/invoice`, {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      price_amount: amountUsd,
+      price_currency: "usd",
+      order_id: orderId,
+      order_description: `Account activation (${amountUsd} USDT)`,
+      ipn_callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nowpayments`,
+      success_url: opts.successUrl,
+      cancel_url: opts.cancelUrl,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`NowPayments createInvoice failed (${res.status}): ${errorText}`);
   }
 
   return res.json();

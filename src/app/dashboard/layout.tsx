@@ -28,7 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     return (
       <>
         <LiveRefresh />
-        <ActivationPaymentScreen userId={user.id} />
+        <ActivationPaymentScreen />
       </>
     );
   }

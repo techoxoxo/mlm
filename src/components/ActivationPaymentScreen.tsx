@@ -1,48 +1,65 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ArrowRight, ShieldCheck, Lock, Gift, CheckCircle, Copy, Coins } from "lucide-react";
+import { useState, useEffect, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2, ArrowRight, ShieldCheck, Lock, Coins, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 import { initiateActivationDepositAction } from "@/app/actions/payment";
 import { Logo } from "@/components/Logo";
 
-type ActiveDepositInfo = {
-  paymentId: string;
-  amountUsdt: string;
-  payAddress: string;
+type InvoiceInfo = {
+  invoiceId: string;
+  invoiceUrl: string;
+  amountUsdt: number;
 };
 
-export function ActivationPaymentScreen({
-  userId,
-  initialActiveDeposit,
-}: {
-  userId: string;
-  initialActiveDeposit?: ActiveDepositInfo | null;
-}) {
+export function ActivationPaymentScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const [deposit, setDeposit] = useState<ActiveDepositInfo | null>(initialActiveDeposit || null);
+  const [invoice, setInvoice] = useState<InvoiceInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const paymentResult = searchParams.get("payment");
+  const isPaymentSuccess = paymentResult === "success";
+  const isPaymentCancelled = paymentResult === "cancelled";
+
+  // If NOWPayments redirected back with ?payment=success, poll until activation completes
+  useEffect(() => {
+    if (!isPaymentSuccess) return;
+
+    const es = new EventSource("/api/events");
+    es.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data) as { type: string; status?: string };
+        if (ev.type === "payment_update") {
+          router.refresh();
+        }
+      } catch { /* ignore non-JSON pings */ }
+    };
+
+    // Fallback: poll via router.refresh every 10s in case SSE misses it
+    const interval = setInterval(() => router.refresh(), 10_000);
+
+    return () => {
+      es.close();
+      clearInterval(interval);
+    };
+  }, [isPaymentSuccess, router]);
 
   const handleInitiate = () => {
     setError(null);
     startTransition(async () => {
       const res = await initiateActivationDepositAction();
       if (!res.ok || !res.data) {
-        setError(res.error || "Failed to generate activation address.");
+        setError(res.error || "Failed to create payment invoice.");
       } else {
-        setDeposit({
-          paymentId: res.data.paymentId,
-          amountUsdt: res.data.amountUsdt.toString(),
-          payAddress: res.data.payAddress,
+        setInvoice({
+          invoiceId: res.data.invoiceId,
+          invoiceUrl: res.data.invoiceUrl,
+          amountUsdt: res.data.amountUsdt,
         });
+        // Redirect to NOWPayments hosted checkout
+        window.open(res.data.invoiceUrl, "_blank");
       }
     });
   };
@@ -75,7 +92,45 @@ export function ActivationPaymentScreen({
         flexDirection: "column",
         gap: 20
       }}>
-        {deposit ? (
+        {/* Post-payment: user returned from NOWPayments checkout */}
+        {isPaymentSuccess && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18, alignItems: "center", textAlign: "center" }}>
+            <span style={{ display: "inline-flex", width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: "50%", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)" }}>
+              <CheckCircle size={24} color="var(--color-success)" />
+            </span>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Payment Received</h2>
+            <p style={{ color: "var(--color-muted)", fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
+              Your payment is being confirmed on-chain. Your account will activate automatically — this usually takes 1–3 minutes.
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--color-brand)", background: "rgba(248, 198, 23, 0.05)", padding: "10px 20px", borderRadius: 8 }}>
+              <Loader2 size={14} className="spin" />
+              <span style={{ fontWeight: 600 }}>Waiting for blockchain confirmation...</span>
+            </div>
+          </div>
+        )}
+
+        {isPaymentCancelled && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18, alignItems: "center", textAlign: "center" }}>
+            <span style={{ display: "inline-flex", width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: "50%", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+              <XCircle size={24} color="var(--color-danger, #ef4444)" />
+            </span>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Payment Cancelled</h2>
+            <p style={{ color: "var(--color-muted)", fontSize: 13.5, margin: 0 }}>
+              No worries — you can try again when you're ready.
+            </p>
+            <button
+              onClick={() => router.replace("/dashboard")}
+              className="btn btn-primary"
+              style={{ width: "100%", padding: "14px 0", fontSize: 14.5, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
+            >
+              Try Again
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* Invoice created, waiting for user to complete payment */}
+        {!paymentResult && invoice && (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ display: "inline-flex", width: 32, height: 32, alignItems: "center", justifyContent: "center", borderRadius: "50%", background: "rgba(248, 198, 23, 0.1)", border: "1px solid rgba(248, 198, 23, 0.3)" }}>
@@ -83,46 +138,43 @@ export function ActivationPaymentScreen({
               </span>
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Activation Invoice</h2>
-                <span style={{ fontSize: 11, color: "var(--color-muted)" }}>ID: {deposit.paymentId}</span>
+                <span style={{ fontSize: 11, color: "var(--color-muted)" }}>ID: {invoice.invoiceId}</span>
               </div>
             </div>
 
             <div style={{ fontSize: 13, color: "var(--color-muted)", lineHeight: 1.5, background: "rgba(255, 255, 255, 0.02)", padding: 14, borderRadius: 10, border: "1px solid var(--color-border)" }}>
-              Send exactly <b style={{ color: "var(--color-text)" }}>{Number(deposit.amountUsdt).toFixed(2)} USDT (BEP-20)</b> to the address below. Your account status and matrix slot will activate automatically once detected on-chain.
+              Complete your payment of <b style={{ color: "var(--color-text)" }}>{invoice.amountUsdt.toFixed(2)} USDT</b> on the NOWPayments checkout page. You'll be redirected back automatically after payment.
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: 4 }}>
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${deposit.payAddress}`}
-                alt="QR Code"
-                style={{ background: "#fff", padding: 8, borderRadius: 10, border: "1px solid var(--color-border)" }}
-              />
-              <div style={{ width: "100%" }}>
-                <span style={{ fontSize: 11, color: "var(--color-muted)" }}>BEP-20 Destination Address:</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, background: "var(--color-surface-3)", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", overflow: "hidden" }}>
-                  <span className="mono" style={{ fontSize: 11.5, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{deposit.payAddress}</span>
-                  <button type="button" onClick={() => handleCopy(deposit.payAddress)} style={{ cursor: "pointer", background: "none", border: "none", padding: 4, display: "flex", color: copied ? "var(--color-success)" : "var(--color-muted)" }}>
-                    <Copy size={14} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13, color: "var(--color-brand)", marginTop: 4, background: "rgba(248, 198, 23, 0.05)", padding: "10px 0", borderRadius: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13, color: "var(--color-brand)", background: "rgba(248, 198, 23, 0.05)", padding: "10px 0", borderRadius: 8 }}>
               <Loader2 size={14} className="spin" />
-              <span style={{ fontWeight: 600 }}>Waiting for block confirmations...</span>
+              <span style={{ fontWeight: 600 }}>Waiting for payment completion...</span>
             </div>
+
+            <a
+              href={invoice.invoiceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+              style={{ width: "100%", padding: "14px 0", fontSize: 14.5, display: "flex", justifyContent: "center", alignItems: "center", gap: 8, textDecoration: "none" }}
+            >
+              Open Payment Page
+              <ExternalLink size={15} />
+            </a>
 
             <button
               type="button"
               className="btn btn-ghost"
-              style={{ fontSize: 12, padding: "8px 0", marginTop: 4 }}
-              onClick={() => setDeposit(null)}
+              style={{ fontSize: 12, padding: "8px 0" }}
+              onClick={() => setInvoice(null)}
             >
-              Cancel and generate new address
+              Cancel
             </button>
           </div>
-        ) : (
+        )}
+
+        {/* Initial state: show fee breakdown and pay button */}
+        {!paymentResult && !invoice && (
           <>
             <div style={{ textAlign: "center" }}>
               <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px" }}>Activate Your Account</h2>

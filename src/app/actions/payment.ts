@@ -5,7 +5,8 @@ import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSession } from "@/lib/auth";
 import { post } from "@/lib/distribution";
-import { createPayment } from "@/lib/nowpayments";
+import { createPayment, createInvoice, getPaymentStatus } from "@/lib/nowpayments";
+import type { NowPaymentStatus } from "@/lib/nowpayments";
 import { encrypt } from "@/lib/crypto";
 import { enqueuePaymentPayout } from "@/lib/queue";
 
@@ -225,9 +226,10 @@ export async function adminApprovePayoutAction(cryptoTxId: string): Promise<Acti
 }
 
 /**
- * Initiate the registration + activation payment (50 USDT).
+ * Initiate the registration + activation payment (50 USDT) via NOWPayments Invoice.
+ * Returns an invoice_url that redirects the user to NOWPayments hosted checkout.
  */
-export async function initiateActivationDepositAction(): Promise<ActionState<{ payAddress: string; paymentId: string; amountUsdt: number; amountPoints: number }>> {
+export async function initiateActivationDepositAction(): Promise<ActionState<{ invoiceUrl: string; invoiceId: string; amountUsdt: number; amountPoints: number }>> {
   try {
     const session = await requireUser();
     const userId = session.uid;
@@ -246,18 +248,17 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ p
     const idPinFee = cfg?.idPinFee ?? 10;
     const royaltyFee = cfg?.royaltyFee ?? 10;
     const activationFee = slab1?.fee ?? 30;
-    const totalUsdt = idPinFee + royaltyFee + activationFee; // Default: 50 USDT
+    const totalUsdt = idPinFee + royaltyFee + activationFee;
 
-    // Rate: 1 USDT = 1 point, so we need exactly totalUsdt points
     const amountPoints = totalUsdt;
-
-    // orderId formatted for webhook parser: act:${userId}:${amountPoints}
     const orderId = `act:${userId}:${amountPoints}`;
 
-    // Create payment in NowPayments
-    const payment = await createPayment(orderId, totalUsdt, "usdtbsc");
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const invoice = await createInvoice(orderId, totalUsdt, {
+      successUrl: `${appUrl}/dashboard?payment=success`,
+      cancelUrl: `${appUrl}/dashboard?payment=cancelled`,
+    });
 
-    // Write pending row to database
     await db.insert(cryptoTransactions).values({
       userId,
       type: "deposit",
@@ -265,21 +266,54 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ p
       amountUsdt: totalUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
-      paymentId: payment.payment_id,
+      paymentId: invoice.id,
       updatedAt: new Date(),
     });
 
     return {
       ok: true,
       data: {
-        payAddress: payment.pay_address,
-        paymentId: payment.payment_id,
-        amountUsdt: payment.pay_amount,
+        invoiceUrl: invoice.invoice_url,
+        invoiceId: invoice.id,
+        amountUsdt: totalUsdt,
         amountPoints,
       },
     };
   } catch (error) {
     console.error("initiateActivationDepositAction failed:", error);
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+export async function checkPaymentStatusAction(
+  paymentId: string
+): Promise<ActionState<{ status: NowPaymentStatus; actuallyPaid: number }>> {
+  try {
+    await requireUser();
+
+    const payment = await getPaymentStatus(paymentId);
+
+    if (
+      payment.payment_status === "expired" ||
+      payment.payment_status === "failed" ||
+      payment.payment_status === "refunded"
+    ) {
+      const dbStatus = payment.payment_status === "refunded" ? "failed" as const : payment.payment_status;
+      await db
+        .update(cryptoTransactions)
+        .set({ status: dbStatus, updatedAt: new Date() })
+        .where(eq(cryptoTransactions.paymentId, paymentId));
+    }
+
+    return {
+      ok: true,
+      data: {
+        status: payment.payment_status,
+        actuallyPaid: payment.actually_paid ?? 0,
+      },
+    };
+  } catch (error) {
+    console.error("checkPaymentStatusAction failed:", error);
     return { ok: false, error: (error as Error).message };
   }
 }
