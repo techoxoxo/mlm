@@ -19,8 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           justifyContent: "space-between",
           padding: "44px 52px",
           borderRight: "1px solid var(--border)",
-          background:
-            "linear-gradient(160deg, rgba(248,198,23,0.12) 0%, rgba(18,15,32,0.97) 40%), var(--bg-2)",
+          background: "linear-gradient(160deg, #ffffff 0%, #fef9e7 35%, #fffdf5 100%)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -35,7 +34,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             width: 400,
             height: 400,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(248,198,23,0.12) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(248,198,23,0.25) 0%, transparent 70%)",
             pointerEvents: "none",
           }}
         />
@@ -48,7 +47,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             width: 300,
             height: 300,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(248,198,23,0.06) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(248,198,23,0.18) 0%, transparent 70%)",
             pointerEvents: "none",
           }}
         />
@@ -60,57 +59,35 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* main brand copy */}
         <div style={{ position: "relative" }}>
-          {/* mesh grid visual */}
+          {/* logo display */}
           <div
-            aria-hidden
             style={{
               width: "100%",
               maxWidth: 380,
               height: 200,
               marginBottom: 32,
               borderRadius: 20,
-              background:
-                "radial-gradient(rgba(248,198,23,0.12) 1.5px, transparent 1.5px)",
-              backgroundSize: "22px 22px",
-              border: "1px solid rgba(248,198,23,0.1)",
-              position: "relative",
-              overflow: "hidden",
+              background: "rgba(255,255,255,0.6)",
+              border: "1px solid rgba(184,134,11,0.2)",
+              boxShadow: "0 4px 20px rgba(184,134,11,0.08)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            {/* abstract network lines */}
-            <svg width="100%" height="100%" viewBox="0 0 380 200" style={{ position: "absolute", inset: 0 }}>
-              {/* nodes */}
-              {[
-                [190, 100], [90, 50], [290, 50], [90, 150], [290, 150],
-                [40, 100], [340, 100], [190, 30], [190, 170],
-              ].map(([cx, cy], i) => (
-                <circle
-                  key={i}
-                  cx={cx}
-                  cy={cy}
-                  r={i === 0 ? 8 : 5}
-                  fill={i === 0 ? "var(--gold)" : "rgba(248,198,23,0.4)"}
-                  style={{ animation: `pulse-node ${1.5 + i * 0.3}s ease-in-out infinite` }}
-                />
-              ))}
-              {/* lines */}
-              {[
-                [190,100,90,50], [190,100,290,50], [190,100,90,150], [190,100,290,150],
-                [90,50,40,100], [290,50,340,100], [90,150,40,100], [290,150,340,100],
-                [190,100,190,30], [190,100,190,170],
-              ].map(([x1,y1,x2,y2], i) => (
-                <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(248,198,23,0.2)" strokeWidth={1} />
-              ))}
-            </svg>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/rv_mlm.png" alt="logo" style={{ width: 90, height: 90, objectFit: "contain" }} />
+              <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 18, color: "#1a1508", letterSpacing: "-0.02em", textAlign: "center", lineHeight: 1.2 }}>
+                Revolutionary<br />Income Plan
+              </span>
+            </div>
           </div>
 
-          <h2 style={{ fontSize: 32, maxWidth: 380, lineHeight: 1.2, marginBottom: 12 }}>
+          <h2 style={{ fontSize: 32, maxWidth: 380, lineHeight: 1.2, marginBottom: 12, color: "#1a1508" }}>
             Your network is your net worth.
           </h2>
-          <p style={{ color: "var(--muted)", fontSize: 15, maxWidth: 360, lineHeight: 1.65, marginBottom: 28 }}>
+          <p style={{ color: "#6b5e2e", fontSize: 15, maxWidth: 360, lineHeight: 1.65, marginBottom: 28 }}>
             Climb five tiers on a fair, queue-backed matrix. Every slot you fill compounds your balance.
           </p>
 
@@ -124,7 +101,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                   alignItems: "center",
                   gap: 12,
                   fontSize: 13.5,
-                  color: "var(--muted)",
+                  color: "#3d2f06",
                 }}
               >
                 <span
@@ -135,8 +112,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                     alignItems: "center",
                     justifyContent: "center",
                     borderRadius: 8,
-                    background: "rgba(248,198,23,0.08)",
-                    border: "1px solid rgba(248,198,23,0.15)",
+                    background: "rgba(248,198,23,0.2)",
+                    border: "1px solid rgba(248,198,23,0.35)",
                     fontSize: 14,
                     flexShrink: 0,
                   }}
@@ -149,7 +126,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
 
-        <p style={{ color: "var(--faint)", fontSize: 12, position: "relative" }}>
+        <p style={{ color: "#a0845c", fontSize: 12, position: "relative" }}>
           Virtual points only · Powered by USDT crypto rails
         </p>
       </aside>
@@ -161,7 +138,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           alignItems: "center",
           justifyContent: "center",
           padding: 40,
-          background: "rgba(14,12,24,0.65)",
+          background: "var(--bg)",
         }}
       >
         <div style={{ width: "100%", maxWidth: 400 }} className="rise">

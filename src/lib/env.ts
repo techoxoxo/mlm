@@ -26,7 +26,9 @@ if (process.env.NODE_ENV === "production" && !isBuildPhase) {
 
 export const env = {
   DATABASE_URL: required("DATABASE_URL"),
+  DATABASE_READ_URL: process.env.DATABASE_READ_URL || process.env.DATABASE_URL || "",
   REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379",
   JWT_SECRET,
   APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
 };
+

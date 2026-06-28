@@ -37,7 +37,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
         style={{
           padding: 26,
           borderRadius: 18,
-          background: "rgba(16,15,18,0.8)",
+          background: "var(--surface)",
           border: "1px solid var(--border-2)",
           backdropFilter: "blur(12px)",
         }}

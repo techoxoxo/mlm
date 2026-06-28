@@ -25,7 +25,7 @@ export function ReferralCard({ code, appUrl }: { code: string; appUrl: string })
       className="card"
       style={{
         padding: 26,
-        background: "linear-gradient(135deg, rgba(248,198,23,0.06) 0%, rgba(16,15,18,0.85) 70%)",
+        background: "linear-gradient(135deg, rgba(248,198,23,0.06) 0%, var(--surface) 70%)",
         borderColor: "rgba(248,198,23,0.2)",
         overflow: "hidden",
         position: "relative",
@@ -134,7 +134,7 @@ export function ReferralCard({ code, appUrl }: { code: string; appUrl: string })
                 padding: "0 14px",
                 height: 44,
                 borderRadius: 10,
-                background: "rgba(12,11,14,0.7)",
+                background: "var(--surface)",
                 border: "1px solid var(--border-2)",
                 overflow: "hidden",
               }}

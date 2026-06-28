@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { SideNav, type NavItem } from "@/components/SideNav";
 import { LogoutButton } from "@/components/LogoutButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AppShell({
   items,
@@ -27,7 +28,7 @@ export function AppShell({
           flexDirection: "column",
           gap: 8,
           background:
-            "linear-gradient(180deg, rgba(20,17,34,0.97) 0%, rgba(14,12,26,0.98) 100%)",
+            "linear-gradient(180deg, var(--app-aside-bg-from, rgba(20,17,34,0.97)) 0%, var(--app-aside-bg-to, rgba(14,12,26,0.98)) 100%)",
           position: "sticky",
           top: 0,
           height: "100vh",
@@ -100,8 +101,7 @@ export function AppShell({
             top: 0,
             zIndex: 10,
             backdropFilter: "blur(16px) saturate(180%)",
-            background:
-              "linear-gradient(90deg, rgba(16,14,28,0.88) 0%, rgba(20,18,36,0.75) 100%)",
+            background: "var(--app-header-bg)",
             boxShadow: "0 1px 0 var(--border)",
           }}
         >
@@ -123,6 +123,7 @@ export function AppShell({
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <ThemeToggle />
             {badge}
           </div>
         </header>

@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { db, schema } from "@/db";
+import { readDb as db, schema } from "@/db";
 
 const { users, slabs, slots, transactions, slabCompletions, royaltyPayouts } = schema;
 

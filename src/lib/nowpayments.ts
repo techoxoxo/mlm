@@ -1,6 +1,8 @@
 import crypto from "crypto";
 
-const NOWPAYMENTS_API_URL = "https://api.nowpayments.io/v1";
+const NOWPAYMENTS_API_URL = process.env.NOWPAYMENTS_MODE === "production"
+  ? "https://api.nowpayments.io/v1"
+  : "https://api-sandbox.nowpayments.io/v1";
 
 export type NowPaymentStatus =
   | "waiting"
@@ -75,7 +77,7 @@ export type CreatePayoutResponse = {
  */
 function isMockMode(): boolean {
   if (process.env.NODE_ENV === "test") return true;
-  return process.env.NOWPAYMENTS_MODE !== "production";
+  return process.env.NOWPAYMENTS_MODE === "mock";
 }
 
 /**

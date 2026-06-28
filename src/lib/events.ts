@@ -1,5 +1,6 @@
 import IORedis, { Redis } from "ioredis";
 import { env } from "./env";
+import { EventEmitter } from "events";
 
 /**
  * Lightweight Redis pub/sub for live UI updates. The worker publishes events
@@ -20,11 +21,30 @@ export function channel(uid: string) {
 declare global {
   // eslint-disable-next-line no-var
   var __mlmPublisher: Redis | undefined;
+  // eslint-disable-next-line no-var
+  var __mlmSubscriber: Redis | undefined;
+  // eslint-disable-next-line no-var
+  var __mlmSubscriberEmitter: EventEmitter | undefined;
 }
 
 const publisher =
   global.__mlmPublisher ?? new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
 if (process.env.NODE_ENV !== "production") global.__mlmPublisher = publisher;
+
+const subscriber =
+  global.__mlmSubscriber ?? new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
+if (process.env.NODE_ENV !== "production") global.__mlmSubscriber = subscriber;
+
+const subscriberEmitter = global.__mlmSubscriberEmitter ?? new EventEmitter();
+subscriberEmitter.setMaxListeners(0);
+if (process.env.NODE_ENV !== "production") global.__mlmSubscriberEmitter = subscriberEmitter;
+
+// Setup single message routing once
+if (!subscriber.listeners("message").length) {
+  subscriber.on("message", (channelName, message) => {
+    subscriberEmitter.emit(channelName, message);
+  });
+}
 
 export async function publishEvent(uid: string, event: GameEvent) {
   try {
@@ -34,7 +54,27 @@ export async function publishEvent(uid: string, event: GameEvent) {
   }
 }
 
-/** A fresh subscriber connection (caller must quit it). */
-export function newSubscriber() {
-  return new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
+/**
+ * Subscribes to user events using a single shared Redis connection.
+ * Returns an unsubscribe callback.
+ */
+export async function subscribeToUserEvents(uid: string, onMessage: (message: string) => void) {
+  const chan = channel(uid);
+  
+  subscriberEmitter.on(chan, onMessage);
+  
+  // ioredis handles subscribe calls idempotently
+  await subscriber.subscribe(chan);
+  
+  return async () => {
+    subscriberEmitter.off(chan, onMessage);
+    if (subscriberEmitter.listenerCount(chan) === 0) {
+      try {
+        await subscriber.unsubscribe(chan);
+      } catch {
+        // noop
+      }
+    }
+  };
 }
+

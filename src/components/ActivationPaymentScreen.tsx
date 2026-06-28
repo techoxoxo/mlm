@@ -67,27 +67,27 @@ export function ActivationPaymentScreen() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "radial-gradient(ellipse at bottom, #1b1605 0%, #0c0a05 100%)",
+      background: "linear-gradient(135deg, #ffffff 0%, #fdf4d0 50%, #ffffff 100%)",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
       padding: 24,
       fontFamily: "var(--font-sans)",
-      color: "var(--color-text)"
+      color: "#1a1508"
     }}>
       <div style={{ marginBottom: 32 }}>
         <Logo size={28} />
       </div>
 
-      <div className="card" style={{
+      <div style={{
         maxWidth: 480,
         width: "100%",
         padding: 32,
-        background: "rgba(18, 16, 12, 0.8)",
-        backdropFilter: "blur(16px)",
-        border: "1px solid rgba(248, 198, 23, 0.15)",
-        boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5), 0 0 50px rgba(248, 198, 23, 0.03)",
+        background: "#ffffff",
+        borderRadius: 20,
+        border: "1px solid rgba(248,198,23,0.3)",
+        boxShadow: "0 4px 6px rgba(0,0,0,0.04), 0 20px 40px rgba(0,0,0,0.08), 0 0 0 1px rgba(248,198,23,0.08)",
         display: "flex",
         flexDirection: "column",
         gap: 20
@@ -98,8 +98,8 @@ export function ActivationPaymentScreen() {
             <span style={{ display: "inline-flex", width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: "50%", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)" }}>
               <CheckCircle size={24} color="var(--color-success)" />
             </span>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Payment Received</h2>
-            <p style={{ color: "var(--color-muted)", fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#1a1508" }}>Payment Received</h2>
+            <p style={{ color: "#6b5e2e", fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
               Your payment is being confirmed on-chain. Your account will activate automatically — this usually takes 1–3 minutes.
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--color-brand)", background: "rgba(248, 198, 23, 0.05)", padding: "10px 20px", borderRadius: 8 }}>
@@ -114,8 +114,8 @@ export function ActivationPaymentScreen() {
             <span style={{ display: "inline-flex", width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: "50%", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
               <XCircle size={24} color="var(--color-danger, #ef4444)" />
             </span>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Payment Cancelled</h2>
-            <p style={{ color: "var(--color-muted)", fontSize: 13.5, margin: 0 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#1a1508" }}>Payment Cancelled</h2>
+            <p style={{ color: "#6b5e2e", fontSize: 13.5, margin: 0 }}>
               No worries — you can try again when you're ready.
             </p>
             <button
@@ -137,13 +137,13 @@ export function ActivationPaymentScreen() {
                 <Coins size={15} color="var(--color-brand)" />
               </span>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Activation Invoice</h2>
-                <span style={{ fontSize: 11, color: "var(--color-muted)" }}>ID: {invoice.invoiceId}</span>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#1a1508" }}>Activation Invoice</h2>
+                <span style={{ fontSize: 11, color: "#6b5e2e" }}>ID: {invoice.invoiceId}</span>
               </div>
             </div>
 
-            <div style={{ fontSize: 13, color: "var(--color-muted)", lineHeight: 1.5, background: "rgba(255, 255, 255, 0.02)", padding: 14, borderRadius: 10, border: "1px solid var(--color-border)" }}>
-              Complete your payment of <b style={{ color: "var(--color-text)" }}>{invoice.amountUsdt.toFixed(2)} USDT</b> on the NOWPayments checkout page. You'll be redirected back automatically after payment.
+            <div style={{ fontSize: 13, color: "#6b5e2e", lineHeight: 1.5, background: "#fafaf7", padding: 14, borderRadius: 10, border: "1px solid rgba(0,0,0,0.08)" }}>
+              Complete your payment of <b style={{ color: "#1a1508" }}>{invoice.amountUsdt.toFixed(2)} USDT</b> on the NOWPayments checkout page. You'll be redirected back automatically after payment.
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13, color: "var(--color-brand)", background: "rgba(248, 198, 23, 0.05)", padding: "10px 0", borderRadius: 8 }}>
@@ -177,40 +177,44 @@ export function ActivationPaymentScreen() {
         {!paymentResult && !invoice && (
           <>
             <div style={{ textAlign: "center" }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px" }}>Activate Your Account</h2>
-              <p style={{ color: "var(--color-muted)", fontSize: 13.5, margin: 0, lineHeight: 1.5 }}>
-                To secure your position on the global FIFO matrix ladder and start earning rewards, activate your account.
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: "50%", background: "rgba(248,198,23,0.1)", border: "1px solid rgba(248,198,23,0.25)", marginBottom: 14 }}>
+                <Coins size={20} color="var(--color-brand)" />
+              </div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em", color: "#1a1508" }}>Activate Your Account</h2>
+              <p style={{ color: "#6b5e2e", fontSize: 13, margin: 0, lineHeight: 1.6, maxWidth: 340, marginInline: "auto" }}>
+                Secure your position on the global FIFO matrix ladder and start earning rewards.
               </p>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, background: "var(--color-surface-2)", padding: 18, borderRadius: 12, border: "1px solid var(--color-border)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--color-border)", paddingBottom: 10 }}>
-                <span style={{ fontSize: 13, color: "var(--color-muted)" }}>ID & PIN Fee</span>
-                <span className="mono" style={{ fontSize: 14, fontWeight: 600 }}>10 USDT</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--color-border)", paddingBottom: 10 }}>
-                <span style={{ fontSize: 13, color: "var(--color-muted)" }}>Royalty Fee Contribution</span>
-                <span className="mono" style={{ fontSize: 14, fontWeight: 600 }}>10 USDT</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--color-border)", paddingBottom: 10 }}>
-                <span style={{ fontSize: 13, color: "var(--color-muted)" }}>Tier 1 (Starter) Entry Fee</span>
-                <span className="mono" style={{ fontSize: 14, fontWeight: 600 }}>30 USDT</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4, fontWeight: 700 }}>
-                <span style={{ fontSize: 14 }}>Total Due</span>
-                <span className="mono" style={{ fontSize: 16, color: "var(--color-brand)" }}>50 USDT</span>
+            {/* Fee breakdown */}
+            <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid rgba(0,0,0,0.08)" }}>
+              {[
+                { label: "ID & PIN Fee", amount: "10 USDT" },
+                { label: "Royalty Fee Contribution", amount: "10 USDT" },
+                { label: "Tier 1 (Starter) Entry Fee", amount: "30 USDT" },
+              ].map((row, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px", background: i % 2 === 0 ? "#fafafa" : "#ffffff", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                  <span style={{ fontSize: 13, color: "#6b5e2e" }}>{row.label}</span>
+                  <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: "#1a1508" }}>{row.amount}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px 18px", background: "rgba(248,198,23,0.12)" }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1508" }}>Total Due</span>
+                <span className="mono" style={{ fontSize: 18, fontWeight: 800, color: "#b8860b", letterSpacing: "-0.02em" }}>50 USDT</span>
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12, color: "var(--color-muted)" }}>
-              <div style={{ display: "flex", gap: 8 }}>
-                <ShieldCheck size={14} color="var(--color-brand)" style={{ flexShrink: 0, marginTop: 2 }} />
-                <span>Account setup, security keys, and ledger creation are executed instantly upon receipt.</span>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Lock size={14} color="var(--color-brand)" style={{ flexShrink: 0, marginTop: 2 }} />
-                <span>Your position in the FIFO queue is guaranteed immediately on payment confirmation.</span>
-              </div>
+            {/* Trust badges */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { icon: <ShieldCheck size={13} color="#b8860b" />, text: "Account setup, security keys, and ledger creation are executed instantly upon receipt." },
+                { icon: <Lock size={13} color="#b8860b" />, text: "Your position in the FIFO queue is guaranteed immediately on payment confirmation." },
+              ].map((item, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 14px", borderRadius: 10, background: "rgba(248,198,23,0.07)", border: "1px solid rgba(248,198,23,0.2)" }}>
+                  <span style={{ marginTop: 1, flexShrink: 0 }}>{item.icon}</span>
+                  <span style={{ fontSize: 12, color: "#6b5e2e", lineHeight: 1.55 }}>{item.text}</span>
+                </div>
+              ))}
             </div>
 
             {error && (
@@ -222,7 +226,7 @@ export function ActivationPaymentScreen() {
             <button
               onClick={handleInitiate}
               className="btn btn-primary"
-              style={{ width: "100%", padding: "14px 0", fontSize: 14.5, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
+              style={{ width: "100%", padding: "15px 0", fontSize: 15, fontWeight: 700, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
               disabled={pending}
             >
               {pending ? (
@@ -238,7 +242,7 @@ export function ActivationPaymentScreen() {
             <button
               onClick={() => router.push("/logout")}
               className="btn btn-ghost"
-              style={{ width: "100%", padding: "10px 0", fontSize: 13 }}
+              style={{ width: "100%", padding: "10px 0", fontSize: 13, opacity: 0.65 }}
             >
               Log Out
             </button>

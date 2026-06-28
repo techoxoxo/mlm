@@ -1,0 +1,350 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1782581773528,
+  "projectRoot": "/Users/macbook/Anuj/mlm",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "next",
+        "version": "15.1.3",
+        "category": "fullstack"
+      },
+      {
+        "name": "react",
+        "version": "19.0.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.0.0",
+        "category": "frontend"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start",
+      "lint": "next lint",
+      "worker": "tsx src/workers/index.ts",
+      "db:generate": "drizzle-kit generate",
+      "db:migrate": "tsx src/db/migrate.ts",
+      "db:seed": "tsx src/db/seed.ts",
+      "db:studio": "drizzle-kit studio",
+      "sim": "tsx scripts/simulate.ts",
+      "stress": "tsx scripts/stress.ts",
+      "test:1000": "tsx scripts/test-1000.ts",
+      "demo:users": "tsx scripts/demo-users.ts"
+    }
+  },
+  "conventions": {
+    "namingStyle": "camelCase",
+    "importStyle": "ES modules",
+    "testPattern": null,
+    "fileOrganization": "type-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "public",
+      "scripts",
+      "src"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 5,
+      "lastAccessed": 1782581773464,
+      "keyFiles": [
+        "Apex-Player-Guide.pdf",
+        "_check.png",
+        "_cover.png",
+        "_full.png",
+        "player-guide.html"
+      ]
+    },
+    "drizzle": {
+      "path": "drizzle",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1782581773465,
+      "keyFiles": [
+        "0000_melted_black_bolt.sql",
+        "0001_fluffy_the_phantom.sql",
+        "0002_damp_war_machine.sql",
+        "0003_tired_cerise.sql",
+        "0004_flaky_lady_mastermind.sql"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 3,
+      "lastAccessed": 1782581773467,
+      "keyFiles": [
+        "Revolutionary Group — Strategy Guide & How to Play.pdf",
+        "index.html"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 5,
+      "lastAccessed": 1782581773493,
+      "keyFiles": [
+        "demo-users.ts",
+        "simulate.ts",
+        "stress.ts",
+        "test-1000.ts",
+        "test-payments.ts"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 1,
+      "lastAccessed": 1782581773493,
+      "keyFiles": [
+        "middleware.ts"
+      ]
+    },
+    "src/app": {
+      "path": "src/app",
+      "purpose": "Application code",
+      "fileCount": 3,
+      "lastAccessed": 1782581773494,
+      "keyFiles": [
+        "globals.css",
+        "layout.tsx",
+        "page.tsx"
+      ]
+    },
+    "src/components": {
+      "path": "src/components",
+      "purpose": "UI components",
+      "fileCount": 20,
+      "lastAccessed": 1782581773494,
+      "keyFiles": [
+        "ActivationPaymentScreen.tsx",
+        "AppShell.tsx",
+        "AuthForm.tsx"
+      ]
+    },
+    "src/lib": {
+      "path": "src/lib",
+      "purpose": "Library code",
+      "fileCount": 12,
+      "lastAccessed": 1782581773495,
+      "keyFiles": [
+        "auth.ts",
+        "crypto.ts",
+        "distribution.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src/app/globals.css",
+      "accessCount": 19,
+      "lastAccessed": 1782653074388,
+      "type": "directory"
+    },
+    {
+      "path": "src/components/WalletCard.tsx",
+      "accessCount": 16,
+      "lastAccessed": 1782669537566,
+      "type": "file"
+    },
+    {
+      "path": "src/components/ActivationPaymentScreen.tsx",
+      "accessCount": 15,
+      "lastAccessed": 1782650610963,
+      "type": "file"
+    },
+    {
+      "path": "src/app/dashboard/page.tsx",
+      "accessCount": 14,
+      "lastAccessed": 1782652245976,
+      "type": "directory"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "accessCount": 14,
+      "lastAccessed": 1782653263549,
+      "type": "directory"
+    },
+    {
+      "path": "src/app/(auth)/layout.tsx",
+      "accessCount": 11,
+      "lastAccessed": 1782651487536,
+      "type": "file"
+    },
+    {
+      "path": "src/components/AppShell.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1782652056896,
+      "type": "file"
+    },
+    {
+      "path": "src/components/ReferralCard.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1782652343569,
+      "type": "file"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1782651877609,
+      "type": "file"
+    },
+    {
+      "path": "src/app/dashboard/transactions/page.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1782652323435,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 4,
+      "lastAccessed": 1782669519692,
+      "type": "directory"
+    },
+    {
+      "path": "",
+      "accessCount": 3,
+      "lastAccessed": 1782652049576,
+      "type": "directory"
+    },
+    {
+      "path": "src/app/dashboard/referral/page.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1782652305588,
+      "type": "file"
+    },
+    {
+      "path": "src/app/dashboard/royalty/page.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1782652309206,
+      "type": "file"
+    },
+    {
+      "path": "src/components/SideNav.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1782653094853,
+      "type": "file"
+    },
+    {
+      "path": "src/app/(auth)/login/page.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1782650893660,
+      "type": "file"
+    },
+    {
+      "path": "src/app/(auth)/register/page.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1782650898618,
+      "type": "file"
+    },
+    {
+      "path": "src/components/Logo.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1782651445216,
+      "type": "file"
+    },
+    {
+      "path": "src/components/ThemeProvider.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1782652057289,
+      "type": "file"
+    },
+    {
+      "path": "src/components/ThemeToggle.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1782652057578,
+      "type": "file"
+    },
+    {
+      "path": "src/components",
+      "accessCount": 2,
+      "lastAccessed": 1782652265673,
+      "type": "directory"
+    },
+    {
+      "path": "src/app/dashboard/wallet/page.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1782652297739,
+      "type": "file"
+    },
+    {
+      "path": "src/app/dashboard/network/page.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1782652313752,
+      "type": "file"
+    },
+    {
+      "path": "src/components/AuthForm.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1782651274671,
+      "type": "file"
+    },
+    {
+      "path": "src/app/admin/layout.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1782651766508,
+      "type": "file"
+    },
+    {
+      "path": "src/app/dashboard/layout.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1782651769317,
+      "type": "file"
+    },
+    {
+      "path": "src/app/dashboard",
+      "accessCount": 1,
+      "lastAccessed": 1782652264999,
+      "type": "directory"
+    },
+    {
+      "path": "src/components/LogoutButton.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1782653102088,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"rm -rf /Users/macbook/Anuj/mlm/.next && npm --prefix /Users/macbook/Anuj/mlm run build 2>&1\",\"timeout\":180000}",
+  "error": "Exit code 1\nrm: /Users/macbook/Anuj/mlm/.next/static: Directory not empty\nrm: /Users/macbook/Anuj/mlm/.next: Directory not empty",
+  "timestamp": "2026-06-28T13:16:58.421Z",
+  "retry_count": 1
+}

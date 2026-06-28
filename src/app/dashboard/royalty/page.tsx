@@ -37,7 +37,7 @@ export default async function MyRoyalty() {
         style={{
           padding: "20px 26px",
           borderRadius: 18,
-          background: "linear-gradient(135deg, rgba(248,198,23,0.07) 0%, rgba(16,15,18,0.85) 70%)",
+          background: "linear-gradient(135deg, rgba(248,198,23,0.07) 0%, var(--surface) 70%)",
           border: "1px solid rgba(248,198,23,0.2)",
           display: "flex",
           justifyContent: "space-between",
@@ -130,7 +130,7 @@ export default async function MyRoyalty() {
               </span>
             </div>
             <div
-              style={{ height: 9, borderRadius: 99, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}
+              style={{ height: 9, borderRadius: 99, background: "var(--bg-2)", overflow: "hidden" }}
             >
               <div
                 style={{

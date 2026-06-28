@@ -53,7 +53,7 @@ export default async function ReferralPage() {
         style={{
           padding: "20px 26px",
           borderRadius: 18,
-          background: "linear-gradient(135deg, rgba(248,198,23,0.06) 0%, rgba(16,15,18,0.85) 70%)",
+          background: "linear-gradient(135deg, rgba(248,198,23,0.06) 0%, var(--surface) 70%)",
           border: "1px solid rgba(248,198,23,0.15)",
           display: "flex",
           justifyContent: "space-between",
@@ -100,7 +100,7 @@ export default async function ReferralPage() {
           className="card"
           style={{
             padding: 22,
-            background: "linear-gradient(135deg, rgba(16,15,18,0.9) 0%, rgba(20,18,12,0.8) 100%)",
+            background: "var(--surface)",
             position: "relative",
             overflow: "hidden",
           }}
@@ -123,7 +123,7 @@ export default async function ReferralPage() {
           className="card"
           style={{
             padding: 22,
-            background: "linear-gradient(135deg, rgba(16,15,18,0.9) 0%, rgba(20,18,12,0.8) 100%)",
+            background: "var(--surface)",
             position: "relative",
             overflow: "hidden",
           }}

@@ -77,7 +77,7 @@ export default async function TransactionsPage() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 14,
-          background: "linear-gradient(135deg, rgba(248,198,23,0.05) 0%, rgba(16,15,18,0.85) 70%)",
+          background: "linear-gradient(135deg, rgba(248,198,23,0.05) 0%, var(--surface) 70%)",
         }}
       >
         <div>
@@ -118,7 +118,7 @@ export default async function TransactionsPage() {
                       letterSpacing: "0.1em",
                       textTransform: "uppercase",
                       color: "var(--faint)",
-                      background: "rgba(255,255,255,0.015)",
+                      background: "var(--bg-2)",
                     }}
                   >
                     {h}
@@ -132,7 +132,7 @@ export default async function TransactionsPage() {
                   key={t.id}
                   style={{
                     borderBottom: "1px solid var(--border)",
-                    background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.008)",
+                    background: idx % 2 === 0 ? "transparent" : "var(--bg-2)",
                     transition: "background 0.15s ease",
                   }}
                 >

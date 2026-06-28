@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revolutionary Group — Strategic Playbook &amp; System Flow</title>
+  <!-- Premium Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    :root {
+      --bg-dark: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.7);
+      --border-color: rgba(15, 23, 42, 0.06);
+      --border-glow: rgba(181, 141, 61, 0.45);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-faint: #64748b;
+      
+      /* Premium metallic gold tones */
+      --brand-gold: #b58d3d;
+      --brand-gold-bright: #c5a059;
+      --brand-gold-glow: rgba(181, 141, 61, 0.12);
+      --brand-gold-dark: #7a5c20;
+      
+      /* Auxiliary Accent colors */
+      --brand-green: #10b981;
+      --brand-green-glow: rgba(16, 185, 129, 0.08);
+      --brand-blue: #3b82f6;
+      --brand-blue-glow: rgba(59, 130, 246, 0.08);
+      --brand-red: #ef4444;
+      --brand-red-glow: rgba(239, 68, 68, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 15%, rgba(181, 141, 61, 0.06) 0%, transparent 45%),
+        radial-gradient(circle at 90% 85%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      line-height: 1.7;
+      font-size: 16px;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 32px;
+    }
+
+    /* Ambient Background Blobs */
+    .blob {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, var(--brand-gold-glow) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(60px);
+    }
+    .blob-1 { top: 20%; left: -10%; }
+    .blob-2 { top: 60%; right: -10%; }
+
+    /* Header Nav */
+    nav.top-bar {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      background: rgba(255, 255, 255, 0.85);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .nav-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-img {
+      height: 52px;
+      width: auto;
+      filter: drop-shadow(0 0 12px var(--brand-gold-glow));
+      transition: transform 0.4s ease;
+    }
+    
+    .logo-block:hover .logo-img {
+      transform: rotate(10deg) scale(1.05);
+    }
+
+    .logo-text {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #0b1120 30%, var(--brand-gold-dark) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.1em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+    }
+
+    .nav-links a {
+      color: #475569;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      padding: 6px 0;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--brand-gold), var(--brand-gold-bright));
+      transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover {
+      color: #0b1120;
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      padding: 160px 0 100px;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--brand-gold-bright);
+      background: rgba(197, 160, 89, 0.08);
+      border: 1px solid rgba(197, 160, 89, 0.2);
+      padding: 8px 24px;
+      border-radius: 99px;
+      margin-bottom: 32px;
+      box-shadow: 0 0 30px rgba(197, 160, 89, 0.05);
+      animation: pulseGlow 3s infinite ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(197, 160, 89, 0.05); border-color: rgba(197, 160, 89, 0.2); }
+      50% { box-shadow: 0 0 35px rgba(197, 160, 89, 0.15); border-color: rgba(197, 160, 89, 0.4); }
+    }
+
+    .hero h1 {
+      font-size: 56px;
+      line-height: 1.2;
+      margin-bottom: 28px;
+      background: linear-gradient(135deg, var(--text-main) 30%, var(--brand-gold-bright) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.3));
+    }
+
+    .hero p {
+      max-width: 820px;
+      margin: 0 auto;
+      color: var(--text-muted);
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1.8;
+    }
+
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 48px;
+      flex-wrap: wrap;
+    }
+
+    .stat-badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 14px 28px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .stat-badge:hover {
+      border-color: var(--brand-gold-glow);
+      transform: translateY(-2px);
+    }
+
+    .badge-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: linear-gradient(135deg, var(--brand-gold), var(--brand-gold-bright));
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--brand-gold-glow);
+    }
+
+    /* Global Sections */
+    section {
+      padding: 120px 0;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-head {
+      text-align: center;
+      margin-bottom: 70px;
+    }
+
+    .section-head h2 {
+      font-size: 44px;
+      margin-bottom: 20px;
+      color: var(--text-main);
+      background: linear-gradient(135deg, var(--text-main) 60%, var(--brand-gold-bright) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-head p {
+      color: var(--text-muted);
+      max-width: 800px;
+      margin: 0 auto;
+      font-size: 18px;
+      font-weight: 300;
+    }
+
+    /* Setup Grid & Breakdown */
+    .setup-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .setup-content h2 {
+      font-size: 40px;
+      margin-bottom: 24px;
+      line-height: 1.3;
+    }
+
+    .setup-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    .setup-list li {
+      position: relative;
+      padding-left: 28px;
+    }
+
+    .setup-list li::before {
+      content: "✦";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--brand-gold-bright);
+      font-size: 16px;
+    }
+
+    .setup-list strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 40px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .glass-card.white-contrast {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      color: #0f172a;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+    }
+
+    .glass-card.white-contrast::before {
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, transparent 100%);
+    }
+
+    .glass-card.white-contrast h3 {
+      color: #0f172a !important;
+    }
+
+    .glass-card.white-contrast .breakdown-row {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .glass-card.white-contrast .breakdown-row span:first-child {
+      color: #475569;
+    }
+
+    .glass-card.white-contrast .breakdown-row span:last-child {
+      color: #0f172a;
+    }
+
+    .glass-card.white-contrast .breakdown-total {
+      color: var(--brand-gold-dark);
+      border-top: 1px dashed rgba(0, 0, 0, 0.15);
+    }
+
+    .glass-card:hover {
+      border-color: var(--border-glow);
+      box-shadow: 0 30px 60px rgba(197, 160, 89, 0.08);
+    }
+
+    .glass-card.white-contrast:hover {
+      border-color: rgba(197, 160, 89, 0.4);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+    }
+
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .breakdown-row:last-of-type {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .breakdown-row span:first-child {
+      color: var(--text-muted);
+    }
+
+    .breakdown-row span:last-child {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .breakdown-total {
+      display: flex;
+      justify-content: space-between;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--brand-gold-bright);
+      padding-top: 24px;
+      margin-top: 12px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    }
+
+    /* Trust Grid & Cards */
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+    }
+
+    .trust-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 44px 36px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+      position: relative;
+    }
+
+    .trust-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--brand-gold), transparent);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .trust-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-8px);
+      box-shadow: 0 24px 48px rgba(197, 160, 89, 0.1);
+    }
+
+    .trust-card:hover::before {
+      opacity: 1;
+    }
+
+    .trust-badge-num {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: rgba(197, 160, 89, 0.08);
+      color: var(--brand-gold-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 28px;
+      border: 1px solid rgba(197, 160, 89, 0.2);
+      box-shadow: 0 0 12px rgba(197, 160, 89, 0.05);
+    }
+
+    .trust-card h3 {
+      font-size: 22px;
+      margin-bottom: 16px;
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+    }
+
+    .trust-card p {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* Pipeline Grid */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 32px;
+    }
+
+    .pipe-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 44px 32px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      position: relative;
+    }
+
+    .pipe-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-8px);
+    }
+
+    .pipe-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--brand-gold-bright);
+      background: rgba(197, 160, 89, 0.08);
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      border: 1px solid rgba(197, 160, 89, 0.2);
+      margin-bottom: 28px;
+    }
+
+    .pipe-card h3 {
+      font-size: 20px;
+      margin-bottom: 14px;
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+    }
+
+    .pipe-card p {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* Slabs & Levels Grid styling */
+    .levels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .level-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 36px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+      position: relative;
+    }
+
+    .level-card:hover {
+      border-color: var(--brand-gold-bright);
+      transform: translateY(-8px);
+      box-shadow: 0 24px 48px rgba(197, 160, 89, 0.15);
+    }
+
+    .level-card h3 {
+      font-size: 22px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 14px;
+      color: var(--text-main);
+      font-family: 'Cinzel', serif;
+    }
+
+    .level-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+
+    .level-info-row span:last-child {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .option-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+      transition: background 0.3s ease;
+    }
+
+    .level-card:hover .option-box {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .option-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-faint);
+      font-weight: 700;
+    }
+
+    .option-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .funding-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      text-align: center;
+      width: fit-content;
+    }
+
+    .funding-badge.zero-cost {
+      background: var(--brand-green-glow);
+      color: var(--brand-green);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .funding-badge.primary-cost {
+      background: var(--brand-gold-glow);
+      color: var(--brand-gold-bright);
+      border: 1px solid rgba(197, 160, 89, 0.25);
+    }
+
+    /* SVG Binary Tree section styling */
+    .tree-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 28px;
+      padding: 50px;
+      display: flex;
+      justify-content: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tree-svg-container {
+      position: relative;
+      width: 100%;
+      max-width: 650px;
+    }
+
+    .tree-node-glow {
+      filter: drop-shadow(0 0 10px var(--brand-gold-glow));
+    }
+
+    /* Interactive Simulator */
+    .sim-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 28px;
+      padding: 44px;
+      max-width: 760px;
+      margin: 48px auto 0;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+
+    .sim-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.04);
+      padding: 6px;
+      border-radius: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .sim-tab {
+      flex: 1;
+      padding: 14px 10px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-weight: 700;
+      border-radius: 12px;
+      color: var(--text-muted);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .sim-tab.active {
+      background: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-gold-bright) 100%);
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(181, 141, 61, 0.25);
+    }
+
+    .sim-button-group {
+      display: flex;
+      gap: 16px;
+    }
+
+    .sim-btn {
+      flex: 1;
+      padding: 16px 20px;
+      border-radius: 14px;
+      border: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.01);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: 'Outfit', sans-serif;
+      text-transform: uppercase;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+    }
+
+    .sim-btn:hover {
+      border-color: rgba(0,0,0,0.1);
+      color: var(--text-main);
+    }
+
+    .sim-btn.active-exit {
+      background: var(--brand-red-glow);
+      color: #dc2626;
+      border-color: rgba(239, 68, 68, 0.3);
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.05);
+    }
+
+    .sim-btn.active-upgrade {
+      background: var(--brand-green-glow);
+      color: #059669;
+      border-color: rgba(16, 185, 129, 0.3);
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.05);
+    }
+
+    .sim-results {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: rgba(0, 0, 0, 0.02);
+      padding: 28px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .sim-results .level-info-row {
+      font-size: 16px;
+    }
+
+    .mono {
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+    }
+
+    /* Charts Container */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 32px;
+      margin-top: 48px;
+    }
+
+    .chart-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 28px;
+      padding: 36px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .chart-panel h3 {
+      font-size: 20px;
+      font-family: 'Cinzel', serif;
+      margin-bottom: 24px;
+      color: var(--brand-gold-bright);
+    }
+
+    /* FAQ Section Accordions */
+    .faq-container {
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      margin-bottom: 18px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .faq-item:hover {
+      border-color: var(--border-glow);
+      box-shadow: 0 10px 25px rgba(197, 160, 89, 0.06);
+    }
+
+    .faq-trigger {
+      width: 100%;
+      padding: 24px 32px;
+      background: none;
+      border: none;
+      text-align: left;
+      font-weight: 600;
+      font-size: 18px;
+      cursor: pointer;
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Outfit', sans-serif;
+      transition: color 0.3s ease;
+    }
+
+    .faq-trigger:hover {
+      color: var(--brand-gold-bright);
+    }
+
+    .faq-content {
+      padding: 0 32px 28px;
+      display: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      line-height: 1.7;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      padding-top: 20px;
+    }
+
+    .faq-indicator {
+      font-size: 14px;
+      color: var(--brand-gold);
+      transition: transform 0.3s ease;
+    }
+
+    .faq-item.active .faq-indicator {
+      transform: rotate(180deg);
+    }
+
+    /* Footer styling */
+    footer {
+      padding: 60px 0;
+      text-align: center;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-faint);
+      font-size: 14px;
+      background: rgba(6, 9, 19, 0.5);
+    }
+
+    footer p {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Blobs -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <!-- Top Bar -->
+  <nav class="top-bar">
+    <div class="container nav-inner">
+      <div class="logo-block">
+        <img src="images/rv_mlm.png" class="logo-img" alt="Revolutionary Group Logo">
+        <span class="logo-text">REVOLUTIONARY GROUP</span>
+      </div>
+      <div class="nav-links">
+        <a href="#pipeline">Earning Process</a>
+        <a href="#tree">Binary Tree</a>
+        <a href="#trust">Security &amp; Trust</a>
+        <a href="#levels">Slabs &amp; Levels</a>
+        <a href="#analytics">Analytics</a>
+        <a href="#simulator">Playground</a>
+        <a href="#faq">FAQ</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Header -->
+  <header class="hero">
+    <div class="container">
+      <div class="hero-tag">System Strategy &amp; Mechanics Protocol</div>
+      <h1>Capital Matrix Compounding Model</h1>
+      <p>Compounding strategy blueprint detailing slot entry configurations, reward allocations, and Compounding Exit vs. Matrix Upgrade paths.</p>
+      <div class="hero-stats">
+        <div class="stat-badge"><span class="badge-dot"></span>100% Asset-Backed Reserves</div>
+        <div class="stat-badge"><span class="badge-dot"></span>BSC (BEP-20) Secure Gateway</div>
+        <div class="stat-badge"><span class="badge-dot"></span>Math-Driven FIFO Matrix</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Setup Section -->
+  <section id="setup">
+    <div class="container">
+      <div class="setup-grid">
+        <div class="setup-content">
+          <h2>A Small Seed.<br>Infinite Potential.</h2>
+          <p style="color: var(--text-muted); font-size: 18px; margin-bottom: 24px; font-weight: 300;">The Revolutionary Group model is engineered to remove financial risk. By paying a single, upfront activation fee of $50, you enter a system designed to fund all future upgrades strictly from your gaming surplus. Every single dollar is tracked and allocated to maximize participant returns:</p>
+          <ul class="setup-list">
+            <li><strong>$10 Account Activation Setup:</strong> Powers the platform infrastructure. $5 of this is immediately paid as a direct referral bonus to the sponsor who introduced you, rewarding network growth.</li>
+            <li><strong>$30 Level 1 Entry Seed:</strong> Anchors your position at the base of the Level 1 queue to start earning slot credits.</li>
+            <li><strong>$10 Shared Royalty Pool:</strong> Flowing directly to the global community pool, supporting continuous rank rewards.</li>
+          </ul>
+        </div>
+
+        <div class="glass-card white-contrast">
+          <h3 style="font-size: 22px; color: var(--brand-gold-bright); margin-bottom: 24px;">Join Breakdown</h3>
+          <div class="breakdown-row">
+            <span>Account Setup</span><span>$10</span>
+          </div>
+          <div class="breakdown-row">
+            <span>Level 1 Entry Fee</span><span>$30</span>
+          </div>
+          <div class="breakdown-row">
+            <span>Shared Payout Pool</span><span>$10</span>
+          </div>
+          <div class="breakdown-total">
+            <span>Total Entry Cost</span><span>$50</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Earning Process -->
+  <section id="pipeline">
+    <div class="container">
+      <div class="section-head">
+        <h2>Visualizing the Earning Process</h2>
+        <p>A simple step-by-step pipeline from setup to compounding options.</p>
+      </div>
+
+      <div class="pipeline-grid">
+        <div class="pipe-card">
+          <div class="pipe-num">01</div>
+          <h3>Register &amp; Pay</h3>
+          <p>Pay your one-time entry fee of $50 using BEP-20 (BSC) network to activate your account.</p>
+        </div>
+
+        <div class="pipe-card">
+          <div class="pipe-num">02</div>
+          <h3>Enter Matrix L1</h3>
+          <p>The system places you at the back of the Level 1 queue. No queue jumping is possible.</p>
+        </div>
+
+        <div class="pipe-card">
+          <div class="pipe-num">03</div>
+          <h3>Two Slots Fill</h3>
+          <p>New global entrants are routed below you. Once two branches fill, you complete Level 1.</p>
+        </div>
+
+        <div class="pipe-card">
+          <div class="pipe-num">04</div>
+          <h3>Exit or Upgrade</h3>
+          <p>Decide whether to Cash Out 100% of your earnings ($60) or Upgrade to Level 2 (reinvest $50, keep $10).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Binary Tree Visual -->
+  <section id="tree">
+    <div class="container">
+      <div class="section-head">
+        <h2>Binary Growth Tree Hierarchy</h2>
+        <p>Each level doubles the number of slots required, increasing your payout scaling potential.</p>
+      </div>
+
+      <div class="tree-container">
+        <div class="tree-svg-container">
+          <svg width="100%" height="320" viewBox="0 0 600 300" style="display: block;">
+            <defs>
+              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f3d290" />
+                <stop offset="100%" stop-color="#c5a059" />
+              </linearGradient>
+              <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="rgba(197, 160, 89, 0.4)" />
+                <stop offset="100%" stop-color="transparent" />
+              </linearGradient>
+            </defs>
+            <!-- Glowing Connections -->
+            <line x1="300" y1="40" x2="150" y2="120" stroke="url(#goldGradient)" stroke-width="2.5" class="tree-node-glow" />
+            <line x1="300" y1="40" x2="450" y2="120" stroke="url(#goldGradient)" stroke-width="2.5" class="tree-node-glow" />
+            
+            <line x1="150" y1="120" x2="80" y2="200" stroke="rgba(0, 0, 0, 0.08)" stroke-width="1.5" />
+            <line x1="150" y1="120" x2="220" y2="200" stroke="rgba(0, 0, 0, 0.08)" stroke-width="1.5" />
+            <line x1="450" y1="120" x2="380" y2="200" stroke="rgba(0, 0, 0, 0.08)" stroke-width="1.5" />
+            <line x1="450" y1="120" x2="520" y2="200" stroke="rgba(0, 0, 0, 0.08)" stroke-width="1.5" />
+
+            <!-- Node Circles -->
+            <circle cx="300" cy="40" r="24" fill="#ffffff" stroke="url(#goldGradient)" stroke-width="3" class="tree-node-glow" />
+            <text x="300" y="45" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a" font-family="'Space Mono', monospace">YOU</text>
+
+            <circle cx="150" cy="120" r="20" fill="#ffffff" stroke="url(#goldGradient)" stroke-width="2" class="tree-node-glow" />
+            <text x="150" y="124" text-anchor="middle" font-size="10" font-weight="700" fill="#7a5c20" font-family="'Space Mono', monospace">S1</text>
+            
+            <circle cx="450" cy="120" r="20" fill="#ffffff" stroke="url(#goldGradient)" stroke-width="2" class="tree-node-glow" />
+            <text x="450" y="124" text-anchor="middle" font-size="10" font-weight="700" fill="#7a5c20" font-family="'Space Mono', monospace">S2</text>
+
+            <circle cx="80" cy="200" r="16" fill="#f8fafc" stroke="rgba(0, 0, 0, 0.12)" stroke-width="1.5" />
+            <text x="80" y="204" text-anchor="middle" font-size="8" fill="#64748b" font-family="'Space Mono', monospace">-</text>
+            
+            <circle cx="220" cy="200" r="16" fill="#f8fafc" stroke="rgba(0, 0, 0, 0.12)" stroke-width="1.5" />
+            <text x="220" y="204" text-anchor="middle" font-size="8" fill="#64748b" font-family="'Space Mono', monospace">-</text>
+            
+            <circle cx="380" cy="200" r="16" fill="#f8fafc" stroke="rgba(0, 0, 0, 0.12)" stroke-width="1.5" />
+            <text x="380" y="204" text-anchor="middle" font-size="8" fill="#64748b" font-family="'Space Mono', monospace">-</text>
+            
+            <circle cx="520" cy="200" r="16" fill="#f8fafc" stroke="rgba(0, 0, 0, 0.12)" stroke-width="1.5" />
+            <text x="520" y="204" text-anchor="middle" font-size="8" fill="#64748b" font-family="'Space Mono', monospace">-</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Security & Trust Section -->
+  <section id="trust">
+    <div class="container">
+      <div class="section-head">
+        <h2>Uncompromised Security &amp; Trust</h2>
+        <p>A transparent, risk-free matrix environment backed by mathematical logic and digital asset reserves.</p>
+      </div>
+
+      <div class="trust-grid">
+        <div class="trust-card">
+          <div class="trust-badge-num">I</div>
+          <h3>100% Backed Payouts</h3>
+          <p>Every point and dollar in the matrix is backed 1-to-1 by digital asset reserves. Payouts are guaranteed and fully funded, protecting every participant's balances.</p>
+        </div>
+
+        <div class="trust-card">
+          <div class="trust-badge-num">II</div>
+          <h3>BSC BEP-20 Integration</h3>
+          <p>Using the Binance Smart Chain (BSC) network for USDT payments ensures that your deposits are processed securely, with blazing-fast confirmation times and minimal gas fees.</p>
+        </div>
+
+        <div class="trust-card">
+          <div class="trust-badge-num">III</div>
+          <h3>Anti-Manipulation Ledger</h3>
+          <p>An append-only database ledger records all operations. Admins and users alike are bound by automated queue rules; positions cannot be altered or bypassed.</p>
+        </div>
+
+        <div class="trust-card">
+          <div class="trust-badge-num">IV</div>
+          <h3>Mathematically Debt-Free</h3>
+          <p>Unlike traditional systems, the platform generates zero liability. Payouts are computed mathematically based on slot completion and incoming seed deposits, ensuring infinite longevity.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 Levels of Matrix -->
+  <section id="levels">
+    <div class="container">
+      <div class="section-head">
+        <h2>The 5 Levels of Revolutionary Group</h2>
+        <p>Complete details on slot configurations, payouts, reinvestments, and cash outs.</p>
+      </div>
+
+      <div class="levels-grid">
+        <!-- L5: Platinum (First) -->
+        <div class="level-card" style="border-color: var(--brand-gold); background: linear-gradient(180deg, rgba(197, 160, 89, 0.06) 0%, var(--bg-card) 100%);">
+          <div class="funding-badge zero-cost">Self-Funded Matrix</div>
+          <h3>L5: Platinum</h3>
+          <div class="level-info-row"><span>Entry Fee</span><span>$10,000</span></div>
+          <div class="level-info-row"><span>Required Slots</span><span>32</span></div>
+          <div class="level-info-row" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 4px;">
+            <span>Total Payout</span><span>$320,000</span>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Final Option</div>
+            <div class="option-value" style="color: var(--brand-green);">$320,000 Cash Out</div>
+          </div>
+          <div class="option-box" style="opacity: 0.4;">
+            <div class="option-title">Next Level</div>
+            <div class="option-value">— (Final Stage)</div>
+          </div>
+        </div>
+
+        <!-- L4: Gold -->
+        <div class="level-card">
+          <div class="funding-badge zero-cost">Self-Funded Matrix</div>
+          <h3>L4: Gold</h3>
+          <div class="level-info-row"><span>Entry Fee</span><span>$1,000</span></div>
+          <div class="level-info-row"><span>Required Slots</span><span>16</span></div>
+          <div class="level-info-row" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 4px;">
+            <span>Total Payout</span><span>$16,000</span>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option A (Exit)</div>
+            <div class="option-value" style="color: var(--brand-green);">$4,800 Cash Payout</div>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option B (Upgrade)</div>
+            <div class="option-value">Keep $6,000 + Seed $10,000</div>
+          </div>
+        </div>
+
+        <!-- L3: Silver -->
+        <div class="level-card">
+          <div class="funding-badge zero-cost">Self-Funded Matrix</div>
+          <h3>L3: Silver</h3>
+          <div class="level-info-row"><span>Entry Fee</span><span>$150</span></div>
+          <div class="level-info-row"><span>Required Slots</span><span>8</span></div>
+          <div class="level-info-row" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 4px;">
+            <span>Total Payout</span><span>$1,200</span>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option A (Exit)</div>
+            <div class="option-value" style="color: var(--brand-green);">$360 Cash Payout</div>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option B (Upgrade)</div>
+            <div class="option-value">Keep $200 + Seed $1,000</div>
+          </div>
+        </div>
+
+        <!-- L2: Bronze -->
+        <div class="level-card">
+          <div class="funding-badge zero-cost">Self-Funded Matrix</div>
+          <h3>L2: Bronze</h3>
+          <div class="level-info-row"><span>Entry Fee</span><span>$50</span></div>
+          <div class="level-info-row"><span>Required Slots</span><span>4</span></div>
+          <div class="level-info-row" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 4px;">
+            <span>Total Payout</span><span>$200</span>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option A (Exit)</div>
+            <div class="option-value" style="color: var(--brand-green);">$60 Cash Payout</div>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option B (Upgrade)</div>
+            <div class="option-value">Keep $50 + Seed $150</div>
+          </div>
+        </div>
+
+        <!-- L1: Starter -->
+        <div class="level-card" style="background: linear-gradient(180deg, rgba(197, 160, 89, 0.02) 0%, var(--bg-card) 100%);">
+          <div class="funding-badge primary-cost">Initial Seed Input</div>
+          <h3>L1: Starter</h3>
+          <div class="level-info-row"><span>Entry Fee</span><span>$30</span></div>
+          <div class="level-info-row"><span>Required Slots</span><span>2</span></div>
+          <div class="level-info-row" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 4px;">
+            <span>Total Payout</span><span>$60</span>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option A (Exit)</div>
+            <div class="option-value" style="color: var(--brand-green);">$60 Cash Payout</div>
+          </div>
+          <div class="option-box">
+            <div class="option-title">Option B (Upgrade)</div>
+            <div class="option-value">Keep $10 + Seed $50</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Analytical Growth & Metrics -->
+  <section id="analytics">
+    <div class="container">
+      <div class="section-head">
+        <h2>Exponential Growth Analytics</h2>
+        <p>Analyze how your reward potential scales compared to your entry fees across levels.</p>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-panel">
+          <h3>Payout Progression (Logarithmic View)</h3>
+          <div style="height: 340px; position: relative;">
+            <canvas id="payoutChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <h3 id="alloc-title">Stage 5 Payout Allocation ($320,000)</h3>
+            <div style="height: 220px; position: relative; margin-bottom: 24px;">
+              <canvas id="allocationChart"></canvas>
+            </div>
+          </div>
+          <div style="font-size: 14px; color: var(--text-muted); line-height: 1.7; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px;">
+            <p>📊 <strong>Exponential Gains</strong>: Pocket cash scales up to $320,000 at Stage 5 Platinum with $0 reinvested.</p>
+            <p style="margin-top: 10px;">🔄 <strong>Dynamic Split</strong>: Toggle stages and options below to see how payouts are distributed between kept cash and reinvested seed.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Strategy Simulator -->
+  <section id="simulator">
+    <div class="container">
+      <div class="section-head">
+        <h2>Interactive Strategy Simulator</h2>
+        <p>Toggle options at any level to calculate your exit payout versus reinvestment seed budgets.</p>
+      </div>
+
+      <div class="sim-panel">
+        <div class="sim-tabs">
+          <button class="sim-tab active" onclick="setSimLevel(1)">L1 (Starter)</button>
+          <button class="sim-tab" onclick="setSimLevel(2)">L2 (Bronze)</button>
+          <button class="sim-tab" onclick="setSimLevel(3)">L3 (Silver)</button>
+          <button class="sim-tab" onclick="setSimLevel(4)">L4 (Gold)</button>
+          <button class="sim-tab" onclick="setSimLevel(5)">L5 (Platinum)</button>
+        </div>
+
+        <div class="sim-button-group">
+          <button id="btn-exit" class="sim-btn active-exit" onclick="setSimOption('exit')">Option A: Cash Out &amp; Exit</button>
+          <button id="btn-upgrade" class="sim-btn" onclick="setSimOption('upgrade')">Option B: Upgrade &amp; Climb</button>
+        </div>
+
+        <div class="sim-results">
+          <div class="level-info-row"><span>Total Level Payout:</span><span id="sim-payout" class="mono">$60</span></div>
+          <div class="level-info-row"><span>Level Entry Fee:</span><span id="sim-entry" class="mono">$30</span></div>
+          <div class="level-info-row" style="font-weight: 700; color: var(--brand-green);"><span>Pocket Cash Kept:</span><span id="sim-pocket" class="mono">$60</span></div>
+          <div class="level-info-row" style="color: var(--brand-blue);"><span>Reinvested Seed:</span><span id="sim-reinvest" class="mono">$0</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq">
+    <div class="container">
+      <div class="section-head">
+        <h2>Frequently Asked Questions</h2>
+        <p>Simple answers about payments, queue configurations, and mechanics.</p>
+      </div>
+
+      <div class="faq-container">
+        <div class="faq-item">
+          <button class="faq-trigger" onclick="toggleFaq(this)">
+            <span>How fast do my slots fill?</span>
+            <span class="faq-indicator">▼</span>
+          </button>
+          <div class="faq-content">
+            <p>Slot completion speed depends entirely on the global signup and upgrade velocity. Because our algorithm uses a strict first-come, first-served queue, older open slots are filled first, ensuring absolute fairness.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-trigger" onclick="toggleFaq(this)">
+            <span>Do I have to climb levels?</span>
+            <span class="faq-indicator">▼</span>
+          </button>
+          <div class="faq-content">
+            <p>No. You have complete control. You can cash out 100% of your earnings ($60) directly at Level 1 and exit the game. Upgrading to higher tiers is optional but unlocks massive reward scaling pools.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-trigger" onclick="toggleFaq(this)">
+            <span>How do I qualify for royalty bonuses?</span>
+            <span class="faq-indicator">▼</span>
+          </button>
+          <div class="faq-content">
+            <p>Sponsoring 10 or more players using your direct referral link unlocks the Bronze rank. Higher sponsorship volumes (25+, 50+, 100+, 200+) promote your rank and increase your share of the global 10% royalty pool reserves.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 Revolutionary Group. Built on mathematical integrity and trust.</p>
+    </div>
+  </footer>
+
+  <script>
+    const SIM_DATA = {
+      1: { payout: 60, entry: 30, exitPocket: 60, exitReinvest: 0, upgradePocket: 10, upgradeReinvest: 50 },
+      2: { payout: 200, entry: 50, exitPocket: 60, exitReinvest: 140, upgradePocket: 50, upgradeReinvest: 150 },
+      3: { payout: 1200, entry: 150, exitPocket: 360, exitReinvest: 840, upgradePocket: 200, upgradeReinvest: 1000 },
+      4: { payout: 16000, entry: 1000, exitPocket: 4800, exitReinvest: 11200, upgradePocket: 6000, upgradeReinvest: 10000 },
+      5: { payout: 320000, entry: 10000, exitPocket: 320000, exitReinvest: 0, upgradePocket: 320000, upgradeReinvest: 0 }
+    };
+
+    let activeLevel = 1;
+    let activeOption = 'exit';
+
+    function setSimLevel(level) {
+      activeLevel = level;
+      const tabs = document.querySelectorAll('.sim-tab');
+      tabs.forEach((tab, index) => {
+        if (index + 1 === level) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+      
+      const btnUpgrade = document.getElementById('btn-upgrade');
+      if (level === 5) {
+        btnUpgrade.style.opacity = '0.4';
+        btnUpgrade.style.pointerEvents = 'none';
+        btnUpgrade.textContent = 'No Upgrade Option';
+        setSimOption('exit');
+      } else {
+        btnUpgrade.style.opacity = '1';
+        btnUpgrade.style.pointerEvents = 'auto';
+        btnUpgrade.textContent = 'Option B: Upgrade & Climb';
+      }
+      
+      updateSimOutput();
+    }
+
+    function setSimOption(option) {
+      activeOption = option;
+      const btnExit = document.getElementById('btn-exit');
+      const btnUpgrade = document.getElementById('btn-upgrade');
+      if (option === 'exit') {
+        btnExit.classList.add('active-exit');
+        btnUpgrade.classList.remove('active-upgrade');
+      } else {
+        btnExit.classList.remove('active-exit');
+        btnUpgrade.classList.add('active-upgrade');
+      }
+      updateSimOutput();
+    }
+
+    function updateSimOutput() {
+      const data = SIM_DATA[activeLevel];
+      document.getElementById('sim-payout').textContent = `$${data.payout.toLocaleString()}`;
+      document.getElementById('sim-entry').textContent = `$${data.entry.toLocaleString()}`;
+      if (activeOption === 'exit') {
+        document.getElementById('sim-pocket').textContent = `$${data.exitPocket.toLocaleString()}`;
+        document.getElementById('sim-reinvest').textContent = `$${data.exitReinvest.toLocaleString()}`;
+      } else {
+        document.getElementById('sim-pocket').textContent = `$${data.upgradePocket.toLocaleString()}`;
+        document.getElementById('sim-reinvest').textContent = `$${data.upgradeReinvest.toLocaleString()}`;
+      }
+      updateAllocationChart();
+    }
+
+    let allocationChartInstance = null;
+
+    function updateAllocationChart() {
+      if (!allocationChartInstance) return;
+      const data = SIM_DATA[activeLevel];
+      let cash = 0;
+      let reinvest = 0;
+      if (activeOption === 'exit') {
+        cash = data.exitPocket;
+        reinvest = data.exitReinvest;
+      } else {
+        cash = data.upgradePocket;
+        reinvest = data.upgradeReinvest;
+      }
+      
+      document.getElementById('alloc-title').textContent = `Stage ${activeLevel} Payout Allocation ($${data.payout.toLocaleString()})`;
+      
+      allocationChartInstance.data.labels = [
+        `Pocket Cash Kept ($${cash.toLocaleString()})`, 
+        `Reinvested Seed ($${reinvest.toLocaleString()})`
+      ];
+      allocationChartInstance.data.datasets[0].data = [cash, reinvest];
+      allocationChartInstance.update();
+    }
+
+    function toggleFaq(btn) {
+      const item = btn.parentElement;
+      const content = btn.nextElementSibling;
+      const isActive = item.classList.contains('active');
+      
+      // Close all first
+      document.querySelectorAll('.faq-item').forEach(el => {
+        el.classList.remove('active');
+        el.querySelector('.faq-content').style.display = 'none';
+      });
+
+      if (!isActive) {
+        item.classList.add('active');
+        content.style.display = 'block';
+      }
+    }
+
+    // Chart.js configuration
+    window.addEventListener('DOMContentLoaded', () => {
+      // Payout Growth Chart
+      const ctxPayout = document.getElementById('payoutChart').getContext('2d');
+      const payoutGrad = ctxPayout.createLinearGradient(0, 0, 0, 300);
+      payoutGrad.addColorStop(0, 'rgba(181, 141, 61, 0.25)');
+      payoutGrad.addColorStop(1, 'rgba(181, 141, 61, 0.01)');
+
+      new Chart(ctxPayout, {
+        type: 'line',
+        data: {
+          labels: ['L1: Starter', 'L2: Bronze', 'L3: Silver', 'L4: Gold', 'L5: Platinum'],
+          datasets: [{
+            label: 'Total Level Payout ($)',
+            data: [60, 200, 1200, 16000, 320000],
+            borderColor: '#b58d3d',
+            backgroundColor: payoutGrad,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#c5a059',
+            pointBorderColor: '#ffffff',
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return ' Payout: $' + context.raw.toLocaleString();
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              type: 'logarithmic',
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              ticks: {
+                color: '#475569',
+                callback: function(value) {
+                  return '$' + value.toLocaleString();
+                }
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                color: '#475569'
+              }
+            }
+          }
+        }
+      });
+
+      // Allocation Chart
+      const ctxAlloc = document.getElementById('allocationChart').getContext('2d');
+      allocationChartInstance = new Chart(ctxAlloc, {
+        type: 'doughnut',
+        data: {
+          labels: ['Pocket Cash Kept', 'Reinvested Seed'],
+          datasets: [{
+            data: [320000, 0],
+            backgroundColor: ['#10b981', '#3b82f6'],
+            borderColor: '#ffffff',
+            borderWidth: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#475569',
+                boxWidth: 12,
+                font: {
+                  size: 12,
+                  family: 'Outfit'
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Initialize simulator with Level 5 by default
+      setSimLevel(5);
+    });
+  </script>
+</body>
+</html>

@@ -20,6 +20,7 @@ async function main() {
   console.log("=== Starting NowPayments USDT Payment Integration Tests ===");
 
   // Set environment overrides for mock testing
+  process.env.NOWPAYMENTS_MODE = "mock";
   process.env.NOWPAYMENTS_API_KEY = "mock_api_key_for_testing";
   process.env.NOWPAYMENTS_IPN_SECRET = "mock_ipn_secret_for_testing";
   process.env.CRYPTO_ENCRYPTION_KEY = "e0f7f3da4b9a9d7d4c8e762b32943716a5b28d0176cddeba25e36f9011de3a09";

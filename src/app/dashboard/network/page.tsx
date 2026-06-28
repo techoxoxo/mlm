@@ -68,7 +68,7 @@ export default async function NetworkPage() {
         style={{
           padding: "20px 26px",
           borderRadius: 18,
-          background: "linear-gradient(135deg, rgba(111,195,247,0.06) 0%, rgba(16,15,18,0.85) 70%)",
+          background: "linear-gradient(135deg, rgba(111,195,247,0.06) 0%, var(--surface) 70%)",
           border: "1px solid rgba(111,195,247,0.15)",
           display: "flex",
           justifyContent: "space-between",

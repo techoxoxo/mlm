@@ -61,7 +61,7 @@ function TrustBadge({ icon: Icon, text }: { icon: React.ElementType; text: strin
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 24px", borderRight: "1px solid var(--border)" }}>
       <Icon size={15} color="var(--gold)" />
-      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", whiteSpace: "nowrap" }}>{text}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap" }}>{text}</span>
     </div>
   );
 }
@@ -137,14 +137,14 @@ export default async function Landing() {
     <main style={{ paddingBottom: 0 }}>
 
       {/* ─── nav ──────────────────────────────────────────────── */}
-      <header style={{ position: "sticky", top: 0, zIndex: 30, backdropFilter: "blur(14px)", background: "rgba(12,11,7,0.75)", borderBottom: "1px solid var(--border)" }}>
+      <header style={{ position: "sticky", top: 0, zIndex: 30, backdropFilter: "blur(14px)", background: "rgba(10,8,5,0.88)", borderBottom: "1px solid rgba(248,198,23,0.12)" }}>
         <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 70 }}>
           <Logo size={22} />
           <nav style={{ display: "flex", gap: 28, alignItems: "center" }}>
-            <Link href="#how"     style={{ fontSize: 13.5, fontWeight: 600, color: "var(--muted)" }}>How it works</Link>
-            <Link href="#ladder"  style={{ fontSize: 13.5, fontWeight: 600, color: "var(--muted)" }}>The ladder</Link>
-            <Link href="#earn"    style={{ fontSize: 13.5, fontWeight: 600, color: "var(--muted)" }}>Earnings</Link>
-            <Link href="#faq"     style={{ fontSize: 13.5, fontWeight: 600, color: "var(--muted)" }}>FAQ</Link>
+            <Link href="#how"     style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>How it works</Link>
+            <Link href="#ladder"  style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>The ladder</Link>
+            <Link href="#earn"    style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>Earnings</Link>
+            <Link href="#faq"     style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>FAQ</Link>
             {session ? (
               <Link href={session.role === "admin" ? "/admin" : "/dashboard"} className="btn btn-primary">
                 <Wallet size={16} /> Dashboard
@@ -217,7 +217,7 @@ export default async function Landing() {
           <TrustBadge icon={Trophy}      text="Royalty rewards 3× / month" />
           <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 24px" }}>
             <Zap size={15} color="var(--gold)" />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", whiteSpace: "nowrap" }}>Instant activation</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap" }}>Instant activation</span>
           </div>
         </div>
       </div>
@@ -337,6 +337,11 @@ export default async function Landing() {
                     {String(s.level).padStart(2, "0")}
                   </span>
                   <div>
+                    {s.level > 1 ? (
+                      <span className="pill-green" style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 6, display: "inline-block", marginBottom: 6, textTransform: "uppercase" }}>✓ 100% Self-Funded ($0 Out-of-Pocket)</span>
+                    ) : (
+                      <span className="pill-gold" style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 6, display: "inline-block", marginBottom: 6, textTransform: "uppercase" }}>★ One-Time Seed ($50 Out-of-Pocket)</span>
+                    )}
                     <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 17 }}>{s.name}</div>
                     <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600, marginTop: 2 }}>{s.slots} slots</div>
                   </div>
@@ -520,19 +525,36 @@ export default async function Landing() {
       </section>
 
       {/* ─── FAQ ──────────────────────────────────────────────── */}
-      <section id="faq" className="container" style={{ padding: "20px 24px 60px" }}>
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
+      <section id="faq" className="container" style={{ padding: "20px 24px 80px" }}>
+        <div style={{ textAlign: "center", marginBottom: 52 }}>
           <span className="kicker">FAQ</span>
           <h2 style={{ fontSize: 38, marginTop: 10 }}>Questions answered.</h2>
+          <p style={{ color: "var(--muted)", fontSize: 15, marginTop: 12 }}>Everything you need to know before you climb.</p>
         </div>
-        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 10 }}>
-          {FAQ_ITEMS.map((f) => (
-            <details key={f.q} style={{ borderRadius: 14, border: "1px solid var(--border)", background: "linear-gradient(180deg,rgba(248,198,23,0.03),rgba(16,15,18,0.7))", overflow: "hidden" }}>
-              <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 22px", cursor: "pointer", listStyle: "none", fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, userSelect: "none" }}>
-                {f.q}
-                <ChevronDown size={16} color="var(--gold)" style={{ flexShrink: 0 }} />
+        <style>{`
+          .faq-item { border-radius: 16px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.025); overflow: hidden; transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; }
+          .faq-item + .faq-item { margin-top: 8px; }
+          .faq-item:hover { border-color: rgba(248,198,23,0.22); background: rgba(248,198,23,0.03); }
+          .faq-item[open] { border-color: rgba(248,198,23,0.32); background: rgba(248,198,23,0.055); box-shadow: 0 0 0 1px rgba(248,198,23,0.08) inset, 0 8px 32px rgba(248,198,23,0.07); }
+          .faq-item summary { list-style: none; }
+          .faq-item summary::-webkit-details-marker { display: none; }
+          .faq-chevron { transition: transform 0.25s ease; flex-shrink: 0; }
+          .faq-item[open] .faq-chevron { transform: rotate(180deg); }
+          .faq-num { font-size: 10px; font-weight: 800; color: var(--gold); letter-spacing: 0.12em; min-width: 28px; opacity: 0.65; padding-top: 1px; }
+          .faq-divider { height: 1px; background: rgba(248,198,23,0.12); margin: 0 24px; }
+          .faq-item[open] .faq-divider { display: block; }
+          .faq-divider { display: none; }
+        `}</style>
+        <div style={{ maxWidth: 780, margin: "0 auto" }}>
+          {FAQ_ITEMS.map((f, i) => (
+            <details key={f.q} className="faq-item">
+              <summary style={{ display: "flex", alignItems: "center", gap: 14, padding: "20px 24px", cursor: "pointer", userSelect: "none" }}>
+                <span className="faq-num">0{i + 1}</span>
+                <span style={{ flex: 1, fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em" }}>{f.q}</span>
+                <ChevronDown size={15} color="var(--gold)" className="faq-chevron" />
               </summary>
-              <div style={{ padding: "0 22px 18px", color: "var(--muted)", fontSize: 14, lineHeight: 1.7 }}>
+              <div className="faq-divider" />
+              <div style={{ padding: "16px 24px 22px 66px", color: "var(--muted)", fontSize: 14, lineHeight: 1.78 }}>
                 {f.a}
               </div>
             </details>

@@ -14,6 +14,9 @@ export function Logo({ size = 22, withWord = true }: { size?: number; withWord?:
           borderRadius: 10,
           overflow: "hidden",
           flexShrink: 0,
+          background: "rgba(255,255,255,0.85)",
+          border: "1px solid rgba(184,134,11,0.2)",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
         }}
       >
         <Image

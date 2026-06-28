@@ -104,10 +104,10 @@ export function SideNav({ items }: { items: NavItem[] }) {
                 borderRadius: 9,
                 background: active
                   ? "rgba(248,198,23,0.15)"
-                  : "rgba(255,255,255,0.03)",
+                  : "var(--bg-2)",
                 border: active
                   ? "1px solid rgba(248,198,23,0.25)"
-                  : "1px solid rgba(255,255,255,0.05)",
+                  : "1px solid var(--border)",
                 flexShrink: 0,
                 transition: "all 0.2s ease",
               }}

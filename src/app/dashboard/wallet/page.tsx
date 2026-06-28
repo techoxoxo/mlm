@@ -39,7 +39,7 @@ export default async function WalletPage() {
         style={{
           padding: "20px 26px",
           borderRadius: 18,
-          background: "linear-gradient(135deg, rgba(248,198,23,0.07) 0%, rgba(12,11,7,0.85) 70%)",
+          background: "linear-gradient(135deg, rgba(248,198,23,0.07) 0%, var(--surface) 70%)",
           border: "1px solid rgba(248,198,23,0.2)",
           display: "flex",
           justifyContent: "space-between",

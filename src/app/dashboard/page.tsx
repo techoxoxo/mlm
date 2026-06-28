@@ -49,7 +49,6 @@ function StatCard({
         padding: 22,
         position: "relative",
         overflow: "hidden",
-        background: `linear-gradient(135deg, rgba(16,15,18,0.9) 0%, rgba(20,18,12,0.8) 100%)`,
       }}
     >
       {/* corner glow */}
@@ -154,7 +153,7 @@ export default async function DashboardHome() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 24,
-          background: `linear-gradient(135deg, rgba(248,198,23,0.07) 0%, rgba(16,15,18,0.85) 60%)`,
+          background: `linear-gradient(135deg, rgba(248,198,23,0.07) 0%, var(--surface) 60%)`,
           borderColor: "rgba(248,198,23,0.2)",
           overflow: "hidden",
           position: "relative",
@@ -252,7 +251,7 @@ export default async function DashboardHome() {
           style={{
             padding: 32,
             background:
-              "linear-gradient(135deg, rgba(248,198,23,0.1) 0%, rgba(16,15,18,0.85) 70%)",
+              "linear-gradient(135deg, rgba(248,198,23,0.1) 0%, var(--surface) 70%)",
             borderColor: "rgba(248,198,23,0.35)",
             boxShadow: "0 0 0 1px rgba(248,198,23,0.12), 0 0 40px rgba(248,198,23,0.1)",
           }}
@@ -316,7 +315,7 @@ export default async function DashboardHome() {
                   background:
                     s.status === "filled"
                       ? "linear-gradient(160deg, rgba(248,198,23,0.22), rgba(248,198,23,0.06))"
-                      : "rgba(255,255,255,0.02)",
+                      : "var(--bg-2)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -364,7 +363,7 @@ export default async function DashboardHome() {
                   borderRadius: 14,
                   border: `1px solid ${current ? tc.color + "40" : "var(--border)"}`,
                   background: current
-                    ? `linear-gradient(90deg, ${tc.glow} 0%, rgba(16,15,18,0.6) 100%)`
+                    ? `linear-gradient(90deg, ${tc.glow} 0%, var(--surface) 100%)`
                     : "transparent",
                   opacity: !done && !current ? 0.55 : 1,
                   transition: "all 0.2s ease",
@@ -379,8 +378,8 @@ export default async function DashboardHome() {
                       alignItems: "center",
                       justifyContent: "center",
                       borderRadius: 10,
-                      background: current ? `${tc.glow}` : "rgba(255,255,255,0.03)",
-                      border: `1px solid ${current ? tc.color + "40" : "rgba(255,255,255,0.06)"}`,
+                      background: current ? `${tc.glow}` : "var(--bg-2)",
+                      border: `1px solid ${current ? tc.color + "40" : "var(--border)"}`,
                       fontSize: 16,
                       fontWeight: 800,
                       fontFamily: "var(--font-num)",
@@ -402,7 +401,7 @@ export default async function DashboardHome() {
                     style={{
                       height: 7,
                       borderRadius: 99,
-                      background: "rgba(255,255,255,0.05)",
+                      background: "var(--bg-2)",
                       overflow: "hidden",
                     }}
                   >
@@ -492,8 +491,8 @@ export default async function DashboardHome() {
               key={stat.label}
               style={{
                 background: stat.accent
-                  ? "linear-gradient(135deg, rgba(248,198,23,0.08), rgba(16,15,18,0.6))"
-                  : "rgba(255,255,255,0.02)",
+                  ? "linear-gradient(135deg, rgba(248,198,23,0.08), var(--surface))"
+                  : "var(--bg-2)",
                 border: `1px solid ${stat.accent ? "rgba(248,198,23,0.2)" : "var(--border)"}`,
                 borderRadius: 14,
                 padding: 18,
