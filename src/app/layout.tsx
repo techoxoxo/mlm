@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Baloo_2, Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const display = Baloo_2({
   subsets: ["latin"],
@@ -21,15 +22,21 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Apex — climb the matrix",
+  title: "Revolutionary Income Plan — Build Your Network, Grow Your Income",
   description:
-    "A virtual-points growth game built on a five-tier matrix. Refer, fill your slots, and decide: cash out or climb.",
+    "Revolutionary Income Plan: a fair, queue-backed matrix network. Refer, fill your slots, and decide: cash out or climb.",
+  icons: {
+    icon: "/images/rv_mlm.png",
+    apple: "/images/rv_mlm.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${num.variable} ${sans.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${display.variable} ${num.variable} ${sans.variable}`} suppressHydrationWarning>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

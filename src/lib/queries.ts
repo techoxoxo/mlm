@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { db, schema } from "@/db";
+import { readDb as db, schema } from "@/db";
 
 const { users, slabs, slots, transactions, slabCompletions, royaltyPayouts } = schema;
 
@@ -41,7 +41,7 @@ export async function getDashboard(uid: string) {
         .orderBy(desc(transactions.createdAt))
         .limit(12),
       db
-        .select({ id: users.id, name: users.name, slab: users.currentSlab, status: users.status, createdAt: users.createdAt })
+        .select({ id: users.id, name: users.name, serialNo: users.serialNo, slab: users.currentSlab, status: users.status, createdAt: users.createdAt })
         .from(users)
         .where(eq(users.sponsorId, uid))
         .orderBy(desc(users.createdAt)),

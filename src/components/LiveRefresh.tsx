@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, CheckCircle2, ArrowUpCircle, Gift } from "lucide-react";
 
-type Toast = { id: number; text: string; icon: "slot" | "complete" | "referral" };
+type Toast = { id: number; text: string; icon: "slot" | "complete" | "referral" | "payment" };
 
 const LABEL: Record<string, { text: string; icon: Toast["icon"] }> = {
   slot_filled: { text: "A slot under you was filled!", icon: "slot" },
   slab_complete: { text: "Your slab is complete — make your move!", icon: "complete" },
   referral: { text: "Referral bonus earned!", icon: "referral" },
+  payment_update: { text: "USDT Wallet balance updated!", icon: "payment" },
 };
 
 export function LiveRefresh() {
@@ -59,6 +60,7 @@ export function LiveRefresh() {
           {t.icon === "slot" && <CheckCircle2 size={18} color="var(--color-brand-2)" />}
           {t.icon === "complete" && <ArrowUpCircle size={18} color="var(--color-accent)" />}
           {t.icon === "referral" && <Gift size={18} color="var(--color-success)" />}
+          {t.icon === "payment" && <Bell size={18} color="var(--color-brand)" />}
           <span style={{ fontSize: 14 }}>{t.text}</span>
         </div>
       ))}

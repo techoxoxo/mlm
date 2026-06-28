@@ -51,6 +51,10 @@ export function enqueueActivation(userId: string) {
   return runJob(`activate_${userId}`, { kind: "activate", userId });
 }
 
+export async function enqueueActivationAsync(userId: string) {
+  await distributionQueue.add("activate", { kind: "activate", userId }, { jobId: `activate_${userId}` });
+}
+
 export function enqueueDecision(userId: string, choice: "exit" | "upgrade") {
   return runJob(`decide_${userId}_${choice}`, { kind: "decide", userId, choice });
 }
@@ -75,4 +79,65 @@ export async function ensureRoyaltySchedule() {
   await royaltyQueue.add("distribute", {}, { repeat: { pattern: ROYALTY_CRON }, jobId: "royalty-recurring" });
 }
 
+/* ------------------------------------------------------------------ payment queues */
+
+export const PAYMENT_CREDIT_QUEUE = "payment-credits";
+export const PAYMENT_PAYOUT_QUEUE = "payment-payouts";
+
+export type PaymentCreditJob = { userId: string; paymentId: string; amountPoints: number };
+export type PaymentPayoutJob = { cryptoTxId: string };
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __mlmPaymentCreditQueue: Queue<PaymentCreditJob> | undefined;
+  // eslint-disable-next-line no-var
+  var __mlmPaymentPayoutQueue: Queue<PaymentPayoutJob> | undefined;
+}
+
+export const paymentCreditQueue =
+  global.__mlmPaymentCreditQueue ??
+  new Queue<PaymentCreditJob>(PAYMENT_CREDIT_QUEUE, {
+    connection,
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: { type: "exponential", delay: 1000 },
+      removeOnComplete: 1000,
+      removeOnFail: 5000,
+    },
+  });
+
+export const paymentPayoutQueue =
+  global.__mlmPaymentPayoutQueue ??
+  new Queue<PaymentPayoutJob>(PAYMENT_PAYOUT_QUEUE, {
+    connection,
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: { type: "exponential", delay: 2000 },
+      removeOnComplete: 1000,
+      removeOnFail: 5000,
+    },
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  global.__mlmPaymentCreditQueue = paymentCreditQueue;
+  global.__mlmPaymentPayoutQueue = paymentPayoutQueue;
+}
+
+export function enqueuePaymentCredit(userId: string, paymentId: string, amountPoints: number) {
+  return paymentCreditQueue.add(
+    "credit_deposit",
+    { userId, paymentId, amountPoints },
+    { jobId: `credit_${paymentId}` }
+  );
+}
+
+export function enqueuePaymentPayout(cryptoTxId: string) {
+  return paymentPayoutQueue.add(
+    "process_payout",
+    { cryptoTxId },
+    { jobId: `payout_${cryptoTxId}` }
+  );
+}
+
 export { queueEvents };
+

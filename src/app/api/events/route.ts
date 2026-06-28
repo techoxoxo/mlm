@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { channel, newSubscriber } from "@/lib/events";
+import { subscribeToUserEvents } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,9 +9,9 @@ export async function GET() {
   if (!session) return new Response("Unauthorized", { status: 401 });
 
   const uid = session.uid;
-  const sub = newSubscriber();
   const encoder = new TextEncoder();
   let ping: ReturnType<typeof setInterval>;
+  let unsubscribe: (() => Promise<void>) | undefined;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -24,17 +24,16 @@ export async function GET() {
       };
       send(`: connected\n\n`);
 
-      sub.on("message", (_chan, message) => send(`data: ${message}\n\n`));
-      await sub.subscribe(channel(uid));
+      unsubscribe = await subscribeToUserEvents(uid, (message) => {
+        send(`data: ${message}\n\n`);
+      });
 
       ping = setInterval(() => send(`: ping\n\n`), 25000);
     },
     async cancel() {
       clearInterval(ping);
-      try {
-        await sub.quit();
-      } catch {
-        /* noop */
+      if (unsubscribe) {
+        await unsubscribe();
       }
     },
   });
@@ -47,3 +46,4 @@ export async function GET() {
     },
   });
 }
+

@@ -44,7 +44,7 @@ export default async function MyMatrix({ searchParams }: { searchParams: Promise
           <h3 style={{ fontSize: 16, margin: 0 }}>Your Tier {level} matrix</h3>
           <span className="pill pill-gold">{total} beneath you</span>
         </div>
-        {root ? <MatrixTreeGraph roots={[root]} level={level} readOnly /> : <p style={{ color: "var(--faint)", fontSize: 14 }}>You haven&apos;t entered this stage yet.</p>}
+        {root ? <MatrixTreeGraph roots={[root]} level={level} isAdmin={false} /> : <p style={{ color: "var(--faint)", fontSize: 14 }}>You haven&apos;t entered this stage yet.</p>}
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ const items: NavItem[] = [
   { href: "/admin/royalty", label: "Royalty", icon: "gift" },
   { href: "/admin/matrix", label: "Matrix", icon: "matrix" },
   { href: "/admin/users", label: "Users", icon: "users" },
+  { href: "/admin/referrals", label: "Referrals", icon: "users" },
+  { href: "/admin/reports", label: "Reports", icon: "receipt" },
   { href: "/admin/queue", label: "Queue", icon: "queue" },
 ];
 

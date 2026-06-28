@@ -62,14 +62,14 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
-function NodeModal({ id, level, onClose }: { id: string; level: number; onClose: () => void }) {
+function NodeModal({ id, level, isAdmin = false, onClose }: { id: string; level: number; isAdmin?: boolean; onClose: () => void }) {
   const [data, setData] = useState<NodeSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let live = true;
     setLoading(true);
-    fetch(`/api/admin/node?id=${id}&level=${level}`)
+    fetch(`/api/node?id=${id}&level=${level}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (live) { setData(d); setLoading(false); } })
       .catch(() => { if (live) setLoading(false); });
@@ -81,7 +81,7 @@ function NodeModal({ id, level, onClose }: { id: string; level: number; onClose:
       onClick={onClose}
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
     >
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: "100%", maxWidth: 520, padding: 24, maxHeight: "85vh", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: "100%", maxWidth: 520, padding: 24, maxHeight: "85vh", overflowY: "auto", background: "#16151a", border: "1px solid var(--border)" }}>
         {loading || !data ? (
           <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>{loading ? "Loading…" : "Not found."}</p>
         ) : (
@@ -134,9 +134,11 @@ function NodeModal({ id, level, onClose }: { id: string; level: number; onClose:
               </div>
             </div>
 
-            <Link href={`/admin/users/${data.id}`} className="btn btn-primary" style={{ marginTop: 20, width: "100%" }}>
-              Open full journey <ArrowUpRight size={16} />
-            </Link>
+            {isAdmin && (
+              <Link href={`/admin/users/${data.id}`} className="btn btn-primary" style={{ marginTop: 20, width: "100%" }}>
+                Open full journey <ArrowUpRight size={16} />
+              </Link>
+            )}
           </>
         )}
       </div>
@@ -144,7 +146,7 @@ function NodeModal({ id, level, onClose }: { id: string; level: number; onClose:
   );
 }
 
-export function MatrixTreeGraph({ roots, level, readOnly = false }: { roots: MatrixNode[]; level: number; readOnly?: boolean }) {
+export function MatrixTreeGraph({ roots, level, readOnly = false, isAdmin = false }: { roots: MatrixNode[]; level: number; readOnly?: boolean; isAdmin?: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (roots.length === 0) {
@@ -170,7 +172,7 @@ export function MatrixTreeGraph({ roots, level, readOnly = false }: { roots: Mat
           ))}
         </div>
       </div>
-      {!readOnly && openId && <NodeModal id={openId} level={level} onClose={() => setOpenId(null)} />}
+      {!readOnly && openId && <NodeModal id={openId} level={level} isAdmin={isAdmin} onClose={() => setOpenId(null)} />}
     </>
   );
 }

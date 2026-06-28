@@ -272,17 +272,44 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
       ),
     );
 
-  await tx
-    .insert(slabCompletions)
-    .values({ userId, slabLevel: level, collected, status: "pending" })
-    .onConflictDoNothing();
+  const [nextSlab] = await tx.select().from(slabs).where(eq(slabs.level, level + 1));
+  const isFinal = !nextSlab || !nextSlab.active;
 
-  // clearing a stage resets the royalty-reserve inactivity clock
-  await tx
-    .update(users)
-    .set({ pendingChoiceSlab: level, lastStageClearedAt: sql`now()` })
-    .where(eq(users.id, userId));
+  if (isFinal) {
+    await tx
+      .insert(slabCompletions)
+      .values({ userId, slabLevel: level, collected, status: "exited", payout: collected, decidedAt: sql`now()` })
+      .onConflictDoNothing();
+
+    await post(tx, userId, "exit_payout", 0, {
+      slabLevel: level,
+      note: `Auto exit at final slab ${level}: kept 100% = ${collected}`,
+      meta: { payout: collected, keepPct: 100 },
+    });
+
+    await tx
+      .update(users)
+      .set({
+        status: "completed",
+        pendingChoiceSlab: null,
+        exitedAt: sql`now()`,
+        lastStageClearedAt: sql`now()`,
+      })
+      .where(eq(users.id, userId));
+  } else {
+    await tx
+      .insert(slabCompletions)
+      .values({ userId, slabLevel: level, collected, status: "pending" })
+      .onConflictDoNothing();
+
+    // clearing a stage resets the royalty-reserve inactivity clock
+    await tx
+      .update(users)
+      .set({ pendingChoiceSlab: level, lastStageClearedAt: sql`now()` })
+      .where(eq(users.id, userId));
+  }
 }
+
 
 /**
  * User decides what to do when a slab completes: exit (cash a %) or upgrade.
