@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-export function Logo({ size = 22, withWord = true }: { size?: number; withWord?: boolean }) {
+export function Logo({ size = 22, withWord = true, color }: { size?: number; withWord?: boolean; color?: string }) {
   const imgSize = size + 16;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
@@ -36,6 +36,7 @@ export function Logo({ size = 22, withWord = true }: { size?: number; withWord?:
             fontSize: size,
             letterSpacing: "-0.02em",
             lineHeight: 1.1,
+            color: color || "inherit"
           }}
         >
           Revolutionary Income Plan

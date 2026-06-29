@@ -139,7 +139,7 @@ export default async function Landing() {
       {/* ─── nav ──────────────────────────────────────────────── */}
       <header style={{ position: "sticky", top: 0, zIndex: 30, backdropFilter: "blur(14px)", background: "rgba(10,8,5,0.88)", borderBottom: "1px solid rgba(248,198,23,0.12)" }}>
         <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 70 }}>
-          <Logo size={22} />
+          <Logo size={22} color="rgba(255,255,255,0.9)" />
           <nav className="landing-nav-links" style={{ display: "flex", gap: 28, alignItems: "center" }}>
             <Link href="#how"     style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>How it works</Link>
             <Link href="#ladder"  style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>The ladder</Link>
@@ -151,7 +151,7 @@ export default async function Landing() {
               </Link>
             ) : (
               <div className="landing-nav-auth" style={{ display: "flex", gap: 10 }}>
-                <Link href="/login"    className="btn btn-ghost">Log in</Link>
+                <Link href="/login"    className="btn btn-ghost" style={{ color: "rgba(255,255,255,0.75)" }}>Log in</Link>
                 <Link href="/register" className="btn btn-primary">Start climbing</Link>
               </div>
             )}
