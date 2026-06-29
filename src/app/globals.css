@@ -677,10 +677,67 @@ h4 {
     flex-direction: row !important;
     gap: 4px !important;
   }
-  .app-aside nav a span { display: none; } /* hide active accent bar on mobile */
+  .app-aside nav a > span:not(.nav-icon) { display: none; } /* hide active accent decorations */
+  .nav-label { display: none; }
+  .app-aside nav a { padding: 8px 10px !important; gap: 0 !important; justify-content: center; }
+  .app-header { padding: 0 16px !important; }
   .app-aside > a { flex: none; }
   .app-aside > div:last-child { margin-left: auto !important; margin-top: 0 !important; }
   .app-main { padding: 20px 16px !important; }
+}
+
+/* ------------------------------------------------------------------ responsive landing */
+@media (max-width: 900px) {
+  .how-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 768px) {
+  /* landing nav */
+  .landing-nav-links { display: none !important; }
+  .landing-chevrons { display: none !important; }
+
+  /* hero */
+  .hero-grid { grid-template-columns: 1fr !important; }
+  .hero-grid-side { display: none !important; }
+  .hero-billboard-inner { grid-template-columns: 1fr !important; padding: 32px 24px !important; }
+  .hero-billboard-mascot { display: none !important; }
+
+  /* stats */
+  .stats-grid { grid-template-columns: 1fr !important; }
+  .stats-col { border-right: none !important; border-bottom: 1px solid var(--border); }
+
+  /* ladder */
+  .ladder-item { grid-template-columns: 1fr auto !important; padding: 16px 18px !important; }
+  .ladder-progress { grid-column: 1 / -1; }
+
+  /* earnings + why + testimonials */
+  .earnings-grid { grid-template-columns: 1fr !important; }
+  .why-grid { grid-template-columns: 1fr !important; }
+  .testimonials-grid { grid-template-columns: 1fr !important; }
+
+  /* footer */
+  .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
+
+  /* final CTA */
+  .final-cta-inner { grid-template-columns: 1fr !important; padding: 36px 24px !important; }
+  .final-cta-emoji { display: none !important; }
+
+  /* auth */
+  .auth-layout { grid-template-columns: 1fr !important; }
+  .auth-aside { display: none !important; }
+}
+
+@media (max-width: 520px) {
+  .how-grid { grid-template-columns: 1fr !important; }
+  .footer-grid { grid-template-columns: 1fr !important; }
+  .landing-nav-auth .btn-ghost { display: none !important; }
+}
+
+/* ------------------------------------------------------------------ responsive dashboard */
+@media (max-width: 640px) {
+  .tier-ladder-item { grid-template-columns: 1fr auto !important; gap: 8px 12px !important; }
+  .tier-ladder-progress { grid-column: 1 / -1; }
+  .slot-grid { grid-template-columns: repeat(4, 1fr) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

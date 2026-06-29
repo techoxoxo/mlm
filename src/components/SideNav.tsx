@@ -95,6 +95,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
               />
             )}
             <span
+              className="nav-icon"
               style={{
                 display: "inline-flex",
                 width: 30,
@@ -117,7 +118,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
                 color={active ? "var(--gold-bright)" : "currentColor"}
               />
             </span>
-            {it.label}
+            <span className="nav-label">{it.label}</span>
           </Link>
         );
       })}

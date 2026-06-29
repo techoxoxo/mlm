@@ -10,9 +10,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   ];
 
   return (
-    <main style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+    <main className="auth-layout" style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1fr 1fr" }}>
       {/* left: brand panel */}
       <aside
+        className="auth-aside"
         style={{
           display: "flex",
           flexDirection: "column",

@@ -90,6 +90,7 @@ export function AppShell({
 
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header
+          className="app-header"
           style={{
             borderBottom: "1px solid var(--border)",
             padding: "0 40px",

@@ -140,7 +140,7 @@ export default async function Landing() {
       <header style={{ position: "sticky", top: 0, zIndex: 30, backdropFilter: "blur(14px)", background: "rgba(10,8,5,0.88)", borderBottom: "1px solid rgba(248,198,23,0.12)" }}>
         <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 70 }}>
           <Logo size={22} />
-          <nav style={{ display: "flex", gap: 28, alignItems: "center" }}>
+          <nav className="landing-nav-links" style={{ display: "flex", gap: 28, alignItems: "center" }}>
             <Link href="#how"     style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>How it works</Link>
             <Link href="#ladder"  style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>The ladder</Link>
             <Link href="#earn"    style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>Earnings</Link>
@@ -150,7 +150,7 @@ export default async function Landing() {
                 <Wallet size={16} /> Dashboard
               </Link>
             ) : (
-              <div style={{ display: "flex", gap: 10 }}>
+              <div className="landing-nav-auth" style={{ display: "flex", gap: 10 }}>
                 <Link href="/login"    className="btn btn-ghost">Log in</Link>
                 <Link href="/register" className="btn btn-primary">Start climbing</Link>
               </div>
@@ -161,16 +161,16 @@ export default async function Landing() {
 
       {/* ─── hero ─────────────────────────────────────────────── */}
       <section className="container" style={{ paddingTop: 40, paddingBottom: 8 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "210px 1fr 210px", gap: 18, alignItems: "stretch" }}>
+        <div className="hero-grid" style={{ display: "grid", gridTemplateColumns: "210px 1fr 210px", gap: 18, alignItems: "stretch" }}>
 
           {/* left art card */}
-          <div className="card rise" style={{ padding: 16, display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden" }}>
+          <div className="card rise hero-grid-side" style={{ padding: 16, display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden" }}>
             <MatrixVisual />
             <p style={{ textAlign: "center", fontSize: 11, color: "var(--faint)", margin: "8px 0 0", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>live matrix</p>
           </div>
 
           {/* center yellow billboard */}
-          <div className="billboard rise" style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", alignItems: "center", padding: "44px 12px 44px 48px", animationDelay: "0.05s" }}>
+          <div className="billboard rise hero-billboard-inner" style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", alignItems: "center", padding: "44px 12px 44px 48px", animationDelay: "0.05s" }}>
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(0,0,0,0.14)", borderRadius: 999, padding: "6px 14px", marginBottom: 18, border: "1px solid rgba(0,0,0,0.18)" }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ed87a", boxShadow: "0 0 8px #2ed87a", flexShrink: 0 }} />
@@ -189,13 +189,13 @@ export default async function Landing() {
                 </Link>
               </div>
             </div>
-            <div style={{ minWidth: 0 }}>
+            <div className="hero-billboard-mascot" style={{ minWidth: 0 }}>
               <MascotScene />
             </div>
           </div>
 
           {/* right coins card */}
-          <div className="card rise" style={{ padding: 16, display: "flex", alignItems: "center", overflow: "hidden", animationDelay: "0.1s" }}>
+          <div className="card rise hero-grid-side" style={{ padding: 16, display: "flex", alignItems: "center", overflow: "hidden", animationDelay: "0.1s" }}>
             <CoinField />
           </div>
         </div>
@@ -240,11 +240,11 @@ export default async function Landing() {
           <span className="kicker">Live numbers</span>
           <h2 style={{ fontSize: 36, marginTop: 10 }}>The game in real time</h2>
         </div>
-        <div className="card" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", overflow: "hidden" }}>
-          <div style={{ borderRight: "1px solid var(--border)" }}>
+        <div className="card stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", overflow: "hidden" }}>
+          <div className="stats-col" style={{ borderRight: "1px solid var(--border)" }}>
             <StatBubble value={`${totalMembers.toLocaleString()}+`} label="Players in the game" sub="registered & activated" />
           </div>
-          <div style={{ borderRight: "1px solid var(--border)" }}>
+          <div className="stats-col" style={{ borderRight: "1px solid var(--border)" }}>
             <StatBubble value={`${totalPts.toLocaleString()}+`} label="Points distributed" sub="via slot credits" />
           </div>
           <div>
@@ -255,7 +255,7 @@ export default async function Landing() {
 
       {/* ─── glow CTA ─────────────────────────────────────────── */}
       <section style={{ padding: "52px 24px 60px", display: "flex", justifyContent: "center", alignItems: "center", gap: 20, overflow: "hidden" }}>
-        <div className="chevron-row" aria-hidden style={{ flexShrink: 0 }}>
+        <div className="chevron-row landing-chevrons" aria-hidden style={{ flexShrink: 0 }}>
           {Array.from({ length: 5 }).map((_, i) => (
             <span key={i} className="chev chev-r" style={{ animation: `chev-pulse 1.6s ease-in-out ${i * 0.15}s infinite` }} />
           ))}
@@ -263,7 +263,7 @@ export default async function Landing() {
         <Link href={session ? "/dashboard" : "/register"} className="btn glow-cta" style={{ flexShrink: 0 }}>
           <Sparkles size={19} /> {session ? "Open dashboard" : "Create account — free"}
         </Link>
-        <div className="chevron-row" aria-hidden style={{ flexShrink: 0 }}>
+        <div className="chevron-row landing-chevrons" aria-hidden style={{ flexShrink: 0 }}>
           {Array.from({ length: 5 }).map((_, i) => (
             <span key={i} className="chev chev-l" style={{ animation: `chev-pulse 1.6s ease-in-out ${(4 - i) * 0.15}s infinite` }} />
           ))}
@@ -282,7 +282,7 @@ export default async function Landing() {
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 0 }}>
+        <div className="how-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 0 }}>
           {[
             { step: "01", icon: Users,      color: "#f8c617", title: "Register & activate",    body: "50 pts to join: 10 ID & PIN, 30 autopool, 10 royalty. Your sponsor earns 5 pts instantly.", detail: `${joinTotal} pts total` },
             { step: "02", icon: Network,    color: "#ffe893", title: "Your slots open",         body: "You enter the FIFO queue at Tier 1 with 2 open slots. Oldest slot always fills first — no favourites.", detail: "FIFO queue" },
@@ -331,7 +331,7 @@ export default async function Landing() {
             const pool = s.fee * s.slots;
             const keepPct = s.level === slabRows.length ? 100 : s.exitPercent;
             return (
-              <div key={s.level} className={`card card-hover ${isApex ? "card-feature" : ""}`} style={{ display: "grid", gridTemplateColumns: "140px 1fr 170px", alignItems: "center", gap: 24, padding: "20px 28px" }}>
+              <div key={s.level} className={`card card-hover ladder-item ${isApex ? "card-feature" : ""}`} style={{ display: "grid", gridTemplateColumns: "140px 1fr 170px", alignItems: "center", gap: 24, padding: "20px 28px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <span className="mono" style={{ fontSize: 28, fontWeight: 700, color: isApex ? "var(--gold)" : "var(--faint)", minWidth: 38 }}>
                     {String(s.level).padStart(2, "0")}
@@ -347,7 +347,7 @@ export default async function Landing() {
                   </div>
                 </div>
 
-                <div>
+                <div className="ladder-progress">
                   <div style={{ height: 8, borderRadius: 99, background: "var(--surface-3)", overflow: "hidden", maxWidth: 500 }}>
                     <div style={{ width: `${Math.min(96, fillPct)}%`, height: "100%", borderRadius: 99, background: "linear-gradient(90deg, var(--gold), var(--gold-soft))" }} />
                   </div>
@@ -381,7 +381,7 @@ export default async function Landing() {
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div className="earnings-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
           {/* cost breakdown */}
           <div className="card" style={{ padding: 28 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 16 }}>What you pay</div>
@@ -487,7 +487,7 @@ export default async function Landing() {
             We made choices that favour players over the house. Here&apos;s what makes Revolutionary Income Plan fair.
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+        <div className="why-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
           {[
             { icon: ShieldCheck, color: "#f8c617", title: "Row-locked ledger", body: "Every point movement writes an immutable row to the transactions table. Your balance is the exact sum of that history.", bullets: ["Append-only — nothing deleted", "balanceAfter on every row", "Admin sees every tx"] },
             { icon: Network,     color: "#ffe893", title: "Global FIFO queue",  body: "Slot assignment uses SELECT FOR UPDATE SKIP LOCKED. The oldest open slot fills first, regardless of who you know.", bullets: ["No queue jumping", "Race-condition proof", "Deadlock-safe with retries"] },
@@ -519,7 +519,7 @@ export default async function Landing() {
           <h2 style={{ fontSize: 38, marginTop: 10 }}>From the community</h2>
           <p style={{ color: "var(--faint)", fontSize: 13, marginTop: 8 }}>Demo accounts — shown to illustrate the experience</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 }}>
+        <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 }}>
           {TESTIMONIALS.map((t) => <TestimonialCard key={t.name} {...t} />)}
         </div>
       </section>
@@ -564,7 +564,7 @@ export default async function Landing() {
 
       {/* ─── final CTA ────────────────────────────────────────── */}
       <section className="container" style={{ padding: "20px 24px 80px" }}>
-        <div className="billboard" style={{ padding: "64px 52px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 32 }}>
+        <div className="billboard final-cta-inner" style={{ padding: "64px 52px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 32 }}>
           <div>
             <h2 style={{ fontSize: 46, lineHeight: 1.08 }}>Ready to<br />start climbing?</h2>
             <p style={{ fontSize: 16, fontWeight: 500, color: "#3d2f06", maxWidth: 420, margin: "14px 0 0", lineHeight: 1.55 }}>
@@ -579,14 +579,14 @@ export default async function Landing() {
               </Link>
             </div>
           </div>
-          <div style={{ fontSize: 88, lineHeight: 1, userSelect: "none" }} aria-hidden>🏆</div>
+          <div className="final-cta-emoji" style={{ fontSize: 88, lineHeight: 1, userSelect: "none" }} aria-hidden>🏆</div>
         </div>
       </section>
 
       {/* ─── footer ───────────────────────────────────────────── */}
       <footer style={{ borderTop: "1px solid var(--border)", background: "rgba(5,5,7,0.95)" }}>
         <div className="container" style={{ padding: "44px 24px 28px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 32, marginBottom: 36 }}>
+          <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 32, marginBottom: 36 }}>
             <div>
               <Logo size={20} />
               <p style={{ color: "var(--faint)", fontSize: 13, marginTop: 12, lineHeight: 1.7, maxWidth: 210 }}>

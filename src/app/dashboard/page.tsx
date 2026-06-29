@@ -298,6 +298,7 @@ export default async function DashboardHome() {
             </span>
           </div>
           <div
+            className="slot-grid"
             style={{
               display: "grid",
               gridTemplateColumns: `repeat(${Math.min(currentSlab.slots, 8)}, 1fr)`,
@@ -354,6 +355,7 @@ export default async function DashboardHome() {
             return (
               <div
                 key={s.level}
+                className="tier-ladder-item"
                 style={{
                   display: "grid",
                   gridTemplateColumns: "140px 1fr 130px",
@@ -396,7 +398,7 @@ export default async function DashboardHome() {
                   </div>
                 </div>
 
-                <div>
+                <div className="tier-ladder-progress">
                   <div
                     style={{
                       height: 7,
