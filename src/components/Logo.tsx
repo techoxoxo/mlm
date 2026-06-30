@@ -1,9 +1,10 @@
 import Image from "next/image";
 
 export function Logo({ size = 22, withWord = true, color }: { size?: number; withWord?: boolean; color?: string }) {
-  const imgSize = size + 16;
+  const boostedSize = size * 1.25;
+  const imgSize = boostedSize + 16;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
       <span
         style={{
           display: "inline-flex",
@@ -24,7 +25,7 @@ export function Logo({ size = 22, withWord = true, color }: { size?: number; wit
           alt="Revolutionary Grouplogo"
           width={imgSize}
           height={imgSize}
-          style={{ objectFit: "contain", width: "100%", height: "100%" }}
+          style={{ objectFit: "contain", width: "100%", height: "100%", transform: "scale(1.4)" }}
           priority
         />
       </span>
@@ -33,7 +34,7 @@ export function Logo({ size = 22, withWord = true, color }: { size?: number; wit
           style={{
             fontFamily: "var(--font-display)",
             fontWeight: 700,
-            fontSize: size,
+            fontSize: boostedSize,
             letterSpacing: "-0.02em",
             lineHeight: 1.1,
             color: color || "inherit"

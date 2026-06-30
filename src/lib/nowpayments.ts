@@ -211,15 +211,16 @@ export async function createInvoice(
   opts: { successUrl: string; cancelUrl: string }
 ): Promise<CreateInvoiceResponse> {
   if (isMockMode()) {
+    const invId = `mock_inv_${crypto.randomUUID().slice(0, 8)}`;
     return {
-      id: `mock_inv_${crypto.randomUUID().slice(0, 8)}`,
+      id: invId,
       order_id: orderId,
       order_description: `Activation payment ${orderId}`,
       price_amount: amountUsd.toString(),
       price_currency: "usd",
       pay_currency: null,
       ipn_callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nowpayments`,
-      invoice_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?mock_invoice=true`,
+      invoice_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?mock_invoice=true&invoice_id=${invId}&amount=${amountUsd}&order_id=${encodeURIComponent(orderId)}`,
       success_url: opts.successUrl,
       cancel_url: opts.cancelUrl,
       created_at: new Date().toISOString(),

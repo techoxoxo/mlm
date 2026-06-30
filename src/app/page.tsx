@@ -531,6 +531,21 @@ export default async function Landing() {
         /* Testimonial */
         .lp-testi-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px; }
 
+        /* Login button custom glow */
+        .lp-login-btn {
+          background: transparent !important;
+          border: 1.5px solid rgba(245, 198, 23, 0.35) !important;
+          color: var(--gold-bright) !important;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .lp-login-btn:hover {
+          border-color: var(--gold) !important;
+          box-shadow: 0 0 16px rgba(245, 198, 23, 0.35) !important;
+          color: var(--gold-soft) !important;
+          background: rgba(245, 198, 23, 0.05) !important;
+          transform: translateY(-1px);
+        }
+
         /* FAQ */
         .faq-item { border-radius:16px; border:1px solid rgba(255,255,255,0.07); background:rgba(255,255,255,0.025); overflow:hidden; transition:border-color 0.2s,background 0.2s; }
         :root .faq-item { background:rgba(0,0,0,0.02); border-color:rgba(0,0,0,0.06); }
@@ -580,8 +595,11 @@ export default async function Landing() {
           .landing-nav-links{display:none!important;}
           .lp-footer-grid{grid-template-columns:1fr 1fr!important;}
         }
-        @media(max-width:420px){
-          .lp-footer-grid{grid-template-columns:1fr!important;}
+        @media(max-width:500px){
+          .lp-login-btn, .landing-nav-auth-btn {
+            padding: 6px 10px !important;
+            font-size: 12px !important;
+          }
         }
       `}</style>
 
@@ -590,22 +608,26 @@ export default async function Landing() {
         <style>{`[data-theme="dark"] header{background:rgba(8,9,18,0.88)!important;border-bottom-color:rgba(255,255,255,0.06)!important;}`}</style>
         <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 70 }}>
           <Logo size={19} />
-          <nav className="landing-nav-links" style={{ display: "flex", gap: 26, alignItems: "center" }}>
-            {[["How it works", "#how"], ["The 2-Pool", "#ladder"], ["Earnings", "#earn"], ["FAQ", "#faq"], ["About", "#benefits"]].map(([l, h]) => (
-              <Link key={l} href={h} className="lp-nav-link">{l}</Link>
-            ))}
-            <ThemeToggle />
-            {session ? (
-              <Link href={session.role === "admin" ? "/admin" : "/dashboard"} className="btn btn-primary">
-                <Wallet size={16} /> Dashboard
-              </Link>
-            ) : (
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <Link href="/login" className="lp-nav-link" style={{ fontWeight: 600 }}>Log in</Link>
-                <Link href="/register" className="btn btn-primary" style={{ padding: "10px 22px", fontSize: 14 }}>Get started</Link>
-              </div>
-            )}
-          </nav>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <nav className="landing-nav-links" style={{ display: "flex", gap: 26, alignItems: "center" }}>
+              {[["How it works", "#how"], ["The 2-Pool", "#ladder"], ["Earnings", "#earn"], ["FAQ", "#faq"], ["About", "#benefits"]].map(([l, h]) => (
+                <Link key={l} href={h} className="lp-nav-link">{l}</Link>
+              ))}
+            </nav>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <ThemeToggle />
+              {session ? (
+                <Link href={session.role === "admin" ? "/admin" : "/dashboard"} className="btn btn-primary landing-nav-auth-btn" style={{ padding: "8px 16px", fontSize: 13.5 }}>
+                  <Wallet size={15} /> Dashboard
+                </Link>
+              ) : (
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <Link href="/login" className="btn lp-login-btn" style={{ padding: "8px 16px", fontSize: 13.5, fontWeight: 700 }}>Log in</Link>
+                  <Link href="/register" className="btn btn-primary landing-nav-auth-btn" style={{ padding: "8px 16px", fontSize: 13.5 }}>Get started</Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1010,16 +1032,22 @@ export default async function Landing() {
                 View all FAQs <ArrowRight size={14} />
               </Link>
             </div>
-            {FAQ_ITEMS.map((f) => (
-              <details key={f.q} className="faq-item">
-                <summary style={{ display: "flex", alignItems: "center", gap: 14, padding: "17px 20px", cursor: "pointer", userSelect: "none" }}>
-                  <span style={{ flex: 1, fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14.5 }}>{f.q}</span>
-                  <ChevronDown size={15} color="var(--gold)" className="faq-chevron" />
-                </summary>
-                <div className="faq-divider" />
-                <div style={{ padding: "14px 20px 20px", color: "var(--muted)", fontSize: 14, lineHeight: 1.75 }}>{f.a}</div>
-              </details>
-            ))}
+            {FAQ_ITEMS.map((f) => {
+              let answer = f.a;
+              if (f.q === "Where does my royalty pool come from?") {
+                answer = `${cfg?.royaltyFee ?? 10} points from every member's registration flow into the shared royalty pool. It's distributed 3× a month to partners with ${royaltyTiers[0]?.minDirects ?? 10}+ direct referrals, split by rank band.`;
+              }
+              return (
+                <details key={f.q} className="faq-item">
+                  <summary style={{ display: "flex", alignItems: "center", gap: 14, padding: "17px 20px", cursor: "pointer", userSelect: "none" }}>
+                    <span style={{ flex: 1, fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14.5 }}>{f.q}</span>
+                    <ChevronDown size={15} color="var(--gold)" className="faq-chevron" />
+                  </summary>
+                  <div className="faq-divider" />
+                  <div style={{ padding: "14px 20px 20px", color: "var(--muted)", fontSize: 14, lineHeight: 1.75 }}>{answer}</div>
+                </details>
+              );
+            })}
           </div>
 
           {/* CTA side */}
