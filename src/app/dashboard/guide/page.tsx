@@ -89,7 +89,7 @@ export default async function Guide() {
       <Card>
         <Kicker>4 · Royalty rewards</Kicker>
         <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.7, margin: "0 0 12px" }}>
-          Refer new members directly (your link) to earn a share of the royalty pool, paid 3× a month. The 5% reserve helps
+          Refer new members directly (your link) to earn a share of the royalty pool, paid twice a month (1st and 16th). The 5% reserve helps
           members who haven&apos;t cleared a stage in 6 months stay active.
         </p>
         <table className="table">

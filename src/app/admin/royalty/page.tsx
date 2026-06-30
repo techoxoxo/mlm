@@ -29,7 +29,7 @@ export default async function RoyaltyAdmin() {
         <h3 style={{ fontSize: 16, marginBottom: 6 }}>Distribute royalty</h3>
         <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 16px", maxWidth: 620 }}>
           Splits the pool into per-rank sub-pools (shared by each band&apos;s members), holds back 5% for the reserve,
-          then pays the accumulated reserve to players inactive for 6+ months. Intended to run ~3×/month on fixed dates.
+          then pays the accumulated reserve to players inactive for 6+ months. Intended to run twice a month, on the 1st and 16th.
         </p>
         <RoyaltyRunButton />
       </div>

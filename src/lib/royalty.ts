@@ -17,7 +17,7 @@ export type RoyaltyResult = {
 };
 
 /**
- * Run one royalty distribution (meant to fire ~3×/month on fixed dates).
+ * Run one royalty distribution (meant to fire twice a month, on the 1st and 16th).
  *
  * Rank rewards: the pool is split into per-band sub-pools (band % of the pool),
  * each shared equally among the users whose HIGHEST qualifying band it is.

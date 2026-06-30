@@ -150,7 +150,7 @@ export default async function MyRoyalty() {
       <div className="card" style={{ padding: 26 }}>
         <h3 style={{ fontSize: 17, margin: "0 0 8px" }}>Royalty rank tiers</h3>
         <p style={{ color: "var(--faint)", fontSize: 13, margin: "0 0 20px" }}>
-          A share of every join feeds a shared pool, paid out 3× a month.
+          A share of every join feeds a shared pool, paid out twice a month (1st and 16th).
         </p>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>

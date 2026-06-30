@@ -11,6 +11,8 @@ import { Logo } from "@/components/Logo";
 import { getSession } from "@/lib/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { EarningsCalculator } from "@/components/EarningsCalculator";
+import { LiveMatrixSimulator } from "@/components/LiveMatrixSimulator";
+import { RoyaltyExplorer } from "@/components/RoyaltyExplorer";
 
 export const dynamic = "force-dynamic";
 
@@ -229,9 +231,10 @@ function MiniChart() {
 const FAQ_ITEMS = [
   { q: "How can I understand and deposit a processed?", a: "All transactions are processed in USDT (BEP-20) via secure smart checkouts and automated payouts." },
   { q: "What happens when the cycle starts?", a: "Every partner who joins opens slots at their tier. New joiners fill the oldest open slot first — globally, across all members. This is enforced at the database level with row locks." },
-  { q: "Where does my royalty pool come from?", a: "10 points from every member's registration flow into the shared royalty pool. It's distributed 3× a month to partners with 10+ direct referrals, split by rank band." },
+  { q: "Where does my royalty pool come from?", a: "10 points from every member's registration flow into the shared royalty pool. It's distributed twice a month (1st and 16th) to partners with 10+ direct referrals, split by rank band." },
   { q: "Can I participate without a referral code?", a: "No. To maintain the system structure, every member must register using a valid referral code or sponsor link. If you do not have one, you can contact support to get one." },
   { q: "Is the auto pool fazed?", a: "No. The auto pool runs continuously. Once your slots are active, your balance starts building without any manual intervention." },
+  { q: "Can I purchase a higher tier slot directly?", a: "No. The system uses a strict sequential progression. You cannot buy or bypass to a higher slot (e.g. Bronze, Silver, Gold) directly. You must clear your current active slot level first before you are allowed to upgrade to the next tier." },
 ];
 
 const TESTIMONIALS = [
@@ -387,7 +390,7 @@ export default async function Landing() {
         .lp-pool-tier { background:var(--surface); border:1.5px solid var(--border-2); border-radius:20px; padding:32px 28px; position:relative; overflow:hidden; }
 
         /* Slot row */
-        .lp-slots-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; }
+        .lp-slots-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; justify-content:center; }
         .lp-slot-card { flex:1 1 0; min-width:100px; max-width:140px; background:var(--surface); border:1.5px solid var(--border-2); border-radius:18px; padding:18px 10px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; transition:all 0.22s ease; }
         .lp-slot-card:hover { border-color:var(--border-3); transform:translateY(-3px); box-shadow:var(--shadow-md); }
 
@@ -722,7 +725,7 @@ export default async function Landing() {
         </div>
         <h2 style={{ fontSize: "clamp(26px,4vw,44px)", marginBottom: 14 }}>Secure. Autonomous. High-Velocity.</h2>
         <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.7, maxWidth: 680, margin: "0 auto 48px" }}>
-          Backed by smart AI-powered automation and two powerful pools — the 1×2 matrix and global auto pool. Guided by a fair re-entry rule and a value algorithm. The system is secure, self-sustaining, and built to create ongoing value, every cycle.
+          Backed by smart AI-powered automation and two powerful pools — the 1×2 matrix and global auto pool. Guided by clear upgrade options and a value algorithm. The system is secure, self-sustaining, and built to create ongoing value, every cycle.
         </p>
         <div className="lp-hl-grid">
           {/* Matrix Pool Card */}
@@ -774,7 +777,7 @@ export default async function Landing() {
               </svg>
               <div style={{ textAlign: "center", marginTop: 10, fontSize: 22, fontWeight: 800, color: "white" }}>1×2</div>
             </div>
-            {["100% Automated Placement", "Level-based carry forward", "Re-entry rule ensures flow", "Fast cycling & powerful leverage"].map((f) => (
+            {["100% Automated Placement", "Level-based carry forward", "Exit or upgrade upon completion", "Fast cycling & powerful leverage"].map((f) => (
               <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <CheckCircle size={14} color="rgba(255,255,255,0.7)" />
                 <span style={{ fontSize: 13.5, color: "rgba(255,255,255,0.82)" }}>{f}</span>
@@ -810,6 +813,14 @@ export default async function Landing() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div style={{ marginTop: 48 }}>
+          <LiveMatrixSimulator />
+        </div>
+
+        <div style={{ marginTop: 48 }}>
+          <RoyaltyExplorer />
         </div>
       </section>
 
@@ -977,6 +988,29 @@ export default async function Landing() {
             </div>
           ))}
         </div>
+
+        {/* Sequential Progression Warning Notice */}
+        <div style={{
+          marginTop: 32,
+          padding: "20px 24px",
+          background: "rgba(245, 198, 23, 0.04)",
+          border: "1px solid rgba(245, 198, 23, 0.2)",
+          borderRadius: 16,
+          maxWidth: 780,
+          marginInline: "auto",
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          textAlign: "left"
+        }}>
+          <span style={{ fontSize: 24 }}>⚠️</span>
+          <div>
+            <h4 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>Sequential Autopool Progression Rule</h4>
+            <p style={{ fontSize: 13.5, color: "var(--muted)", margin: 0, lineHeight: 1.6 }}>
+              To ensure structural fairness and stable velocity for all members, <b>there is no buying of higher tier slots/slabs directly</b>. You must successfully complete your active slab level before upgrading and entering the next slot in the ladder.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* ─── BENEFITS ─── */}
@@ -995,7 +1029,7 @@ export default async function Landing() {
               { icon: Lock, title: "Provably Fair FIFO", desc: "Slots are claimed in strict order using database row-level locking. No one can skip the queue.", color: "#9061f9", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)" },
               { icon: BarChart3, title: "100% Transparent Ledger", desc: "Every point transaction is recorded to an append-only database audit log. Publicly verifiable.", color: "var(--gold)", bg: "rgba(245,198,23,0.08)", border: "rgba(245,198,23,0.2)" },
               { icon: Zap, title: "Fully Automated Payouts", desc: "No human approval required. Payouts process instantly to your USDT wallet.", color: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)" },
-              { icon: Star, title: "Royalty Rewards", desc: `Earn royalty pool rewards ${minRoyaltyPct}–${maxRoyaltyPct}% distributed 3× a month to top partners.`, color: "#9061f9", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)" },
+              { icon: Star, title: "Royalty Rewards", desc: `Earn royalty pool rewards ${minRoyaltyPct}–${maxRoyaltyPct}% distributed twice a month (1st and 16th) to top partners.`, color: "#9061f9", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)" },
               { icon: GitFork, title: "Open Strategy", desc: "No lock-in. Every tier completion is your decision — cash out or upgrade with earnings.", color: "var(--gold)", bg: "rgba(245,198,23,0.08)", border: "rgba(245,198,23,0.2)" },
             ].map((b, i) => (
               <div key={i} className={`lp-benefit-card ${i % 3 === 0 ? 'card-blue' : i % 3 === 1 ? 'card-purple' : 'card-gold'}`}>
@@ -1006,6 +1040,129 @@ export default async function Landing() {
                   <h3 style={{ fontSize: 16, margin: 0, fontWeight: 700, color: "var(--text)" }}>{b.title}</h3>
                   <p style={{ fontSize: 13.5, color: "var(--muted)", margin: 0, lineHeight: 1.55 }}>{b.desc}</p>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+
+      {/* ─── WHY JOIN US ─── */}
+      <section className="container" style={{ padding: "60px 24px" }}>
+        <div style={{
+          background: "linear-gradient(135deg, #f5c617 0%, #e0b010 100%)",
+          border: "2px solid rgba(255, 255, 255, 0.4)",
+          boxShadow: "0 10px 40px rgba(245, 198, 23, 0.3)",
+          borderRadius: 28,
+          padding: "48px 36px",
+          maxWidth: 960,
+          margin: "0 auto",
+          textAlign: "center"
+        }}>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "4px 12px",
+            borderRadius: 99,
+            background: "rgba(0, 0, 0, 0.08)",
+            border: "1px solid rgba(0, 0, 0, 0.15)",
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "#191508",
+            marginBottom: 14
+          }}>
+            ✦ Why Choose Us ✦
+          </span>
+          <h2 style={{
+            fontSize: "clamp(26px,4vw,40px)",
+            fontWeight: 800,
+            color: "#191508",
+            background: "none",
+            WebkitTextFillColor: "#191508",
+            WebkitBackgroundClip: "initial",
+            marginBottom: 16,
+            letterSpacing: "-0.02em"
+          }}>
+            Why Join Revolutionary Group?
+          </h2>
+          <p style={{
+            color: "#28200b",
+            fontSize: 16,
+            lineHeight: 1.7,
+            maxWidth: 740,
+            margin: "0 auto 36px",
+            fontWeight: 700
+          }}>
+            Revolutionary Group is redefining the mechanics of decentralized passive rewards. By marrying on-chain checkout velocity with provably fair database-level sequencing, we create a secure ecosystem where everyone plays by the exact same mathematical rules.
+          </p>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 24,
+            marginTop: 12
+          }}>
+            {[
+              {
+                title: "Mathematical Integrity",
+                desc: "Every single slot placement is ordered via strict database-level row locks. There are no admin backdoors, no queue skipping, and no manually manipulated waitlists."
+              },
+              {
+                title: "Aligned Incentive Loop",
+                desc: "A shared royalty pool contribution of 10 points feeds directly into a pool paid twice a month to top partners. Active sponsor rewards drive continuous network momentum."
+              },
+              {
+                title: "Instant Global Payouts",
+                desc: "Earned virtual points can be cashed out instantly to your BEP-20 USDT wallet. Zero processing wait times, zero human authorization loops."
+              }
+            ].map((item, idx) => (
+              <div key={idx} style={{
+                background: "rgba(255, 255, 255, 0.35)",
+                border: "1px solid rgba(255, 255, 255, 0.5)",
+                borderRadius: 20,
+                padding: 24,
+                textAlign: "left",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.04)",
+                transition: "all 0.3s ease",
+              }}>
+                <div style={{
+                  display: "inline-flex",
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "#191508",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 13,
+                  fontWeight: 850,
+                  color: "#f5c617",
+                  marginBottom: 16
+                }}>
+                  {idx + 1}
+                </div>
+                <h4 style={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: "#191508",
+                  background: "none",
+                  WebkitTextFillColor: "#191508",
+                  WebkitBackgroundClip: "initial",
+                  margin: "0 0 8px"
+                }}>
+                  {item.title}
+                </h4>
+                <p style={{
+                  fontSize: 13.5,
+                  color: "#28200b",
+                  margin: 0,
+                  lineHeight: 1.6,
+                  fontWeight: 700
+                }}>
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -1035,7 +1192,7 @@ export default async function Landing() {
             {FAQ_ITEMS.map((f) => {
               let answer = f.a;
               if (f.q === "Where does my royalty pool come from?") {
-                answer = `${cfg?.royaltyFee ?? 10} points from every member's registration flow into the shared royalty pool. It's distributed 3× a month to partners with ${royaltyTiers[0]?.minDirects ?? 10}+ direct referrals, split by rank band.`;
+                answer = `${cfg?.royaltyFee ?? 10} points from every member's registration flow into the shared royalty pool. It's distributed twice a month (1st and 16th) to partners with ${royaltyTiers[0]?.minDirects ?? 10}+ direct referrals, split by rank band.`;
               }
               return (
                 <details key={f.q} className="faq-item">
@@ -1068,6 +1225,86 @@ export default async function Landing() {
                 <Link href="/login" style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>Log in</Link>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── PDF WHITE-PAPER VIEWER ─── */}
+      <section id="whitepaper" className="container" style={{ padding: "60px 24px 80px" }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <span className="kicker" style={{ justifyContent: "center", marginBottom: 12 }}>Official Documentation</span>
+          <h2 style={{ fontSize: "clamp(26px,4vw,38px)" }}>Revolution Plan Whitepaper</h2>
+          <p style={{ color: "var(--muted)", fontSize: 15, maxWidth: 540, margin: "12px auto 0", lineHeight: 1.65 }}>
+            Read or download the complete business layout, multi-slab progression formula, and reward tiers.
+          </p>
+        </div>
+
+        <div style={{
+          background: "rgba(15, 23, 42, 0.4)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          borderRadius: 24,
+          padding: 24,
+          maxWidth: 960,
+          margin: "0 auto",
+          boxShadow: "0 12px 40px rgba(0, 0, 0, 0.25)",
+          backdropFilter: "blur(12px)"
+        }}>
+          {/* Controls toolbar */}
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+            paddingBottom: 16,
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            flexWrap: "wrap",
+            gap: 12
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>revolution_plan_white.pdf</span>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <a
+                href="/revolution plan White.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ padding: "6px 14px", fontSize: 13, borderRadius: 10, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                Open Fullscreen
+              </a>
+              <a
+                href="/revolution plan White.pdf"
+                download="revolution_plan_white.pdf"
+                className="btn btn-primary"
+                style={{ padding: "6px 14px", fontSize: 13, borderRadius: 10, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                Download PDF
+              </a>
+            </div>
+          </div>
+
+          {/* IFrame Viewer */}
+          <div style={{
+            borderRadius: 16,
+            overflow: "hidden",
+            background: "rgba(0,0,0,0.3)",
+            border: "1px solid rgba(255,255,255,0.05)",
+            position: "relative",
+            width: "100%",
+            height: "550px"
+          }}>
+            <iframe
+              src="/revolution plan White.pdf#toolbar=0"
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+                borderRadius: 16
+              }}
+              title="Revolution Plan Whitepaper Viewer"
+            />
           </div>
         </div>
       </section>

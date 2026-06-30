@@ -4,8 +4,8 @@ import { connection } from "./redis";
 export const DISTRIBUTION_QUEUE = "distribution";
 export const ROYALTY_QUEUE = "royalty";
 
-// fixed dates, 3×/month at 00:05 server time (10th, 20th, 28th)
-export const ROYALTY_CRON = process.env.ROYALTY_CRON ?? "5 0 10,20,28 * *";
+// fixed dates, twice a month at 00:05 server time (1st and 16th)
+export const ROYALTY_CRON = process.env.ROYALTY_CRON ?? "5 0 1,16 * *";
 
 export type ActivateJob = { kind: "activate"; userId: string };
 export type DecideJob = { kind: "decide"; userId: string; choice: "exit" | "upgrade" };
