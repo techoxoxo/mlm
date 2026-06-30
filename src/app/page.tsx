@@ -722,18 +722,18 @@ export default async function Landing() {
         </div>
         <h2 style={{ fontSize: "clamp(26px,4vw,44px)", marginBottom: 14 }}>Secure. Autonomous. High-Velocity.</h2>
         <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.7, maxWidth: 680, margin: "0 auto 48px" }}>
-          Backed by smart AI-powered automation and two powerful pools — the 2×2 matrix and global auto pool. Guided by a fair re-entry rule and a value algorithm. The system is secure, self-sustaining, and built to create ongoing value, every cycle.
+          Backed by smart AI-powered automation and two powerful pools — the 1×2 matrix and global auto pool. Guided by a fair re-entry rule and a value algorithm. The system is secure, self-sustaining, and built to create ongoing value, every cycle.
         </p>
         <div className="lp-hl-grid">
           {/* Matrix Pool Card */}
           <div className="lp-matrix-card" style={{ textAlign: "left" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.45)" }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Matrix Pool (2×2)</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Matrix Pool (1×2)</span>
             </div>
             <h3 style={{ fontSize: 23, color: "white", background: "none", WebkitTextFillColor: "white", marginBottom: 12 }}>Matrix Slot Engine</h3>
             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, marginBottom: 20 }}>
-              A structured 2×2 matrix system that rewards quick positioning and smart execution.
+              A structured 1×2 matrix system that rewards quick positioning and smart execution.
             </p>
             {/* Tree visual */}
             <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px 16px", marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", height: 220 }}>
@@ -772,7 +772,7 @@ export default async function Landing() {
                 <circle cx={250} cy={140} r={12} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} />
                 <PersonIcon x={250} y={140} r={12} color="rgba(255,255,255,0.6)" />
               </svg>
-              <div style={{ textAlign: "center", marginTop: 10, fontSize: 22, fontWeight: 800, color: "white" }}>2×2</div>
+              <div style={{ textAlign: "center", marginTop: 10, fontSize: 22, fontWeight: 800, color: "white" }}>1×2</div>
             </div>
             {["100% Automated Placement", "Level-based carry forward", "Re-entry rule ensures flow", "Fast cycling & powerful leverage"].map((f) => (
               <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -962,7 +962,7 @@ export default async function Landing() {
               <div key={s.name} className="lp-slot-card">
                 <div style={{ fontSize: 22, marginBottom: 4 }}>{SLOT_ICONS[idx]}</div>
                 <div style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: "var(--faint)", marginBottom: 2 }}>2×2</div>
+                <div style={{ fontSize: 11, color: "var(--faint)", marginBottom: 2 }}>1×2</div>
                 <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-num)", color: "var(--text)" }}>${s.fee.toLocaleString()}</div>
                 <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "var(--font-num)", color: "#22c55e" }}>${s.fee.toLocaleString()}</div>
               </div>
