@@ -22,9 +22,9 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Revolutionary Income Plan — Build Your Network, Grow Your Income",
+  title: "Revolutionary Group— Build Your Network, Grow Your Income",
   description:
-    "Revolutionary Income Plan: a fair, queue-backed matrix network. Refer, fill your slots, and decide: cash out or climb.",
+    "Revolutionary Group: a fair, queue-backed matrix network. Refer, fill your slots, and decide: cash out or climb.",
   icons: {
     icon: "/images/rv_mlm.png",
     apple: "/images/rv_mlm.png",
@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var stored = localStorage.getItem('theme') || 'light';
+                var stored = localStorage.getItem('theme') || 'dark';
                 document.documentElement.setAttribute('data-theme', stored);
               } catch (e) {}
             `,

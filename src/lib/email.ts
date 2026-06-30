@@ -1,7 +1,7 @@
 export async function sendOtpEmail(email: string, otp: string): Promise<boolean> {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL || "noreply@revolutionary-group.com";
-  const senderName = process.env.BREVO_SENDER_NAME || "Revolutionary Income Plan";
+  const senderName = process.env.BREVO_SENDER_NAME || "Revolutionary Group";
 
   console.log(`[EMAIL DISPATCH] Target: ${email} | Verification Code: ${otp}`);
 
@@ -21,7 +21,7 @@ export async function sendOtpEmail(email: string, otp: string): Promise<boolean>
       body: JSON.stringify({
         sender: { name: senderName, email: senderEmail },
         to: [{ email: email }],
-        subject: "Verify your email address - Revolutionary Income Plan",
+        subject: "Verify your email address - Revolutionary Group",
         htmlContent: `
           <div style="background-color: #0c0a08; padding: 40px 20px; font-family: 'Inter', system-ui, -apple-system, sans-serif; text-align: center; color: #f5f0e8;">
             <div style="max-width: 520px; margin: 0 auto; background: #13110d; border: 1px solid rgba(248,198,23,0.15); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.45);">
@@ -32,7 +32,7 @@ export async function sendOtpEmail(email: string, otp: string): Promise<boolean>
                   <img src="${process.env.NEXT_PUBLIC_APP_URL}/images/rv_mlm.png" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" />
                 </div>
                 <h1 style="font-size: 20px; font-weight: 800; color: #cc9f0e; margin: 16px 0 0; letter-spacing: -0.02em; text-transform: uppercase;">
-                  Revolutionary Income Plan
+                  Revolutionary Group
                 </h1>
                 <p style="font-size: 12px; color: #a89060; margin: 4px 0 0; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;">
                   Email Verification
@@ -60,7 +60,7 @@ export async function sendOtpEmail(email: string, otp: string): Promise<boolean>
 
               <!-- Footer -->
               <div style="background: #090806; padding: 24px; border-top: 1px solid rgba(248,198,23,0.05); font-size: 11px; color: #5a4a2a; line-height: 1.5;">
-                <p style="margin: 0 0 8px;">Sent securely by Revolutionary Income Plan</p>
+                <p style="margin: 0 0 8px;">Sent securely by Revolutionary Group</p>
                 <p style="margin: 0;">If you did not initiate this request, you can safely ignore this mail.</p>
               </div>
 

@@ -55,6 +55,12 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
     const session = await requireUser();
     const userId = session.uid;
 
+    // Block unactivated users from depositing (they must use activation flow)
+    const [caller] = await db.select({ status: users.status }).from(users).where(eq(users.id, userId));
+    if (caller?.status === "registered") {
+      return { ok: false, error: "Account not activated. Please complete activation payment first." };
+    }
+
     if (amountUsdt < 1) {
       return { ok: false, error: "Minimum deposit amount is 1 USDT" };
     }
@@ -105,6 +111,12 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
     const session = await requireUser();
     const userId = session.uid;
 
+    // Block unactivated users from withdrawing
+    const [caller] = await db.select({ status: users.status }).from(users).where(eq(users.id, userId));
+    if (caller?.status === "registered") {
+      return { ok: false, error: "Account not activated. Please complete activation payment first." };
+    }
+
     const trimmedAddress = walletAddress.trim();
     if (!trimmedAddress.startsWith("0x") || trimmedAddress.length !== 42) {
       return { ok: false, error: "Invalid USDT BEP-20 wallet address" };
@@ -124,9 +136,8 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
       return { ok: false, error: "Withdrawal amount too small to cover the 2.00 USDT network fee" };
     }
 
-    // Auto-approve withdrawals below 100 points ($100)
-    // Withdrawals of 100 points ($100) or more require admin approval
-    const status = amountPoints < 100 ? "pending" : "pending_admin_approval";
+    // All withdrawals are auto-approved and queued for payout
+    const status = "pending" as const;
 
     // Encrypt the target wallet address before database write
     const encryptedWalletAddress = encrypt(trimmedAddress);
@@ -168,10 +179,8 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
       return ctx;
     });
 
-    // 4) If auto-approved, enqueue to the payout processor
-    if (status === "pending") {
-      await enqueuePaymentPayout(result.id);
-    }
+    // 4) Enqueue to the payout processor
+    await enqueuePaymentPayout(result.id);
 
     safeRevalidate("/dashboard/transactions");
 

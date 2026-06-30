@@ -17,7 +17,7 @@ import { distributeRoyalty } from "@/lib/royalty";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { decrypt, hashWallet } from "@/lib/crypto";
-import { createPayout } from "@/lib/nowpayments";
+import { createPayout, getPaymentStatus } from "@/lib/nowpayments";
 import { publishEvent } from "@/lib/events";
 
 /**
@@ -68,7 +68,19 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
   PAYMENT_CREDIT_QUEUE,
   async (job) => {
     const { userId, paymentId, amountPoints } = job.data;
-    
+
+    // Re-verify payment status with NowPayments before crediting
+    try {
+      const paymentCheck = await getPaymentStatus(paymentId);
+      if (paymentCheck.payment_status !== "finished") {
+        throw new Error(`Payment ${paymentId} not finished (status: ${paymentCheck.payment_status}), skipping credit`);
+      }
+    } catch (verifyErr) {
+      // If verification fails due to API error, let BullMQ retry
+      console.error(`Payment verification failed for ${paymentId}:`, verifyErr);
+      throw verifyErr;
+    }
+
     await db.transaction(async (tx) => {
       const [ctx] = await tx
         .select()
@@ -165,14 +177,15 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
       walletAddress = decrypt(ctx.encryptedWalletAddress);
     } catch (e) {
       console.error(`Failed to decrypt wallet address for payout ${cryptoTxId}`, e);
-      await db
-        .update(schema.cryptoTransactions)
-        .set({ status: "failed", updatedAt: new Date() })
-        .where(eq(schema.cryptoTransactions.id, cryptoTxId));
-      
       await db.transaction(async (tx) => {
+        await tx
+          .update(schema.cryptoTransactions)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(eq(schema.cryptoTransactions.id, cryptoTxId));
+
         await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
           note: `Refund: Decryption failed for payout ${cryptoTxId}`,
+          idempotencyKey: `refund:${cryptoTxId}`,
         });
       });
       await publishEvent(ctx.userId, { type: "payment_update", status: "failed" });
@@ -205,19 +218,21 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
       await publishEvent(ctx.userId, { type: "payment_update", status: "completed" });
     } catch (apiError) {
       console.error(`NowPayments payout API error for payout ${cryptoTxId}:`, apiError);
-      
-      await db
-        .update(schema.cryptoTransactions)
-        .set({
-          status: "failed",
-          encryptedWalletAddress: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.cryptoTransactions.id, cryptoTxId));
 
+      // Atomically mark failed + refund with idempotency key to prevent double-refunds on retry
       await db.transaction(async (tx) => {
+        await tx
+          .update(schema.cryptoTransactions)
+          .set({
+            status: "failed",
+            encryptedWalletAddress: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.cryptoTransactions.id, cryptoTxId));
+
         await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
           note: `Refund: NowPayments payout failed for transaction ${cryptoTxId}`,
+          idempotencyKey: `refund:${cryptoTxId}`,
         });
       });
 

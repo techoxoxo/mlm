@@ -23,7 +23,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
           marginBottom: 16,
         }}
       >
-        {ref ? "✦ Invited" : "✦ Revolutionary Income Plan"}
+        {ref ? "✦ Invited" : "✦ Revolutionary Group"}
       </div>
 
       <h1 style={{ fontSize: 30, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Create your account</h1>

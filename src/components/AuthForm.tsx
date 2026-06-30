@@ -137,13 +137,14 @@ export function AuthForm({ mode, refCode, next }: { mode: "login" | "register"; 
         )}
         {mode === "register" && (
           <div>
-            <label className="label">Referral code {refCode ? "" : "(optional)"}</label>
+            <label className="label">Referral code</label>
             <input 
               name="ref" 
               className="input" 
               value={refInput}
               onChange={(e) => setRefInput(e.target.value)}
               placeholder="ABCD1234" 
+              required
             />
           </div>
         )}

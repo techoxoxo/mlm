@@ -33,24 +33,28 @@ export async function POST(req: Request) {
         .limit(1);
 
       if (paymentStatus === "finished") {
-        const orderId = body.order_id || "";
-
-        if (orderId.startsWith("dep:") || orderId.startsWith("act:")) {
-          const parts = orderId.split(":");
-          const userId = parts[1];
-          const amountPoints = parseInt(parts[2], 10);
-
-          if (userId && !isNaN(amountPoints)) {
-            console.log(`NowPayments Webhook: Enqueuing credit of ${amountPoints} points to user ${userId}`);
-            await enqueuePaymentCredit(userId, paymentId, amountPoints);
-          } else {
-            console.error(`NowPayments Webhook: Malformed order_id: ${orderId}`);
-          }
-        } else if (ctx) {
-          console.log(`NowPayments Webhook (Fallback): Enqueuing credit of ${ctx.amountPoints} points to user ${ctx.userId}`);
+        // Always use the database record as the source of truth to prevent
+        // order_id spoofing (attacker could craft dep:<victimId>:<amount>).
+        if (ctx) {
+          console.log(`NowPayments Webhook: Enqueuing credit of ${ctx.amountPoints} points to user ${ctx.userId}`);
           await enqueuePaymentCredit(ctx.userId, paymentId, ctx.amountPoints);
         } else {
-          console.error(`NowPayments Webhook: Unknown transaction order ID: ${orderId}`);
+          // Fallback: parse order_id only if no DB record exists (edge case)
+          const orderId = body.order_id || "";
+          if (orderId.startsWith("dep:") || orderId.startsWith("act:")) {
+            const parts = orderId.split(":");
+            const userId = parts[1];
+            const amountPoints = parseInt(parts[2], 10);
+
+            if (userId && !isNaN(amountPoints)) {
+              console.warn(`NowPayments Webhook: No DB record found, using order_id fallback for ${paymentId}`);
+              await enqueuePaymentCredit(userId, paymentId, amountPoints);
+            } else {
+              console.error(`NowPayments Webhook: Malformed order_id: ${orderId}`);
+            }
+          } else {
+            console.error(`NowPayments Webhook: No DB record and unknown order_id for payment ${paymentId}`);
+          }
         }
       } else if (paymentStatus === "expired" || paymentStatus === "failed" || paymentStatus === "refunded") {
         if (ctx && ctx.status === "pending") {

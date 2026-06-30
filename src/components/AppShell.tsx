@@ -82,13 +82,13 @@ export function AppShell({
               marginBottom: 10,
             }}
           >
-            Revolutionary Income Plan
+            Revolutionary Group
           </div>
           <LogoutButton />
         </div>
       </aside>
 
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div className="app-main-wrapper" style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header
           className="app-header"
           style={{

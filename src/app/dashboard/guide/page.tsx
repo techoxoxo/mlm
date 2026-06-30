@@ -23,7 +23,7 @@ export default async function Guide() {
         <Kicker>How it works</Kicker>
         <h2 style={{ fontSize: 26, margin: "0 0 8px" }}>Build your network, climb the matrix.</h2>
         <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-          Revolutionary Income Plan is built on a fair, first-in-first-out queue. You join once, take a position, and earn payouts
+          Revolutionary Groupis built on a fair, first-in-first-out queue. You join once, take a position, and earn payouts
           as new members fill your slots. At every stage you choose: cash out, or upgrade to the next tier.
         </p>
       </Card>

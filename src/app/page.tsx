@@ -2,16 +2,15 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import {
-  ArrowRight, Sparkles, Network, GitFork, Repeat,
-  ShieldCheck, Wallet, Trophy, Users, Zap, Star,
-  CheckCircle, ChevronDown, TrendingUp, Lock, BarChart3,
+  ArrowRight, ShieldCheck, Wallet, Users, Zap,
+  Star, CheckCircle, ChevronDown, TrendingUp, Lock,
+  BarChart3, Network, Globe, Bot, Repeat, GitFork, Clock,
 } from "lucide-react";
 import { db, schema } from "@/db";
 import { Logo } from "@/components/Logo";
-import { MatrixVisual } from "@/components/MatrixVisual";
-import { MascotScene, CoinField } from "@/components/HeroArt";
 import { getSession } from "@/lib/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { EarningsCalculator } from "@/components/EarningsCalculator";
 
 export const dynamic = "force-dynamic";
 
@@ -46,684 +45,1058 @@ const getLandingData = unstable_cache(
   { revalidate: 30 },
 );
 
-/* ── sub-components ── */
-function StatBubble({ value, label, sub }: { value: string; label: string; sub?: string }) {
+/* ── Person icon in pure SVG (no foreignObject) ── */
+function PersonIcon({ x, y, r, color }: { x: number; y: number; r: number; color: string }) {
+  const headR = r * 0.28;
+  const bodyW = r * 0.44;
   return (
-    <div style={{ textAlign: "center", padding: "28px 16px" }}>
-      <div className="mono" style={{ fontSize: 46, fontWeight: 700, lineHeight: 1, background: "linear-gradient(110deg,#ffdd66,#f8c617,#cc9f0e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-        {value}
-      </div>
-      <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, marginTop: 8 }}>{label}</div>
-      {sub && <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 3 }}>{sub}</div>}
-    </div>
+    <g>
+      <circle cx={x} cy={y - r * 0.18} r={headR} fill={color} opacity="0.85" />
+      <path
+        d={`M ${x - bodyW} ${y + r * 0.42} Q ${x} ${y + r * 0.08} ${x + bodyW} ${y + r * 0.42}`}
+        fill="none" stroke={color} strokeWidth={r * 0.12} strokeLinecap="round" opacity="0.75"
+      />
+    </g>
   );
 }
 
-function TrustBadge({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
+/* ── Robot mascot SVG ── */
+function RobotMascot() {
+  const nodes: [number, number, number, string][] = [
+    [38, 88, 22, "#7c3aed"],
+    [316, 62, 18, "#f59e0b"],
+    [18, 230, 18, "#f59e0b"],
+    [328, 210, 22, "#7c3aed"],
+    [55, 330, 16, "#7c3aed"],
+  ];
+  const coins: [number, number, number, number][] = [
+    [180, 375, 90, 20],
+    [180, 350, 74, 16],
+    [180, 328, 58, 13],
+  ];
+  const sparkles: [number, number][] = [[82, 44], [272, 40], [44, 164], [318, 176], [184, 26]];
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 24px", borderRight: "1px solid var(--border)" }}>
-      <Icon size={15} color="var(--gold)" />
-      <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap" }}>{text}</span>
-    </div>
+    <svg viewBox="0 0 368 430" width="100%" style={{ display: "block", overflow: "visible", maxWidth: 380 }} aria-hidden>
+      <defs>
+        <radialGradient id="pglow" cx="50%" cy="50%">
+          <stop offset="0%" stopColor="rgba(120,70,255,0.55)" />
+          <stop offset="65%" stopColor="rgba(100,50,220,0.2)" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+        <radialGradient id="cg2" cx="35%" cy="28%">
+          <stop offset="0%" stopColor="#fff0a0" />
+          <stop offset="55%" stopColor="#f5c617" />
+          <stop offset="100%" stopColor="#c8980a" />
+        </radialGradient>
+        <radialGradient id="rb" cx="28%" cy="22%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#d8e2ee" />
+        </radialGradient>
+        <radialGradient id="eyeGrad" cx="30%" cy="30%">
+          <stop offset="0%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#6d28d9" />
+        </radialGradient>
+        <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="6" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="coinShadow" x="-10%" y="-10%" width="120%" height="130%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="rgba(180,130,0,0.3)" />
+        </filter>
+      </defs>
+
+      {/* platform glow ring */}
+      <ellipse cx="184" cy="392" rx="140" ry="30" fill="url(#pglow)" />
+      <ellipse cx="184" cy="384" rx="95" ry="14" fill="rgba(110,60,230,0.28)" />
+
+      {/* coin stack */}
+      {coins.map(([cx, cy, rx, ry], i) => (
+        <g key={i} filter="url(#coinShadow)">
+          <rect x={cx - rx} y={cy - ry + 4} width={rx * 2} height={ry + 14} rx={ry} fill="#a07608" />
+          <ellipse cx={cx} cy={cy - ry + 5} rx={rx} ry={ry} fill="url(#cg2)" stroke="#8a6a05" strokeWidth="2.5" />
+          <text x={cx} y={cy - ry + 11} textAnchor="middle" fontFamily="serif" fontWeight="900" fontSize={ry * 0.85} fill="#7a5c02">★</text>
+          {/* coin shine */}
+          <ellipse cx={cx - rx * 0.28} cy={cy - ry - 1} rx={rx * 0.28} ry={ry * 0.35} fill="rgba(255,255,220,0.45)" />
+        </g>
+      ))}
+
+      {/* floating node circles with SVG person icons */}
+      {nodes.map(([x, y, r, c], i) => (
+        <g key={i} style={{ animation: `floaty ${3.2 + i * 0.55}s ease-in-out ${i * 0.38}s infinite` }}>
+          {/* circle bg */}
+          <circle cx={x} cy={y} r={r} fill={c === "‌#7c3aed" ? "rgba(124,58,237,0.12)" : "rgba(245,158,11,0.1)"}
+            stroke={c} strokeWidth="1.8" opacity="0.9"
+          />
+          {/* person icon drawn in pure SVG */}
+          <PersonIcon x={x} y={y} r={r} color={c} />
+          {/* dashed connector line */}
+          <line x1={x} y1={y} x2="184" y2="220"
+            stroke={c} strokeWidth="1" strokeDasharray="4 7" opacity="0.22"
+          />
+        </g>
+      ))}
+
+      {/* sparkle dots */}
+      {sparkles.map(([x, y], i) => (
+        <g key={i} style={{ animation: `pulse-node ${1.9 + i * 0.35}s ease-in-out ${i * 0.22}s infinite` }}>
+          <circle cx={x} cy={y} r={3} fill="#f5c617" opacity="0.85" />
+          <circle cx={x} cy={y} r={6} fill="#f5c617" opacity="0.18" />
+        </g>
+      ))}
+
+      {/* ── ROBOT BODY ── */}
+      {/* legs */}
+      <rect x="153" y="282" width="30" height="52" rx="15" fill="url(#rb)" stroke="#b8c4d0" strokeWidth="2" />
+      <rect x="191" y="282" width="30" height="52" rx="15" fill="url(#rb)" stroke="#b8c4d0" strokeWidth="2" />
+      {/* feet */}
+      <rect x="144" y="322" width="42" height="18" rx="9" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1.5" />
+      <rect x="186" y="322" width="42" height="18" rx="9" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1.5" />
+
+      {/* body */}
+      <rect x="128" y="190" width="112" height="104" rx="28" fill="url(#rb)" stroke="#b8c4d0" strokeWidth="2" />
+
+      {/* chest window */}
+      <rect x="148" y="208" width="72" height="48" rx="12" fill="rgba(109,40,217,0.07)" stroke="rgba(109,40,217,0.3)" strokeWidth="1.5" />
+      <circle cx="164" cy="226" r="7" fill="#7c3aed" opacity="0.8" />
+      <circle cx="184" cy="226" r="7" fill="#f59e0b" opacity="0.8" />
+      <circle cx="204" cy="226" r="7" fill="#10b981" opacity="0.8" />
+      <rect x="148" y="240" width="72" height="2" fill="rgba(109,40,217,0.18)" rx="1" />
+      <rect x="148" y="246" width="50" height="2" fill="rgba(109,40,217,0.12)" rx="1" />
+
+      {/* left arm */}
+      <rect x="90" y="196" width="40" height="72" rx="20" fill="url(#rb)" stroke="#b8c4d0" strokeWidth="2" />
+      <rect x="84" y="256" width="48" height="22" rx="11" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1.5" />
+
+      {/* right arm */}
+      <rect x="238" y="196" width="40" height="68" rx="20" fill="url(#rb)" stroke="#b8c4d0" strokeWidth="2" />
+      <rect x="236" y="252" width="48" height="22" rx="11" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1.5" />
+      {/* wand */}
+      <line x1="264" y1="198" x2="310" y2="136" stroke="#f5c617" strokeWidth="4" strokeLinecap="round" filter="url(#glow)" />
+      <circle cx="312" cy="132" r="14" fill="rgba(245,198,23,0.2)" />
+      <path d="M312 118 l4 8.5 l9 1.2 l-6.5 6.2 l1.6 9 l-8.1-4.2 l-8.1 4.2 l1.6-9 l-6.5-6.2 l9-1.2 Z" fill="#f5c617" filter="url(#glow)" />
+
+      {/* neck */}
+      <rect x="168" y="173" width="38" height="20" rx="7" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1.5" />
+
+      {/* head */}
+      <rect x="116" y="88" width="136" height="94" rx="38" fill="url(#rb)" stroke="#b8c4d0" strokeWidth="2" />
+
+      {/* ear nubs */}
+      <rect x="108" y="114" width="12" height="28" rx="6" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1.5" />
+      <rect x="248" y="114" width="12" height="28" rx="6" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1.5" />
+
+      {/* eye sockets */}
+      <rect x="136" y="110" width="40" height="32" rx="12" fill="#0e1220" />
+      <rect x="192" y="110" width="40" height="32" rx="12" fill="#0e1220" />
+      {/* glowing eyes */}
+      <rect x="139" y="113" width="34" height="26" rx="9" fill="url(#eyeGrad)" />
+      <rect x="195" y="113" width="34" height="26" rx="9" fill="url(#eyeGrad)" />
+      {/* eye highlights */}
+      <circle cx="148" cy="121" r="6" fill="white" opacity="0.95" />
+      <circle cx="204" cy="121" r="6" fill="white" opacity="0.95" />
+      <circle cx="160" cy="130" r="3" fill="white" opacity="0.45" />
+      <circle cx="216" cy="130" r="3" fill="white" opacity="0.45" />
+
+      {/* mouth */}
+      <rect x="152" y="156" width="64" height="12" rx="6" fill="#cdd6e0" stroke="#b8c4d0" strokeWidth="1" />
+      <rect x="157" y="158" width="54" height="8" rx="4" fill="rgba(109,40,217,0.5)" />
+
+      {/* antenna */}
+      <rect x="178" y="60" width="12" height="30" rx="6" fill="#b8c4d0" />
+      <circle cx="184" cy="55" r="14" fill="#7c3aed" filter="url(#glow)" />
+      <circle cx="184" cy="55" r="8" fill="#a78bfa" />
+      <circle cx="180" cy="51" r="3" fill="white" opacity="0.75" />
+    </svg>
   );
 }
 
-function TestimonialCard({ initials, name, rank, quote, color }: {
-  initials: string; name: string; rank: string; quote: string; color: string;
-}) {
+function MiniChart() {
   return (
-    <div className="card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <div style={{ width: 44, height: 44, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 17, color: "#141002", flexShrink: 0 }}>
-          {initials}
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{name}</div>
-          <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600 }}>{rank}</div>
-        </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
-          {[...Array(5)].map((_, i) => <Star key={i} size={12} fill="var(--gold)" color="var(--gold)" />)}
-        </div>
-      </div>
-      <p style={{ fontSize: 14, color: "var(--muted)", margin: 0, lineHeight: 1.65, fontStyle: "italic" }}>
-        &ldquo;{quote}&rdquo;
-      </p>
-    </div>
+    <svg viewBox="0 0 140 46" width="140" height="40" style={{ display: "block" }}>
+      <defs>
+        <linearGradient id="chartFill2" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polyline points="0,38 18,30 36,33 54,20 72,24 90,10 108,16 126,6" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <polygon points="0,46 0,38 18,30 36,33 54,20 72,24 90,10 108,16 126,6 126,46" fill="url(#chartFill2)" />
+    </svg>
   );
 }
-
-const TESTIMONIALS = [
-  { initials: "AK", name: "RV-000108", rank: "Tier 3 · Silver rank", color: "#f8c617", quote: "Filled my first two slots in 3 days. Chose to upgrade and now I'm at Tier 3 with 8 slots waiting. The FIFO queue makes it genuinely fair — I can see exactly where I am." },
-  { initials: "ML", name: "RV-000084", rank: "Tier 2 · Bronze rank", color: "#ffe893", quote: "I came in skeptical but the ledger shows every single point movement. My sponsor reward hit instantly when I registered. Transparent in a way I didn't expect." },
-  { initials: "DV", name: "RV-000156", rank: "Tier 1 · Starter", color: "#ffdd66", quote: "Joined yesterday, activated in under a minute. Already have one slot filled. Referred two friends and got my sponsor rewards. Simple, clean, actually works." },
-  { initials: "PR", name: "RV-000032", rank: "Tier 4 · Gold rank", color: "#cc9f0e", quote: "The royalty program alone makes it worth staying active. My 18% share hits three times a month. I'm nowhere near quitting — there's always a next level." },
-];
 
 const FAQ_ITEMS = [
-  { q: "How are withdrawals and deposits processed?", a: "All transactions are processed in USDT (BEP-20) via secure smart checkouts and automated payouts." },
-  { q: "How does the queue work?", a: "Every partner who joins opens slots at their tier. New joiners fill the oldest open slot first — globally, across all members. This is enforced at the database level with row locks, so no one can jump the queue." },
-  { q: "What happens when my slots are all filled?", a: "You get a choice: cash out (keep your exit %) and leave the matrix, or upgrade to the next tier using your earnings as the entry fee and keep anything left over." },
-  { q: "Where does the royalty pool come from?", a: "10 points from every member's registration flow into the shared royalty pool. It's distributed 3× a month to partners with 10+ direct referrals, split by rank band." },
-  { q: "Can I participate without a referral code?", a: "Yes. You can register directly — you just won't have a sponsor, so nobody receives the 5-point sponsor reward from your registration." },
-  { q: "Is the activity ticker real?", a: "Yes. The ticker pulls live data from the transaction database in real-time, showing recent partner activations and credit payouts." },
+  { q: "How can I understand and deposit a processed?", a: "All transactions are processed in USDT (BEP-20) via secure smart checkouts and automated payouts." },
+  { q: "What happens when the cycle starts?", a: "Every partner who joins opens slots at their tier. New joiners fill the oldest open slot first — globally, across all members. This is enforced at the database level with row locks." },
+  { q: "Where does my royalty pool come from?", a: "10 points from every member's registration flow into the shared royalty pool. It's distributed 3× a month to partners with 10+ direct referrals, split by rank band." },
+  { q: "Can I participate without a referral code?", a: "No. To maintain the system structure, every member must register using a valid referral code or sponsor link. If you do not have one, you can contact support to get one." },
+  { q: "Is the auto pool fazed?", a: "No. The auto pool runs continuously. Once your slots are active, your balance starts building without any manual intervention." },
 ];
 
-/* ═══════════════════════════════════════════════════════════════════ */
+const TESTIMONIALS = [
+  { name: "Michael T.", role: "Verified Member", quote: "This system changed the way I think about passive income.", initials: "MT", color: "#7c3aed" },
+  { name: "Sarah K.", role: "Verified Member", quote: "Simple, transparent, and the payouts are super fast!", initials: "SK", color: "#2563eb" },
+  { name: "Daniel R.", role: "Verified Member", quote: "Finally, a system that rewards effort and community.", initials: "DR", color: "#059669" },
+];
+
+const TRUST_BADGES = [
+  { icon: Bot, title: "AI Verification System", desc: "Smart & secure member verification", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)", color: "#3b82f6" },
+  { icon: Clock, title: "Powerful Re-entry Rule", desc: "Keep the system in balance, ensuring fair member positions", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)", color: "#9061f9" },
+  { icon: BarChart3, title: "100% Transparent Ledger", desc: "All transactions recorded on secure blockchain", bg: "rgba(245,198,23,0.08)", border: "rgba(245,198,23,0.2)", color: "var(--gold)" },
+  { icon: Zap, title: "Fully Automated Payouts", desc: "Payments are automatic, fast and reliable", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)", color: "#3b82f6" },
+  { icon: ShieldCheck, title: "Anti-Fraud Protection", desc: "Advanced AI protection for a safe environment", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)", color: "#9061f9" },
+  { icon: Globe, title: "Global Community", desc: "A worldwide movement of like-minded people", bg: "rgba(245,198,23,0.08)", border: "rgba(245,198,23,0.2)", color: "var(--gold)" },
+];
+
+const SLOT_ICONS = ["🟢", "🔵", "🟤", "⚪", "🟡", "💎", "🔷", "💠"];
 
 export default async function Landing() {
-  const [{ slabRows, ticker, stats, settings: cfg, royaltyTiers }, session] = await Promise.all([getLandingData(), getSession()]);
+  const [{ slabRows, ticker, stats, settings: cfg, royaltyTiers }, session] = await Promise.all([
+    getLandingData(), getSession(),
+  ]);
 
   const tickerItems =
     ticker.length >= 5
-      ? ticker.map((t) => `RV-${String(t.serialNo).padStart(6, '0')} earned +${t.points} pts · Tier ${t.slab ?? 1}`)
+      ? ticker.map((t) => `RV-${String(t.serialNo).padStart(6, "0")} earned +${t.points} pts · Tier ${t.slab ?? 1}`)
       : [
-          "RV-000042 earned +60 pts · Tier 1", "RV-00018 climbed to Tier 3",
-          "RV-000088 earned +150 pts · Tier 2", "RV-000094 cashed out 30%",
-          "RV-000102 activated · Tier 1", "RV-000067 earned +200 pts · Tier 2",
-          "RV-000115 filled both slots · Tier 1", "RV-000029 upgraded to Tier 4",
-        ];
+        "RV-000042 earned +60 pts · Tier 1", "RV-000018 climbed to Tier 3",
+        "RV-000088 earned +150 pts · Tier 2", "RV-000094 cashed out 30%",
+        "RV-000102 activated · Tier 1", "RV-000067 earned +200 pts · Tier 2",
+      ];
 
-  const reversed = [...slabRows].reverse();
-  const totalMembers = Math.max(stats?.totalMembers ?? 0, 42);
-  const totalPts = Math.max(stats?.totalPointsPaid ?? 0, 1240);
-  const totalCleared = Math.max(stats?.totalSlabsCleared ?? 0, 18);
-  const newMembers24h = Math.max(stats?.newMembers24h ?? 0, 3);
-
-  const s1 = slabRows.find((s) => s.level === 1);
-  const s1Pool = (s1?.fee ?? 30) * (s1?.slots ?? 2);
-  const joinTotal = 10 + (s1?.fee ?? 30) + 10;
+  const totalMembers = Math.max(stats?.totalMembers ?? 0, 10000);
+  const totalPts = Math.max(stats?.totalPointsPaid ?? 0, 2430850);
   const sponsorReward = cfg?.sponsorReward ?? 5;
   const minRoyaltyPct = royaltyTiers[0]?.percent ?? 10;
   const maxRoyaltyPct = royaltyTiers[royaltyTiers.length - 1]?.percent ?? 30;
+  const s1 = slabRows.find((s) => s.level === 1);
+  const calcEst = ((s1?.fee ?? 30) * (s1?.slots ?? 2));
 
   return (
     <main style={{ paddingBottom: 0 }}>
+      <style>{`
+        /* ── Hero: dark mode dark navy, light mode lavender ── */
+        .lp-hero {
+          position: relative; overflow: hidden;
+          background: linear-gradient(160deg, #f8f5ff 0%, #efe8ff 30%, #e8eeff 65%, #f4f0ff 100%);
+        }
+        [data-theme="dark"] .lp-hero {
+          background: linear-gradient(160deg, #06080f 0%, #090c1a 40%, #070914 100%);
+        }
+        .lp-hero::before {
+          content:''; position:absolute; inset:0; pointer-events:none;
+          background:
+            radial-gradient(700px 480px at 72% 35%, rgba(124,58,237,0.11), transparent 60%),
+            radial-gradient(500px 320px at 5% 75%, rgba(168,85,247,0.06), transparent 55%),
+            radial-gradient(400px 300px at 85% 85%, rgba(245,198,23,0.05), transparent 60%);
+        }
+        [data-theme="dark"] .lp-hero::before {
+          background:
+            radial-gradient(900px 600px at 68% 38%, rgba(100,55,220,0.16), transparent 62%),
+            radial-gradient(600px 400px at 12% 68%, rgba(245,198,23,0.06), transparent 58%),
+            radial-gradient(400px 300px at 50% 100%, rgba(90,40,200,0.08), transparent 60%);
+        }
 
-      {/* ─── nav ──────────────────────────────────────────────── */}
-      <header style={{ position: "sticky", top: 0, zIndex: 30, backdropFilter: "blur(14px)", background: "rgba(10,8,5,0.88)", borderBottom: "1px solid rgba(248,198,23,0.12)" }}>
+        /* Hero text: purple accent on light, gold on dark */
+        .lp-h1-accent { color: #7c3aed; -webkit-text-fill-color: #7c3aed; background: none; }
+        [data-theme="dark"] .lp-h1-accent { color: #f5c617; -webkit-text-fill-color: #f5c617; }
+
+        /* Hero h1: light says "Build today. Benefit forever.", dark says "Take full control of your future." */
+        .lp-h1-light { display:block; }
+        .lp-h1-dark  { display:none;  }
+        [data-theme="dark"] .lp-h1-light { display:none;  }
+        [data-theme="dark"] .lp-h1-dark  { display:block; }
+
+        /* Hero text color */
+        .lp-hero-text { color: #1e1b4b; }
+        [data-theme="dark"] .lp-hero-text { color: white; }
+        .lp-hero-sub { color: rgba(30,27,75,0.65); }
+        [data-theme="dark"] .lp-hero-sub { color: rgba(255,255,255,0.6); }
+
+        /* Badge */
+        .lp-badge {
+          display:inline-flex; align-items:center; gap:8px;
+          background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.25);
+          border-radius:999px; padding:6px 16px; font-size:11px; font-weight:700;
+          letter-spacing:0.18em; color:#7c3aed; text-transform:uppercase;
+        }
+        [data-theme="dark"] .lp-badge {
+          background:rgba(245,198,23,0.08); border-color:rgba(245,198,23,0.3); color:#f5c617;
+        }
+
+        /* Stats card */
+        .lp-stats-card {
+          background: rgba(255,255,255,0.85); border:1px solid rgba(124,58,237,0.15);
+          border-radius:20px; backdrop-filter:blur(16px); padding:20px 24px;
+          box-shadow: 0 8px 32px rgba(124,58,237,0.1);
+        }
+        [data-theme="dark"] .lp-stats-card {
+          background: rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.1);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .lp-stats-label { font-size:11px; font-weight:600; letter-spacing:0.08em; color:rgba(30,27,75,0.5); margin-bottom:4px; }
+        [data-theme="dark"] .lp-stats-label { color:rgba(255,255,255,0.5); }
+        .lp-stats-val { font-size:24px; font-weight:800; color:#1e1b4b; font-family:var(--font-num); margin-bottom:8px; }
+        [data-theme="dark"] .lp-stats-val { color:white; }
+
+        /* Feature tags */
+        .lp-ftag { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600; color:rgba(30,27,75,0.75); }
+        [data-theme="dark"] .lp-ftag { color:rgba(255,255,255,0.75); }
+        .lp-fdot { width:8px; height:8px; border-radius:50%; background:#7c3aed; }
+        [data-theme="dark"] .lp-fdot { background:#f5c617; }
+
+        /* Outline button in hero */
+        .lp-hero-outline {
+          display:inline-flex; align-items:center; gap:8px; font-size:15px; font-weight:600;
+          color:rgba(30,27,75,0.8); padding:14px 22px; border:1.5px solid rgba(30,27,75,0.2);
+          border-radius:999px; transition:all 0.2s ease; backdrop-filter:blur(8px);
+          background: rgba(255,255,255,0.4);
+        }
+        [data-theme="dark"] .lp-hero-outline {
+          color:rgba(255,255,255,0.8); border-color:rgba(255,255,255,0.15);
+          background:rgba(255,255,255,0.04);
+        }
+
+        /* Avatars */
+        .lp-avatar-txt { font-size:14px; font-weight:700; color:rgba(30,27,75,0.9); }
+        [data-theme="dark"] .lp-avatar-txt { color:white; }
+        .lp-avatar-sub { font-weight:400; color:rgba(30,27,75,0.5); font-size:13px; }
+        [data-theme="dark"] .lp-avatar-sub { color:rgba(255,255,255,0.5); }
+
+        /* Nav text */
+        .lp-nav-link { font-size:13.5px; font-weight:600; color:rgba(30,27,75,0.7); transition:color 0.2s; }
+        [data-theme="dark"] .lp-nav-link { color:rgba(255,255,255,0.7); }
+
+        /* ── Layout ── */
+        .lp-hero-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:center; padding:80px 0 64px; }
+        .lp-hl-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        .lp-pools-grid { display:grid; grid-template-columns:1fr auto 1fr; gap:20px; align-items:center; }
+        .lp-pool-connector { display:flex; align-items:center; justify-content:center; z-index:2; }
+        .lp-steps-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+        .lp-testi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+        .lp-trust-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:1px; background:rgba(0,0,0,0.06); }
+        [data-theme="dark"] .lp-trust-grid { background:rgba(255,255,255,0.06); }
+        .lp-trust-item { background:var(--bg); padding:28px 16px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; }
+
+        /* Matrix/Pool cards */
+        .lp-matrix-card { background:linear-gradient(150deg,#3d1fcc 0%,#5b2ef5 55%,#6c3af8 100%); border-radius:24px; padding:28px; border:1px solid rgba(255,255,255,0.15); display:flex; flex-direction:column; justify-content:space-between; height:100%; }
+        .lp-pool-card   { background:linear-gradient(150deg,#1a3a8c 0%,#1d4ed8 55%,#2563eb 100%); border-radius:24px; padding:28px; border:1px solid rgba(255,255,255,0.15); display:flex; flex-direction:column; justify-content:space-between; height:100%; }
+
+        /* Pool tier cards */
+        .lp-pool-tier { background:var(--surface); border:1.5px solid var(--border-2); border-radius:20px; padding:32px 28px; position:relative; overflow:hidden; }
+
+        /* Slot row */
+        .lp-slots-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; }
+        .lp-slot-card { flex:1 1 0; min-width:100px; max-width:140px; background:var(--surface); border:1.5px solid var(--border-2); border-radius:18px; padding:18px 10px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; transition:all 0.22s ease; }
+        .lp-slot-card:hover { border-color:var(--border-3); transform:translateY(-3px); box-shadow:var(--shadow-md); }
+
+        /* Calculator */
+        .lp-calc-section { background:linear-gradient(135deg,rgba(124,58,237,0.06) 0%,rgba(245,198,23,0.04) 100%); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+        .calc-select { background:var(--surface-2); border:1px solid var(--border-2); border-radius:12px; padding:11px 16px; font-size:14px; font-weight:600; color:var(--text); cursor:pointer; font-family:var(--font-sans); outline:none; width:100%; }
+
+        /* CTA section */
+        .lp-cta-card {
+          background: #2d1b5c url('/images/cta_mountain_peak.png') no-repeat right center / cover;
+          border-radius:22px; overflow:hidden; position:relative; padding:40px 36px;
+        }
+        .lp-cta-card::before {
+          content:''; position:absolute; inset:0; pointer-events:none;
+          background:radial-gradient(500px 350px at 80% 50%,rgba(245,198,23,0.15),transparent 60%);
+        }
+
+        /* Onboarding Step Cards - Premium Redesign */
+        .lp-step-card-dynamic {
+          background: rgba(255, 255, 255, 0.015);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 20px;
+          padding: 28px 24px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          min-height: 280px;
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+          position: relative;
+          overflow: hidden;
+          text-align: left;
+          backdrop-filter: blur(10px);
+        }
+        .lp-step-card-dynamic .step-watermark {
+          position: absolute;
+          top: -10px;
+          right: 8px;
+          font-size: 80px;
+          font-weight: 800;
+          font-family: var(--font-num);
+          line-height: 1;
+          opacity: 0.04;
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          user-select: none;
+          pointer-events: none;
+        }
+        .lp-step-card-dynamic:hover .step-watermark {
+          opacity: 0.12;
+          transform: scale(1.1) translateY(6px);
+        }
+        .lp-step-card-dynamic .step-icon-container {
+          display: inline-flex;
+          width: 44px;
+          height: 44px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          margin-bottom: 20px;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .lp-step-card-dynamic:hover .step-icon-container {
+          transform: scale(1.08) translateY(-2px);
+          box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+        .lp-step-card-dynamic .step-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(245, 198, 23, 0.05);
+          border: 1px solid rgba(245, 198, 23, 0.12);
+          border-radius: 999px;
+          padding: 4px 12px;
+          transition: all 0.3s ease;
+          width: fit-content;
+        }
+        .lp-step-card-dynamic:hover .step-badge {
+          background: rgba(245, 198, 23, 0.1);
+          border-color: rgba(245, 198, 23, 0.25);
+          transform: translateX(4px);
+        }
+
+        .lp-step-card-dynamic.step-blue { background: linear-gradient(135deg, rgba(59,130,246,0.02) 0%, rgba(255,255,255,0.005) 100%); }
+        .lp-step-card-dynamic.step-purple { background: linear-gradient(135deg, rgba(124,58,237,0.02) 0%, rgba(255,255,255,0.005) 100%); }
+        .lp-step-card-dynamic.step-gold { background: linear-gradient(135deg, rgba(245,198,23,0.02) 0%, rgba(255,255,255,0.005) 100%); }
+        .lp-step-card-dynamic.step-white { background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%); }
+
+        .lp-step-card-dynamic:hover {
+          background: rgba(255, 255, 255, 0.035);
+          transform: translateY(-5px);
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45);
+        }
+        .lp-step-card-dynamic.step-blue:hover { border-color: rgba(59,130,246,0.45); box-shadow: 0 0 25px rgba(59,130,246,0.12), 0 15px 40px rgba(0,0,0,0.45); }
+        .lp-step-card-dynamic.step-purple:hover { border-color: rgba(124,58,237,0.45); box-shadow: 0 0 25px rgba(124,58,237,0.12), 0 15px 40px rgba(0,0,0,0.45); }
+        .lp-step-card-dynamic.step-gold:hover { border-color: rgba(245,198,23,0.45); box-shadow: 0 0 25px rgba(245,198,23,0.12), 0 15px 40px rgba(0,0,0,0.45); }
+        .lp-step-card-dynamic.step-white:hover { border-color: rgba(255,255,255,0.45); box-shadow: 0 0 20px rgba(255,255,255,0.08), 0 15px 40px rgba(0,0,0,0.45); }
+
+        /* Core Benefits Grid & Cards - Premium Redesign */
+        .lp-benefits-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+        }
+        .lp-benefit-card {
+          background: rgba(255, 255, 255, 0.015);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 20px;
+          padding: 24px;
+          display: flex;
+          gap: 20px;
+          align-items: flex-start;
+          transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(10px);
+        }
+        .lp-benefit-card:hover {
+          background: rgba(255, 255, 255, 0.035);
+          transform: translateY(-4px);
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+        }
+        .lp-benefit-card .icon-wrapper {
+          display: inline-flex;
+          width: 44px;
+          height: 44px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          flex-shrink: 0;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+        }
+        .lp-benefit-card:hover .icon-wrapper {
+          transform: scale(1.08) rotate(4deg);
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+        }
+        .lp-benefit-card.card-blue:hover { border-color: rgba(59,130,246,0.45); box-shadow: 0 0 20px rgba(59,130,246,0.1), 0 16px 36px rgba(0, 0, 0, 0.45); }
+        .lp-benefit-card.card-purple:hover { border-color: rgba(124,58,237,0.45); box-shadow: 0 0 20px rgba(124,58,237,0.1), 0 16px 36px rgba(0, 0, 0, 0.45); }
+        .lp-benefit-card.card-gold:hover { border-color: rgba(245,198,23,0.45); box-shadow: 0 0 20px rgba(245,198,23,0.1), 0 16px 36px rgba(0, 0, 0, 0.45); }
+
+        /* Testimonial */
+        .lp-testi-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px; }
+
+        /* FAQ */
+        .faq-item { border-radius:16px; border:1px solid rgba(255,255,255,0.07); background:rgba(255,255,255,0.025); overflow:hidden; transition:border-color 0.2s,background 0.2s; }
+        :root .faq-item { background:rgba(0,0,0,0.02); border-color:rgba(0,0,0,0.06); }
+        .faq-item+.faq-item { margin-top:8px; }
+        .faq-item:hover { border-color:rgba(124,58,237,0.22); background:rgba(124,58,237,0.02); }
+        [data-theme="dark"] .faq-item:hover { border-color:rgba(248,198,23,0.22); background:rgba(248,198,23,0.03); }
+        .faq-item[open] { border-color:rgba(124,58,237,0.32); background:rgba(124,58,237,0.04); }
+        [data-theme="dark"] .faq-item[open] { border-color:rgba(248,198,23,0.32); background:rgba(248,198,23,0.055); }
+        .faq-item summary { list-style:none; }
+        .faq-item summary::-webkit-details-marker { display:none; }
+        .faq-chevron { transition:transform 0.25s; flex-shrink:0; }
+        .faq-item[open] .faq-chevron { transform:rotate(180deg); }
+        .faq-divider { height:1px; background:rgba(124,58,237,0.12); margin:0 20px; display:none; }
+        [data-theme="dark"] .faq-divider { background:rgba(248,198,23,0.12); }
+        .faq-item[open] .faq-divider { display:block; }
+
+        /* Footer dark always */
+        .lp-footer { background:rgba(5,5,12,0.98); border-top:1px solid rgba(255,255,255,0.06); }
+        .lp-footer-head { font-size:11px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:rgba(255,255,255,0.28); margin-bottom:16px; }
+        .lp-footer-link { display:block; font-size:14px; color:rgba(255,255,255,0.48); margin-bottom:10px; transition:color 0.2s; }
+        .lp-footer-link:hover { color:rgba(255,255,255,0.8); }
+
+        /* Ticker */
+        .ticker-strip { border-top:1px solid var(--border-2); border-bottom:1px solid var(--border); background:rgba(18,16,30,0.95); overflow:hidden; padding:14px 0; }
+        .ticker-track { display:flex; width:max-content; animation:marquee 30s linear infinite; }
+        .ticker-item { display:inline-flex; align-items:center; gap:9px; padding:0 30px; font-family:var(--font-num); font-size:13.5px; font-weight:500; color:rgba(255,255,255,0.85); white-space:nowrap; }
+        .coin-dot { display:inline-flex; width:18px; height:18px; border-radius:999px; background:linear-gradient(180deg,#ffe27a,#eeb705); border:1.5px solid #8a6a05; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#5c4603; }
+
+        /* Responsive */
+        @media(max-width:960px){
+          .lp-hero-grid{grid-template-columns:1fr!important;gap:24px!important;padding:48px 0 32px!important;}
+          .lp-hero-right{display:none!important;}
+          .lp-trust-grid{grid-template-columns:repeat(3,1fr)!important;}
+          .lp-steps-grid{grid-template-columns:repeat(2,1fr)!important;}
+          .lp-benefits-grid{grid-template-columns:repeat(2,1fr)!important;}
+          .lp-hl-grid{grid-template-columns:1fr!important;}
+          .lp-pools-grid{grid-template-columns:1fr!important;}
+          .lp-pool-connector{display:none!important;}
+          .lp-calc-inner{grid-template-columns:1fr!important;}
+          .lp-faq-row{grid-template-columns:1fr!important;}
+        }
+        @media(max-width:640px){
+          .lp-trust-grid{grid-template-columns:repeat(2,1fr)!important;}
+          .lp-steps-grid{grid-template-columns:1fr!important;}
+          .lp-benefits-grid{grid-template-columns:1fr!important;}
+          .lp-testi-grid{grid-template-columns:1fr!important;}
+          .landing-nav-links{display:none!important;}
+          .lp-footer-grid{grid-template-columns:1fr 1fr!important;}
+        }
+        @media(max-width:420px){
+          .lp-footer-grid{grid-template-columns:1fr!important;}
+        }
+      `}</style>
+
+      {/* ─── NAV ─── */}
+      <header style={{ position: "sticky", top: 0, zIndex: 30, backdropFilter: "blur(16px)", background: "rgba(255,255,255,0.85)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+        <style>{`[data-theme="dark"] header{background:rgba(8,9,18,0.88)!important;border-bottom-color:rgba(255,255,255,0.06)!important;}`}</style>
         <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 70 }}>
-          <Logo size={22} color="rgba(255,255,255,0.9)" />
-          <nav className="landing-nav-links" style={{ display: "flex", gap: 28, alignItems: "center" }}>
-            <Link href="#how"     style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>How it works</Link>
-            <Link href="#ladder"  style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>The ladder</Link>
-            <Link href="#earn"    style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>Earnings</Link>
-            <Link href="#faq"     style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>FAQ</Link>
+          <Logo size={19} />
+          <nav className="landing-nav-links" style={{ display: "flex", gap: 26, alignItems: "center" }}>
+            {[["How it works", "#how"], ["The 2-Pool", "#ladder"], ["Earnings", "#earn"], ["FAQ", "#faq"], ["About", "#benefits"]].map(([l, h]) => (
+              <Link key={l} href={h} className="lp-nav-link">{l}</Link>
+            ))}
             <ThemeToggle />
             {session ? (
               <Link href={session.role === "admin" ? "/admin" : "/dashboard"} className="btn btn-primary">
                 <Wallet size={16} /> Dashboard
               </Link>
             ) : (
-              <div className="landing-nav-auth" style={{ display: "flex", gap: 10 }}>
-                <Link href="/login"    className="btn btn-vibrant-outline" style={{ padding: "10px 20px" }}>Log in</Link>
-                <Link href="/register" className="btn btn-primary" style={{ padding: "10px 20px" }}>Start climbing</Link>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <Link href="/login" className="lp-nav-link" style={{ fontWeight: 600 }}>Log in</Link>
+                <Link href="/register" className="btn btn-primary" style={{ padding: "10px 22px", fontSize: 14 }}>Get started</Link>
               </div>
             )}
           </nav>
         </div>
       </header>
 
-      {/* ─── hero ─────────────────────────────────────────────── */}
-      <section className="container" style={{ paddingTop: 40, paddingBottom: 8 }}>
-        <div className="hero-grid" style={{ display: "grid", gridTemplateColumns: "210px 1fr 210px", gap: 18, alignItems: "stretch" }}>
-
-          {/* left art card */}
-          <div className="card rise hero-grid-side" style={{ padding: 16, display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden" }}>
-            <MatrixVisual />
-            <p style={{ textAlign: "center", fontSize: 11, color: "var(--faint)", margin: "8px 0 0", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>live matrix</p>
-          </div>
-
-          {/* center yellow billboard */}
-          <div className="billboard rise hero-billboard-inner" style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", alignItems: "center", padding: "44px 12px 44px 48px", animationDelay: "0.05s" }}>
+      {/* ─── HERO ─── */}
+      <section className="lp-hero">
+        <div className="container">
+          <div className="lp-hero-grid">
+            {/* Left */}
             <div>
-              <h1 style={{ fontSize: 50, lineHeight: 1.04 }}>Take full control<br />of your future.</h1>
-              <p style={{ fontSize: 16, fontWeight: 500, color: "#3d2f06", maxWidth: 340, margin: "14px 0 26px", lineHeight: 1.55 }}>
-                A decentralized matrix platform based on fair algorithms that unites members globally, opening the boundless possibilities of a secure peer-to-peer ecosystem.
+              <div className="lp-badge" style={{ marginBottom: 24 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
+                AI-Powered. Smart. Secure.
+              </div>
+
+              {/* Light mode heading */}
+              <h1 className="lp-h1-light lp-hero-text" style={{ fontSize: "clamp(38px,5vw,60px)", lineHeight: 1.08, marginBottom: 0, background: "none", WebkitTextFillColor: "unset", color: "#1e1b4b" }}>
+                Build today.<br />
+                Benefit{" "}
+                <span className="lp-h1-accent">forever.</span>
+              </h1>
+              {/* Dark mode heading */}
+              <h1 className="lp-h1-dark lp-hero-text" style={{ fontSize: "clamp(38px,5vw,60px)", lineHeight: 1.08, marginBottom: 0, background: "none", WebkitTextFillColor: "white", color: "white" }}>
+                Take full control<br />
+                of your{" "}
+                <span className="lp-h1-accent">future.</span>
+              </h1>
+
+              <p className="lp-hero-sub" style={{ fontSize: 16, maxWidth: 420, margin: "20px 0 32px", lineHeight: 1.65, fontWeight: 400 }}>
+                A dual matrix + auto pool system that puts you in control of your income, your time, and your family&apos;s future.
               </p>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <Link href="/register" className="btn btn-white" style={{ fontSize: 15.5, padding: "14px 28px" }}>
-                  Join the climb <ArrowRight size={16} />
+
+              {/* Feature tags */}
+              <div style={{ display: "flex", gap: 18, marginBottom: 28, flexWrap: "wrap" }}>
+                {["Secure", "Autonomous", "High-Velocity"].map((f) => (
+                  <div key={f} className="lp-ftag">
+                    <span className="lp-fdot" />{f}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 32 }}>
+                <Link href="/register" className="btn btn-primary" style={{ padding: "14px 26px", fontSize: 15 }}>
+                  Create your account <ArrowRight size={16} />
                 </Link>
-                <Link href="#how" className="btn" style={{ fontSize: 14, padding: "14px 20px", background: "rgba(0,0,0,0.12)", color: "#3d2f06", border: "1.5px solid rgba(0,0,0,0.2)" }}>
-                  See how it works
+                <Link href="#how" className="lp-hero-outline">
+                  See how it works <ArrowRight size={15} />
                 </Link>
               </div>
+
+              {/* Social proof */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex" }}>
+                  {["#7c3aed", "#2563eb", "#059669", "#d97706"].map((c, i) => (
+                    <div key={i} style={{ width: 34, height: 34, borderRadius: "50%", background: c, border: "2px solid white", marginLeft: i > 0 ? -10 : 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "white", flexShrink: 0 }}>
+                      {["A", "B", "C", "D"][i]}
+                    </div>
+                  ))}
+                </div>
+                <div className="lp-avatar-txt">
+                  {totalMembers >= 10000 ? "10K+" : totalMembers + "+"}
+                  <span className="lp-avatar-sub"> Active members worldwide</span>
+                </div>
+              </div>
             </div>
-            <div className="hero-billboard-mascot" style={{ minWidth: 0 }}>
-              <MascotScene />
+
+            {/* Right */}
+            <div className="lp-hero-right" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {/* Stats card */}
+              <div className="lp-stats-card" style={{ position: "absolute", top: 10, right: 0, zIndex: 2, minWidth: 195 }}>
+                <div className="lp-stats-label">Total Payouts</div>
+                <div className="lp-stats-val">${totalPts.toLocaleString()}+</div>
+                <MiniChart />
+                <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, marginTop: 4 }}>+18.6% this month</div>
+              </div>
+              {/* Robot */}
+              <div style={{ width: "100%", maxWidth: 360, marginTop: 20 }}>
+                <RobotMascot />
+              </div>
             </div>
           </div>
-
-          {/* right coins card */}
-          <div className="card rise hero-grid-side" style={{ padding: 16, display: "flex", alignItems: "center", overflow: "hidden", animationDelay: "0.1s" }}>
-            <CoinField />
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "center", gap: 7, marginTop: 18 }}>
-          <span style={{ width: 26, height: 7, borderRadius: 99, background: "var(--gold)" }} />
-          <span style={{ width: 7, height: 7, borderRadius: 99, background: "var(--surface-3)" }} />
-          <span style={{ width: 7, height: 7, borderRadius: 99, background: "var(--surface-3)" }} />
         </div>
       </section>
 
-      {/* ─── platform about ────────────────────────────────────── */}
-      <section className="container" style={{ padding: "40px 24px 10px", textAlign: "center" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
-          <span className="kicker" style={{ color: "var(--gold)" }}>Decentralized Ecosystem</span>
-          <h2 style={{ fontSize: 38, marginTop: 12, lineHeight: 1.15 }}>Secure. Autonomous. Transparent.</h2>
-          <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.7, marginTop: 16 }}>
-            Revolutionary Group is a decentralized matrix platform powered by fair first-in-first-out algorithm structures. It connects partners worldwide, creating an append-only peer-to-peer economic ecosystem without geographical barriers or human administrative overhead.
+      {/* ─── SMART AUTO POOLS ─── */}
+      <section className="container" style={{ padding: "72px 24px 20px", textAlign: "center" }}>
+        <div className="kicker" style={{ justifyContent: "center", marginBottom: 14 }}>
+          <span>Smart</span>
+          <span style={{ color: "var(--border-3)", margin: "0 8px" }}>•</span>
+          <span>Auto Pools</span>
+          <span style={{ color: "var(--border-3)", margin: "0 8px" }}>•</span>
+          <span>System</span>
+        </div>
+        <h2 style={{ fontSize: "clamp(26px,4vw,44px)", marginBottom: 14 }}>Secure. Autonomous. High-Velocity.</h2>
+        <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.7, maxWidth: 680, margin: "0 auto 48px" }}>
+          Backed by smart AI-powered automation and two powerful pools — the 2×2 matrix and global auto pool. Guided by a fair re-entry rule and a value algorithm. The system is secure, self-sustaining, and built to create ongoing value, every cycle.
+        </p>
+        <div className="lp-hl-grid">
+          {/* Matrix Pool Card */}
+          <div className="lp-matrix-card" style={{ textAlign: "left" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.45)" }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Matrix Pool (2×2)</span>
+            </div>
+            <h3 style={{ fontSize: 23, color: "white", background: "none", WebkitTextFillColor: "white", marginBottom: 12 }}>Matrix Slot Engine</h3>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, marginBottom: 20 }}>
+              A structured 2×2 matrix system that rewards quick positioning and smart execution.
+            </p>
+            {/* Tree visual */}
+            <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px 16px", marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", height: 220 }}>
+              <svg viewBox="0 0 300 180" style={{ width: "100%", maxWidth: 300, display: "block", overflow: "visible" }}>
+                {/* Connector lines (Root to Level 2) */}
+                <line x1={150} y1={28} x2={85} y2={85} stroke="rgba(255,255,255,0.3)" strokeWidth={2} />
+                <line x1={150} y1={28} x2={215} y2={85} stroke="rgba(255,255,255,0.3)" strokeWidth={2} />
+
+                {/* Connector lines (Level 2 to Level 3) */}
+                <line x1={85} y1={85} x2={50} y2={140} stroke="rgba(255,255,255,0.18)" strokeWidth={1.5} />
+                <line x1={85} y1={85} x2={120} y2={140} stroke="rgba(255,255,255,0.18)" strokeWidth={1.5} />
+                <line x1={215} y1={85} x2={180} y2={140} stroke="rgba(255,255,255,0.18)" strokeWidth={1.5} />
+                <line x1={215} y1={85} x2={250} y2={140} stroke="rgba(255,255,255,0.18)" strokeWidth={1.5} />
+
+                {/* Root node circle */}
+                <circle cx={150} cy={28} r={18} fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.4)" strokeWidth={2} />
+                <PersonIcon x={150} y={28} r={18} color="white" />
+
+                {/* Level 2 circles */}
+                <circle cx={85} cy={85} r={15} fill="rgba(245,198,23,0.22)" stroke="rgba(245,198,23,0.55)" strokeWidth={2} />
+                <PersonIcon x={85} y={85} r={15} color="#f5c617" />
+
+                <circle cx={215} cy={85} r={15} fill="rgba(245,198,23,0.22)" stroke="rgba(245,198,23,0.55)" strokeWidth={2} />
+                <PersonIcon x={215} y={85} r={15} color="#f5c617" />
+
+                {/* Level 3 circles */}
+                <circle cx={50} cy={140} r={12} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} />
+                <PersonIcon x={50} y={140} r={12} color="rgba(255,255,255,0.6)" />
+
+                <circle cx={120} cy={140} r={12} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} />
+                <PersonIcon x={120} y={140} r={12} color="rgba(255,255,255,0.6)" />
+
+                <circle cx={180} cy={140} r={12} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} />
+                <PersonIcon x={180} y={140} r={12} color="rgba(255,255,255,0.6)" />
+
+                <circle cx={250} cy={140} r={12} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} />
+                <PersonIcon x={250} y={140} r={12} color="rgba(255,255,255,0.6)" />
+              </svg>
+              <div style={{ textAlign: "center", marginTop: 10, fontSize: 22, fontWeight: 800, color: "white" }}>2×2</div>
+            </div>
+            {["100% Automated Placement", "Level-based carry forward", "Re-entry rule ensures flow", "Fast cycling & powerful leverage"].map((f) => (
+              <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <CheckCircle size={14} color="rgba(255,255,255,0.7)" />
+                <span style={{ fontSize: 13.5, color: "rgba(255,255,255,0.82)" }}>{f}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Auto Pool Card */}
+          <div className="lp-pool-card" style={{ textAlign: "left" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.45)" }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Auto Pool (Global)</span>
+            </div>
+            <h3 style={{ fontSize: 23, color: "white", background: "none", WebkitTextFillColor: "white", marginBottom: 12 }}>Auto Pool Automation</h3>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, marginBottom: 20 }}>
+              Powered by the smart AI + blockchain logic that fills your matrix globally.
+            </p>
+            {/* Globe visual */}
+            <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px 16px", marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", height: 220 }}>
+              <div style={{ position: "relative", width: 140, height: 140 }}>
+                <div style={{ width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%,#60a5fa,#1d4ed8 60%,#1e3a8a)", border: "3px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 50px rgba(59,130,246,0.45)" }}>
+                  <Globe size={60} color="rgba(255,255,255,0.8)" />
+                </div>
+                {([[18, 24], [110, 18], [118, 88], [24, 90]] as [number, number][]).map(([x, y], i) => (
+                  <div key={i} style={{ position: "absolute", width: 10, height: 10, borderRadius: "50%", background: "#f5c617", left: x, top: y, boxShadow: "0 0 8px #f5c617", animation: `pulse-node ${1.5 + i * 0.3}s ease-in-out ${i * 0.2}s infinite` }} />
+                ))}
+              </div>
+            </div>
+            {["Global placement", "Continuous activity", "No need to invite", "Sustainable long-term system"].map((f) => (
+              <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <CheckCircle size={14} color="rgba(255,255,255,0.7)" />
+                <span style={{ fontSize: 13.5, color: "rgba(255,255,255,0.82)" }}>{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── NEXT 2 POOLS ─── */}
+      <section className="container" style={{ padding: "64px 24px 16px" }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <span className="kicker" style={{ color: "var(--gold)", display: "block", marginBottom: 10 }}>Ecosystem Expansion</span>
+          <h2 style={{ fontSize: "clamp(26px,4vw,40px)" }}>Upcoming Premium Pools</h2>
+          <p style={{ color: "var(--muted)", fontSize: 15, maxWidth: 540, margin: "12px auto 0", lineHeight: 1.65 }}>
+            Launch phase details for our upcoming high-tier matrix pools currently on the roadmap.
           </p>
         </div>
-      </section>
+        <div className="lp-pools-grid">
+          {/* Sapphire */}
+          <div className="lp-pool-tier">
+            <div style={{ position: "absolute", top: 18, left: 20 }}>
+              <span style={{ background: "rgba(245,198,23,0.1)", color: "var(--gold)", fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(245,198,23,0.3)", letterSpacing: "0.08em" }}>ROADMAP</span>
+            </div>
+            <div style={{ textAlign: "center", paddingTop: 20 }}>
+              <div style={{ fontSize: 56, marginBottom: 10 }}>💎</div>
+              <h3 style={{ fontSize: 22, marginBottom: 10, color: "#7c3aed", background: "none", WebkitTextFillColor: "#7c3aed" }}>Tier 6: Sapphire</h3>
+              <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.65, marginBottom: 24, maxWidth: 260, marginLeft: "auto", marginRight: "auto" }}>
+                Designed for high-yield slot satisfies, featuring global royalty multipliers and auto re-entries.
+              </p>
+              <span className="pill" style={{ padding: "10px 24px", fontSize: 13, background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)", color: "var(--muted)" }}>Coming soon</span>
+            </div>
+          </div>
 
-      {/* ─── trust strip ──────────────────────────────────────── */}
-      <div style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", background: "rgba(8,8,10,0.7)", backdropFilter: "blur(8px)" }}>
-        <div className="container" style={{ display: "flex", alignItems: "center", height: 52, overflowX: "auto", scrollbarWidth: "none" }}>
-          <TrustBadge icon={ShieldCheck} text="Fully automated USDT payments" />
-          <TrustBadge icon={Lock}        text="Provably fair FIFO queue" />
-          <TrustBadge icon={BarChart3}   text="Append-only ledger" />
-          <TrustBadge icon={Network}     text="5-tier matrix" />
-          <TrustBadge icon={Trophy}      text="Royalty rewards 3× / month" />
-          <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 24px" }}>
-            <Zap size={15} color="var(--gold)" />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap" }}>Instant activation</span>
+          {/* Lightning Bolt Connector */}
+          <div className="lp-pool-connector">
+            <div style={{
+              display: "flex",
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #ffe27a, #f8c617)",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 20px rgba(248,198,23,0.35)",
+              border: "2px solid #ffffff"
+            }}>
+              <Zap size={22} color="#141002" fill="#141002" />
+            </div>
+          </div>
+
+          {/* Apex Diamond */}
+          <div className="lp-pool-tier">
+            <div style={{ position: "absolute", top: 18, right: 20 }}>
+              <span style={{ background: "rgba(245,198,23,0.1)", color: "var(--gold)", fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(245,198,23,0.3)", letterSpacing: "0.08em" }}>ROADMAP</span>
+            </div>
+            <div style={{ textAlign: "center", paddingTop: 20 }}>
+              <div style={{ fontSize: 56, marginBottom: 10 }}>👑</div>
+              <h3 style={{ fontSize: 22, marginBottom: 10, color: "var(--gold-bright)", background: "none", WebkitTextFillColor: "var(--gold-bright)" }}>Tier 7: Apex Diamond</h3>
+              <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.65, marginBottom: 24, maxWidth: 260, marginLeft: "auto", marginRight: "auto" }}>
+                The ultimate tier. Offers double-fill queue priority overrides and direct cuts of global fee collections.
+              </p>
+              <span className="pill pill-gold" style={{ padding: "10px 24px", fontSize: 13 }}>Coming soon</span>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ─── ticker ───────────────────────────────────────────── */}
+      {/* ─── TRUST BADGES ─── */}
+      <section style={{ padding: "64px 0 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", marginTop: 64 }}>
+        <div className="lp-trust-grid">
+          {TRUST_BADGES.map((b) => (
+            <div key={b.title} className="lp-trust-item">
+              <div style={{ width: 50, height: 50, borderRadius: 14, background: b.bg, border: `1.5px solid ${b.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <b.icon size={22} color={b.color} />
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{b.title}</div>
+              <div style={{ fontSize: 11.5, color: "var(--muted)", lineHeight: 1.5 }}>{b.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── TICKER ─── */}
       <div className="ticker-strip">
         <div className="ticker-track">
           {[...tickerItems, ...tickerItems].map((t, i) => (
             <span key={i} className="ticker-item">
-              <span className="coin-dot">★</span>
-              {t}
+              <span className="coin-dot">★</span>{t}
             </span>
           ))}
         </div>
       </div>
 
-      {/* ─── upcoming pools ────────────────────────────────────── */}
-      <section className="container" style={{ padding: "60px 24px 16px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <span className="kicker" style={{ color: "var(--gold)" }}>Ecosystem Expansion</span>
-          <h2 style={{ fontSize: 36, marginTop: 10 }}>Next 2 Matrix Pools</h2>
-          <p style={{ color: "var(--muted)", fontSize: 15, maxWidth: 460, margin: "10px auto 0", lineHeight: 1.6 }}>
-            Our matrix network is expanding. Prepare for the high-end upcoming tiers launching in the next update cycle.
+      {/* ─── HOW IT WORKS ─── */}
+      <section id="how" className="container" style={{ padding: "72px 24px 60px" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <span className="kicker" style={{ justifyContent: "center", marginBottom: 12 }}>How it works</span>
+          <h2 style={{ fontSize: "clamp(26px,4vw,42px)" }}>From zero to apex — four moves.</h2>
+          <p style={{ color: "var(--muted)", fontSize: 15, maxWidth: 400, margin: "14px auto 0", lineHeight: 1.65 }}>
+            One code. Four steps. Achievement starts with a decision.
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-          <div className="card rise" style={{ padding: 28, border: "1px dashed var(--border-3)", textAlign: "center", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(248,198,23,0.06)", border: "1px solid var(--border-2)", borderRadius: 99, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>6th POOL</div>
-            <div style={{ fontSize: 36, margin: "12px 0 8px" }}>💎</div>
-            <h3 style={{ fontSize: 19, margin: "0 0 8px", fontWeight: 800, color: "var(--gold-bright)" }}>Tier 6: Sapphire</h3>
-            <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 20px", lineHeight: 1.6 }}>
-              A high-yield distribution pool featuring unique global royalty multipliers and automatic matrix re-entries.
-            </p>
-            <span className="pill pill-gold" style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px" }}>COMING SOON</span>
-          </div>
-          <div className="card rise" style={{ padding: 28, border: "1px dashed var(--border-3)", textAlign: "center", position: "relative", overflow: "hidden", animationDelay: "0.1s" }}>
-            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(248,198,23,0.06)", border: "1px solid var(--border-2)", borderRadius: 99, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>7th POOL</div>
-            <div style={{ fontSize: 36, margin: "12px 0 8px" }}>👑</div>
-            <h3 style={{ fontSize: 19, margin: "0 0 8px", fontWeight: 800, color: "var(--gold-bright)" }}>Tier 7: Apex Diamond</h3>
-            <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 20px", lineHeight: 1.6 }}>
-              The peak of matrix levels. Offers double-fill FIFO override queue slots and direct cuts of global fee collections.
-            </p>
-            <span className="pill pill-gold" style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px" }}>COMING SOON</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── platform benefits ─────────────────────────────────── */}
-      <section id="benefits" className="container" style={{ padding: "50px 24px 50px" }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <span className="kicker">Core Advantages</span>
-          <h2 style={{ fontSize: 36, marginTop: 10 }}>Built for Security & Fairness</h2>
-          <p style={{ color: "var(--muted)", maxWidth: 520, margin: "12px auto 0", fontSize: 15, lineHeight: 1.6 }}>
-            Unlike traditional systems, the matrix runs on a fixed mathematical algorithm with zero manual bias, full database integrity, and instant settlements.
-          </p>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 20 }}>
+        <div className="lp-steps-grid">
           {[
-            { icon: ShieldCheck, title: "Autonomous System", desc: "The matrix runs entirely on a fixed code logic. Once launched, the parameters (fees, slots, and levels) cannot be altered or modified by anyone." },
-            { icon: Lock, title: "Provably Fair FIFO", desc: "Slots are claimed in strict order of registration timestamps using database row-level locking. No one can skip, block, or manipulate the placement order." },
-            { icon: BarChart3, title: "100% Transparent Ledger", desc: "Every single point transaction is recorded to an append-only database audit log. Balances and matrix histories are transparent and publicly verifiable." },
-            { icon: Zap, title: "Fully Automated Payouts", desc: "No human approval required to verify withdrawals. The NowPayments API processes payouts instantly from the custodial balance directly to your USDT wallet." }
-          ].map((b, i) => (
-            <div key={i} className="card card-hover rise" style={{ padding: 28, display: "flex", flexDirection: "column", gap: 14, animationDelay: `${i * 0.05}s` }}>
-              <div style={{ display: "inline-flex", width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, background: "rgba(248,198,23,0.08)", border: "1px solid rgba(248,198,23,0.2)" }}>
-                <b.icon size={20} color="var(--gold)" />
-              </div>
-              <h3 style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>{b.title}</h3>
-              <p style={{ fontSize: 13.5, color: "var(--muted)", margin: 0, lineHeight: 1.6 }}>{b.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ─── glow CTA ─────────────────────────────────────────── */}
-      <section style={{ padding: "52px 24px 60px", display: "flex", justifyContent: "center", alignItems: "center", gap: 20, overflow: "hidden" }}>
-        <div className="chevron-row landing-chevrons" aria-hidden style={{ flexShrink: 0 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span key={i} className="chev chev-r" style={{ animation: `chev-pulse 1.6s ease-in-out ${i * 0.15}s infinite` }} />
-          ))}
-        </div>
-        <Link href={session ? "/dashboard" : "/register"} className="btn glow-cta" style={{ flexShrink: 0 }}>
-          <Sparkles size={19} /> {session ? "Open dashboard" : "Create account — free"}
-        </Link>
-        <div className="chevron-row landing-chevrons" aria-hidden style={{ flexShrink: 0 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span key={i} className="chev chev-l" style={{ animation: `chev-pulse 1.6s ease-in-out ${(4 - i) * 0.15}s infinite` }} />
-          ))}
-        </div>
-      </section>
-
-      {/* ─── how it works ─────────────────────────────────────── */}
-      <section id="how" className="container" style={{ padding: "20px 24px 60px" }}>
-        <div className="section-head">
-          <div>
-            <span className="kicker">How it works</span>
-            <h2 style={{ fontSize: 38, marginTop: 10 }}>From zero to apex — four moves.</h2>
-          </div>
-          <p style={{ color: "var(--muted)", maxWidth: 340, fontSize: 15, lineHeight: 1.6 }}>
-            One join. Five tiers. Every point traceable on a public ledger. Here&apos;s the playbook.
-          </p>
-        </div>
-
-        <div className="how-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 0 }}>
-          {[
-            { step: "01", icon: Users,      color: "#f8c617", title: "Register & activate",    body: "50 pts to join: 10 ID & PIN, 30 autopool, 10 royalty. Your sponsor earns 5 pts instantly.", detail: `${joinTotal} pts total` },
-            { step: "02", icon: Network,    color: "#ffe893", title: "Your slots open",         body: "You enter the FIFO queue at Tier 1 with 2 open slots. Oldest slot always fills first — no favourites.", detail: "FIFO queue" },
-            { step: "03", icon: TrendingUp, color: "#ffd84d", title: "Slots fill, balance grows", body: "Every new player who lands on your slot credits your balance with that tier's entry fee.", detail: "+pts per fill" },
-            { step: "04", icon: Repeat,     color: "#f8c617", title: "Exit or climb higher",    body: "When all slots fill, choose: cash out your exit %, or seed your earnings into the next tier.", detail: "Your call" },
+            { step: "01", icon: Users, title: "Register & activate", body: "Join in 30 seconds. Choose your package.", detail: "50 pts total", bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.3)", color: "#3b82f6", iconBg: "rgba(59,130,246,0.08)", iconBorder: "rgba(59,130,246,0.2)" },
+            { step: "02", icon: Network, title: "Wait slots open", body: "You'll enter the queue. Our AI prepares your position.", detail: "FIFO queue", bg: "rgba(124,58,237,0.1)", border: "rgba(124,58,237,0.3)", color: "#9061f9", iconBg: "rgba(124,58,237,0.08)", iconBorder: "rgba(124,58,237,0.2)" },
+            { step: "03", icon: BarChart3, title: "Slots fill, balance grows", body: "Once your slots are active, your balance starts building.", detail: "+USDT per fill", bg: "rgba(245,198,23,0.1)", border: "rgba(245,198,23,0.3)", color: "var(--gold)", iconBg: "rgba(245,198,23,0.08)", iconBorder: "rgba(245,198,23,0.2)" },
+            { step: "04", icon: Star, title: "Auto earnings begin", body: "Watch compounding deposits as your matrix cycles.", detail: "Your call", bg: "rgba(255,255,255,0.1)", border: "rgba(255,255,255,0.3)", color: "#ffffff", iconBg: "rgba(255,255,255,0.08)", iconBorder: "rgba(255,255,255,0.2)" },
           ].map((f, i) => (
-            <div key={f.step} style={{ position: "relative" }}>
-              {i < 3 && (
-                <div style={{ position: "absolute", top: 40, right: -1, width: 2, height: 22, background: "linear-gradient(180deg, var(--gold), transparent)", zIndex: 1 }} />
-              )}
-              <div className="card card-hover rise" style={{ margin: 8, padding: "28px 22px", height: "calc(100% - 16px)", animationDelay: `${i * 0.07}s` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                  <span style={{ display: "inline-flex", width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 14, background: `${f.color}18`, border: `1px solid ${f.color}44` }}>
-                    <f.icon size={22} color={f.color} />
-                  </span>
-                  <span className="mono" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", color: "var(--faint)" }}>STEP {f.step}</span>
+            <div key={f.step} className={`lp-step-card-dynamic ${i === 0 ? 'step-blue' : i === 1 ? 'step-purple' : i === 2 ? 'step-gold' : 'step-white'}`}>
+              <div className="step-watermark" style={{ color: f.color }}>
+                {f.step}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <div className="step-icon-container" style={{ background: f.iconBg, border: `1px solid ${f.iconBorder}` }}>
+                  <f.icon size={20} color={f.color} />
                 </div>
-                <h3 style={{ fontSize: 17, marginBottom: 10 }}>{f.title}</h3>
-                <p style={{ color: "var(--muted)", fontSize: 13.5, margin: "0 0 14px", lineHeight: 1.65 }}>{f.body}</p>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(248,198,23,0.08)", border: "1px solid var(--border-2)", borderRadius: 999, padding: "4px 12px" }}>
-                  <Zap size={11} color="var(--gold)" />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{f.detail}</span>
-                </div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>{f.title}</h3>
+                <p style={{ color: "var(--muted)", fontSize: 13.5, margin: "0 0 20px", lineHeight: 1.6 }}>{f.body}</p>
+              </div>
+              <div className="step-badge">
+                <Zap size={11} color="var(--gold)" />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{f.detail}</span>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ─── the ladder ───────────────────────────────────────── */}
-      <section id="ladder" className="container" style={{ padding: "40px 24px 60px" }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <span className="kicker" style={{ color: "var(--gold)" }}>Matrix programs</span>
-          <h2 style={{ fontSize: 38, marginTop: 10 }}>Global Matrix Slots</h2>
-          <p style={{ color: "var(--muted)", maxWidth: 500, margin: "10px auto 0", fontSize: 15, lineHeight: 1.6 }}>
-            Activate your slot, queue globally, and collect payouts as the slots fill up. Climb the tiers from Starter to Apex.
-          </p>
-        </div>
-
-        <div style={{ position: "relative" }}>
-          {/* Timeline connector bar */}
-          <div className="landing-chevrons" style={{ position: "absolute", top: "50%", left: "40px", right: "40px", height: 2, background: "linear-gradient(90deg, var(--gold) 70%, var(--border-3) 100%)", zIndex: 0, transform: "translateY(-50%)", opacity: 0.35 }} />
-
-          <div className="timeline-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12, position: "relative", zIndex: 1 }}>
-            {/* Active Tiers 1-5 */}
-            {slabRows.map((s, idx) => {
-              const pool = s.fee * s.slots;
-              
-              // Generate visual slot indicator dots based on slots count
-              const maxVisibleDots = Math.min(s.slots, 8); // cap display dots so Level 4/5 don't overflow
-              
-              return (
-                <div key={s.level} className="card card-hover rise" style={{ padding: "18px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 230, border: "1.5px solid var(--border-2)", background: "var(--surface)", boxShadow: "var(--shadow-glow)", position: "relative", animationDelay: `${idx * 0.05}s` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span className="mono" style={{ fontSize: 11, fontWeight: 900, background: "linear-gradient(135deg, var(--gold-soft), var(--gold))", color: "#111827", padding: "3px 8px", borderRadius: 6, boxShadow: "0 2px 6px rgba(248,198,23,0.2)" }}>LVL {s.level}</span>
-                    {s.level > 1 ? (
-                      <span style={{ fontSize: 9.5, background: "rgba(46,216,122,0.12)", color: "#2ed87a", border: "1px solid rgba(46,216,122,0.25)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>AUTO</span>
-                    ) : (
-                      <span style={{ fontSize: 9.5, background: "rgba(248,198,23,0.12)", color: "var(--gold-bright)", border: "1px solid var(--border-3)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>ACTIVE</span>
-                    )}
-                  </div>
-
-                  <div style={{ margin: "12px 0", textAlign: "center" }}>
-                    <div className="mono gold-text" style={{ fontSize: 30, fontWeight: 900 }}>{s.fee}</div>
-                    <div style={{ fontSize: 10, color: "var(--faint)", fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase" }}>USDT</div>
-                  </div>
-
-                  {/* Slot filled visual indicators (circles) */}
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 5, margin: "0 0 14px" }}>
-                    {Array.from({ length: maxVisibleDots }).map((_, dIdx) => (
-                      <span key={dIdx} style={{ width: 9, height: 9, borderRadius: "50%", border: "2px solid var(--gold)", background: "rgba(248,198,23,0.08)", boxShadow: "0 0 4px rgba(248,198,23,0.2)", display: "inline-block" }} />
-                    ))}
-                    {s.slots > maxVisibleDots && (
-                      <span style={{ fontSize: 10, color: "var(--gold)", fontWeight: 800, marginLeft: 2 }}>+{s.slots - maxVisibleDots}</span>
-                    )}
-                  </div>
-
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5 }}>
-                    <span style={{ color: "var(--muted)", fontWeight: 700 }}>{s.name}</span>
-                    <span className="mono" style={{ color: "#2ed87a", fontWeight: 800 }}>x{s.slots} Slots</span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Upcoming Tiers 6-7 */}
-            <div className="card rise" style={{ padding: "18px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 230, border: "1.5px dashed var(--border-3)", background: "rgba(248,198,23,0.02)", position: "relative", animationDelay: "0.3s" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span className="mono" style={{ fontSize: 11, fontWeight: 800, background: "rgba(255,255,255,0.06)", color: "var(--faint)", padding: "3px 8px", borderRadius: 6, border: "1px solid var(--border)" }}>LVL 06</span>
-                <span style={{ fontSize: 9.5, background: "rgba(248,198,23,0.08)", color: "var(--gold)", border: "1px solid var(--border-2)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>MAP</span>
-              </div>
-
-              <div style={{ margin: "12px 0", textAlign: "center" }}>
-                <div style={{ fontSize: 26, filter: "drop-shadow(0 2px 8px rgba(248,198,23,0.25))" }}>💎</div>
-                <h4 style={{ fontSize: 14, margin: "4px 0 0", fontWeight: 900, color: "var(--muted)" }}>Sapphire</h4>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "center", gap: 5, margin: "0 0 14px" }}>
-                {Array.from({ length: 4 }).map((_, dIdx) => (
-                  <span key={dIdx} style={{ width: 9, height: 9, borderRadius: "50%", border: "2px dashed var(--border)", background: "transparent", display: "inline-block" }} />
-                ))}
-              </div>
-
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, textAlign: "center", fontSize: 11, fontWeight: 800, color: "var(--gold)" }}>
-                SOON
-              </div>
-            </div>
-
-            <div className="card rise" style={{ padding: "18px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 230, border: "1.5px dashed var(--border-3)", background: "rgba(248,198,23,0.02)", position: "relative", animationDelay: "0.35s" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span className="mono" style={{ fontSize: 11, fontWeight: 800, background: "rgba(255,255,255,0.06)", color: "var(--faint)", padding: "3px 8px", borderRadius: 6, border: "1px solid var(--border)" }}>LVL 07</span>
-                <span style={{ fontSize: 9.5, background: "rgba(248,198,23,0.08)", color: "var(--gold)", border: "1px solid var(--border-2)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>MAP</span>
-              </div>
-
-              <div style={{ margin: "12px 0", textAlign: "center" }}>
-                <div style={{ fontSize: 26, filter: "drop-shadow(0 2px 8px rgba(248,198,23,0.25))" }}>👑</div>
-                <h4 style={{ fontSize: 14, margin: "4px 0 0", fontWeight: 900, color: "var(--muted)" }}>Apex Diamond</h4>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "center", gap: 5, margin: "0 0 14px" }}>
-                {Array.from({ length: 4 }).map((_, dIdx) => (
-                  <span key={dIdx} style={{ width: 9, height: 9, borderRadius: "50%", border: "2px dashed var(--border)", background: "transparent", display: "inline-block" }} />
-                ))}
-              </div>
-
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, textAlign: "center", fontSize: 11, fontWeight: 800, color: "var(--gold)" }}>
-                SOON
-              </div>
-            </div>
-          </div>
+      {/* ─── EARNINGS CALCULATOR ─── */}
+      <section id="earn" className="lp-calc-section" style={{ padding: "60px 0" }}>
+        <div className="container">
+          <EarningsCalculator slabs={slabRows} />
         </div>
       </section>
 
-      {/* ─── earnings walkthrough ─────────────────────────────── */}
-      <section id="earn" className="container" style={{ padding: "20px 24px 60px" }}>
-        <div className="section-head">
-          <div>
-            <span className="kicker">Earnings example</span>
-            <h2 style={{ fontSize: 38, marginTop: 10 }}>What does a Tier 1 run look like?</h2>
-          </div>
-          <p style={{ color: "var(--muted)", maxWidth: 360, fontSize: 15, lineHeight: 1.6 }}>
-            Live fee values from the game engine. No approximations.
-          </p>
+      {/* ─── GLOBAL MATRIX SLOTS ─── */}
+      <section id="ladder" className="container" style={{ padding: "72px 24px 60px" }}>
+        <div style={{ textAlign: "center", marginBottom: 44 }}>
+          <span className="kicker" style={{ justifyContent: "center", marginBottom: 10 }}>Activated globally. Born in data. Payouts on the blockchain.</span>
+          <h2 style={{ fontSize: "clamp(26px,4vw,42px)" }}>Global Matrix Slots</h2>
         </div>
-
-        <div className="earnings-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-          {/* cost breakdown */}
-          <div className="card" style={{ padding: 28 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 16 }}>What you pay</div>
-            {[
-              { label: "ID & PIN fee",         pts: -10,               note: "5 pts routes to your sponsor" },
-              { label: "Autopool entry (Tier 1)", pts: -(s1?.fee ?? 30), note: "enters you into Stage 1 FIFO queue" },
-              { label: "Royalty contribution",  pts: -10,               note: "into the shared royalty pool" },
-            ].map((row) => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 0", borderBottom: "1px solid var(--border)" }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{row.label}</div>
-                  <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 2 }}>{row.note}</div>
-                </div>
-                <span className="mono" style={{ fontSize: 16, fontWeight: 700, color: "var(--danger)" }}>{row.pts}</span>
-              </div>
-            ))}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 14, marginTop: 2 }}>
-              <span style={{ fontWeight: 700 }}>Total invested</span>
-              <span className="mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--danger)" }}>−{joinTotal}</span>
+        <div className="lp-slots-row">
+          {slabRows.map((s, idx) => (
+            <div key={s.level} className="lp-slot-card">
+              <div style={{ fontSize: 22, marginBottom: 4 }}>{SLOT_ICONS[idx] ?? "🔵"}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{s.name}</div>
+              <div style={{ fontSize: 11, color: "var(--faint)", marginBottom: 2 }}>{s.slots}×{s.slots}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-num)", color: "var(--text)" }}>${s.fee}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "var(--font-num)", color: "#22c55e" }}>${s.fee}</div>
             </div>
-          </div>
-
-          {/* earnings */}
-          <div className="card card-feature" style={{ padding: 28 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 16 }}>What you collect (Tier 1)</div>
-
-            {/* slot credits */}
-            {Array.from({ length: s1?.slots ?? 2 }, (_, i) => ({
-              label: `Slot ${i + 1} filled`,
-              pts: s1?.fee ?? 30,
-              note: "slot_credit — new player fills your slot",
-            })).map((row) => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{row.label}</div>
-                  <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 2 }}>{row.note}</div>
-                </div>
-                <span className="mono" style={{ fontSize: 16, fontWeight: 700, color: "var(--success)" }}>+{row.pts}</span>
+          ))}
+          {slabRows.length === 0 && (
+            [{ name: "Starter", fee: 30 }, { name: "Basic", fee: 50 }, { name: "Bronze", fee: 150 }, { name: "Silver", fee: 300 }, { name: "Gold", fee: 1000 }, { name: "Platinum", fee: 10000 }].map((s, idx) => (
+              <div key={s.name} className="lp-slot-card">
+                <div style={{ fontSize: 22, marginBottom: 4 }}>{SLOT_ICONS[idx]}</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{s.name}</div>
+                <div style={{ fontSize: 11, color: "var(--faint)", marginBottom: 2 }}>2×2</div>
+                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-num)", color: "var(--text)" }}>${s.fee.toLocaleString()}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "var(--font-num)", color: "#22c55e" }}>${s.fee.toLocaleString()}</div>
               </div>
-            ))}
-
-            {/* sponsor reward per referral */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>Per person you refer (joins)</div>
-                <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 2 }}>
-                  referral_bonus — carved from their ID &amp; PIN fee, paid instantly
-                </div>
-              </div>
-              <span className="mono" style={{ fontSize: 16, fontWeight: 700, color: "var(--success)" }}>+{sponsorReward} / referral</span>
-            </div>
-
-            {/* royalty */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>Royalty pool reward</div>
-                <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 2 }}>
-                  paid 3× a month · need 10+ direct referrals · rank bands {minRoyaltyPct}–{maxRoyaltyPct}% of pool
-                </div>
-              </div>
-              <span className="mono" style={{ fontSize: 16, fontWeight: 700, color: "var(--gold-bright)" }}>+varies</span>
-            </div>
-
-            {/* exit summary */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 14, marginTop: 2 }}>
-              <div>
-                <div style={{ fontWeight: 700 }}>Slots only — exit at 100%</div>
-                <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 2 }}>
-                  referral &amp; royalty earnings stack on top of this
-                </div>
-              </div>
-              <span className="mono" style={{ fontSize: 22, fontWeight: 700, color: "var(--gold-bright)" }}>+{s1Pool}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* upgrade chain */}
-        <div className="card" style={{ padding: "24px 28px" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 18 }}>The upgrade chain — if you keep climbing</div>
-          <div style={{ display: "flex", alignItems: "center", overflowX: "auto", paddingBottom: 4 }}>
-            {slabRows.map((s, i) => (
-              <div key={s.level} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-                <div style={{ textAlign: "center", padding: "0 18px" }}>
-                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: i === slabRows.length - 1 ? "linear-gradient(135deg,#ffe27a,#f8c617)" : "var(--surface-2)", border: `2px solid ${i === slabRows.length - 1 ? "var(--gold)" : "var(--border-2)"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", boxShadow: i === slabRows.length - 1 ? "0 0 22px rgba(248,198,23,0.3)" : "none" }}>
-                    <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, color: i === slabRows.length - 1 ? "var(--gold-ink)" : "var(--text)" }}>T{s.level}</span>
-                  </div>
-                  <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted)" }}>{s.name}</div>
-                  <div className="mono" style={{ fontSize: 11, color: "var(--gold)", marginTop: 2 }}>{(s.fee * s.slots).toLocaleString()} pool</div>
-                </div>
-                {i < slabRows.length - 1 && <ArrowRight size={18} color="var(--faint)" style={{ flexShrink: 0 }} />}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── why apex ─────────────────────────────────────────── */}
-      <section className="container" style={{ padding: "20px 24px 60px" }}>
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <span className="kicker">Why RIP</span>
-          <h2 style={{ fontSize: 38, marginTop: 10 }}>Built different.</h2>
-          <p style={{ color: "var(--muted)", fontSize: 15, marginTop: 12, maxWidth: 500, marginLeft: "auto", marginRight: "auto" }}>
-            We made choices that favour players over the house. Here&apos;s what makes Revolutionary Income Plan fair.
-          </p>
-        </div>
-        <div className="why-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
-          {[
-            { icon: ShieldCheck, color: "#f8c617", title: "Row-locked ledger", body: "Every point movement writes an immutable row to the transactions table. Your balance is the exact sum of that history.", bullets: ["Append-only — nothing deleted", "balanceAfter on every row", "Admin sees every tx"] },
-            { icon: Network,     color: "#ffe893", title: "Global FIFO queue",  body: "Slot assignment uses SELECT FOR UPDATE SKIP LOCKED. The oldest open slot fills first, regardless of who you know.", bullets: ["No queue jumping", "Race-condition proof", "Deadlock-safe with retries"] },
-            { icon: Trophy,      color: "#ffd84d", title: "You choose to leave", body: "No contract, no lock-in. Every time a tier completes you decide: take your payout and walk, or seed the next tier.", bullets: ["Tier 1 & Final: keep 100%", "Middle tiers: keep 30%", "Upgrades from earnings only"] },
-          ].map((f) => (
-            <div key={f.title} className="card card-hover" style={{ padding: 26 }}>
-              <span style={{ display: "inline-flex", width: 50, height: 50, alignItems: "center", justifyContent: "center", borderRadius: 15, background: `${f.color}18`, border: `1px solid ${f.color}44`, marginBottom: 16 }}>
-                <f.icon size={24} color={f.color} />
-              </span>
-              <h3 style={{ fontSize: 18, marginBottom: 10 }}>{f.title}</h3>
-              <p style={{ color: "var(--muted)", fontSize: 13.5, lineHeight: 1.65, margin: "0 0 16px" }}>{f.body}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                {f.bullets.map((b) => (
-                  <div key={b} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <CheckCircle size={13} color="var(--gold)" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: "var(--muted)", fontWeight: 500 }}>{b}</span>
-                  </div>
-                ))}
-              </div>
+            ))
+          )}
+          {[{ name: "Sponsor Slot" }, { name: "Apex Diamond" }].map((s, idx) => (
+            <div key={s.name} className="lp-slot-card" style={{ opacity: 0.65, borderStyle: "dashed" }}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>{SLOT_ICONS[6 + idx]}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase", lineHeight: 1.3 }}>{s.name}</div>
+              <div style={{ fontSize: 14, color: "var(--gold)", fontWeight: 700, marginTop: 12 }}>Ask us</div>
+              <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600 }}>Ask us</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ─── testimonials ─────────────────────────────────────── */}
-      {/*
-      <section className="container" style={{ padding: "20px 24px 60px" }}>
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <span className="kicker">Players</span>
-          <h2 style={{ fontSize: 38, marginTop: 10 }}>From the community</h2>
-          <p style={{ color: "var(--faint)", fontSize: 13, marginTop: 8 }}>Demo accounts — shown to illustrate the experience</p>
-        </div>
-        <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 }}>
-          {TESTIMONIALS.map((t) => <TestimonialCard key={t.name} {...t} />)}
-        </div>
-      </section>
-      */}
-
-      {/* ─── FAQ ──────────────────────────────────────────────── */}
-      <section id="faq" className="container" style={{ padding: "20px 24px 80px" }}>
-        <div style={{ textAlign: "center", marginBottom: 52 }}>
-          <span className="kicker">FAQ</span>
-          <h2 style={{ fontSize: 38, marginTop: 10 }}>Questions answered.</h2>
-          <p style={{ color: "var(--muted)", fontSize: 15, marginTop: 12 }}>Everything you need to know before you climb.</p>
-        </div>
-        <style>{`
-          .faq-item { border-radius: 16px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.025); overflow: hidden; transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; }
-          .faq-item + .faq-item { margin-top: 8px; }
-          .faq-item:hover { border-color: rgba(248,198,23,0.22); background: rgba(248,198,23,0.03); }
-          .faq-item[open] { border-color: rgba(248,198,23,0.32); background: rgba(248,198,23,0.055); box-shadow: 0 0 0 1px rgba(248,198,23,0.08) inset, 0 8px 32px rgba(248,198,23,0.07); }
-          .faq-item summary { list-style: none; }
-          .faq-item summary::-webkit-details-marker { display: none; }
-          .faq-chevron { transition: transform 0.25s ease; flex-shrink: 0; }
-          .faq-item[open] .faq-chevron { transform: rotate(180deg); }
-          .faq-num { font-size: 10px; font-weight: 800; color: var(--gold); letter-spacing: 0.12em; min-width: 28px; opacity: 0.65; padding-top: 1px; }
-          .faq-divider { height: 1px; background: rgba(248,198,23,0.12); margin: 0 24px; }
-          .faq-item[open] .faq-divider { display: block; }
-          .faq-divider { display: none; }
-        `}</style>
-        <div style={{ maxWidth: 780, margin: "0 auto" }}>
-          {FAQ_ITEMS.map((f, i) => (
-            <details key={f.q} className="faq-item">
-              <summary style={{ display: "flex", alignItems: "center", gap: 14, padding: "20px 24px", cursor: "pointer", userSelect: "none" }}>
-                <span className="faq-num">0{i + 1}</span>
-                <span style={{ flex: 1, fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em" }}>{f.q}</span>
-                <ChevronDown size={15} color="var(--gold)" className="faq-chevron" />
-              </summary>
-              <div className="faq-divider" />
-              <div style={{ padding: "16px 24px 22px 66px", color: "var(--muted)", fontSize: 14, lineHeight: 1.78 }}>
-                {f.a}
-              </div>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      {/* ─── final CTA ────────────────────────────────────────── */}
-      <section className="container" style={{ padding: "20px 24px 80px" }}>
-        <div className="billboard final-cta-inner" style={{ padding: "64px 52px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 32 }}>
-          <div>
-            <h2 style={{ fontSize: 46, lineHeight: 1.08 }}>Ready to<br />start climbing?</h2>
-            <p style={{ fontSize: 16, fontWeight: 500, color: "#3d2f06", maxWidth: 420, margin: "14px 0 0", lineHeight: 1.55 }}>
-              Spin up an account in 30 seconds, grab your referral link, and watch your matrix fill in real time.
+      {/* ─── BENEFITS ─── */}
+      <section id="benefits" style={{ background: "linear-gradient(180deg,var(--bg-2) 0%,var(--bg) 100%)", padding: "60px 0" }}>
+        <div className="container">
+          <div style={{ textAlign: "center", marginBottom: 44 }}>
+            <span className="kicker" style={{ justifyContent: "center", marginBottom: 12 }}>Core Advantages</span>
+            <h2 style={{ fontSize: "clamp(26px,4vw,40px)" }}>Built for Security &amp; Fairness</h2>
+            <p style={{ color: "var(--muted)", maxWidth: 520, margin: "14px auto 0", fontSize: 15, lineHeight: 1.65 }}>
+              Unlike traditional systems, the matrix runs on a fixed mathematical algorithm with zero manual bias, full database integrity, and instant settlements.
             </p>
-            <div style={{ display: "flex", gap: 12, marginTop: 26, flexWrap: "wrap" }}>
-              <Link href="/register" className="btn btn-white" style={{ padding: "15px 32px", fontSize: 16 }}>
-                Create your account <ArrowRight size={17} />
-              </Link>
-              <Link href="/login" className="btn" style={{ padding: "15px 24px", fontSize: 15, background: "rgba(0,0,0,0.12)", color: "#3d2f06", border: "1.5px solid rgba(0,0,0,0.2)" }}>
-                Log in
-              </Link>
-            </div>
           </div>
-          <div className="final-cta-emoji" style={{ fontSize: 88, lineHeight: 1, userSelect: "none" }} aria-hidden>🏆</div>
+          <div className="lp-benefits-grid">
+            {[
+              { icon: ShieldCheck, title: "Autonomous System", desc: "The matrix runs entirely on fixed code logic. Parameters cannot be altered by anyone once launched.", color: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)" },
+              { icon: Lock, title: "Provably Fair FIFO", desc: "Slots are claimed in strict order using database row-level locking. No one can skip the queue.", color: "#9061f9", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)" },
+              { icon: BarChart3, title: "100% Transparent Ledger", desc: "Every point transaction is recorded to an append-only database audit log. Publicly verifiable.", color: "var(--gold)", bg: "rgba(245,198,23,0.08)", border: "rgba(245,198,23,0.2)" },
+              { icon: Zap, title: "Fully Automated Payouts", desc: "No human approval required. Payouts process instantly to your USDT wallet.", color: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)" },
+              { icon: Star, title: "Royalty Rewards", desc: `Earn royalty pool rewards ${minRoyaltyPct}–${maxRoyaltyPct}% distributed 3× a month to top partners.`, color: "#9061f9", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)" },
+              { icon: GitFork, title: "Open Strategy", desc: "No lock-in. Every tier completion is your decision — cash out or upgrade with earnings.", color: "var(--gold)", bg: "rgba(245,198,23,0.08)", border: "rgba(245,198,23,0.2)" },
+            ].map((b, i) => (
+              <div key={i} className={`lp-benefit-card ${i % 3 === 0 ? 'card-blue' : i % 3 === 1 ? 'card-purple' : 'card-gold'}`}>
+                <div className="icon-wrapper" style={{ background: b.bg, border: `1px solid ${b.border}` }}>
+                  <b.icon size={20} color={b.color} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <h3 style={{ fontSize: 16, margin: 0, fontWeight: 700, color: "var(--text)" }}>{b.title}</h3>
+                  <p style={{ fontSize: 13.5, color: "var(--muted)", margin: 0, lineHeight: 1.55 }}>{b.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ─── footer ───────────────────────────────────────────── */}
-      <footer style={{ borderTop: "1px solid var(--border)", background: "rgba(5,5,7,0.95)" }}>
-        <div className="container" style={{ padding: "44px 24px 28px" }}>
-          <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 32, marginBottom: 36 }}>
-            <div>
-              <Logo size={20} color="rgba(255,255,255,0.9)" />
-              <p style={{ color: "var(--faint)", fontSize: 13, marginTop: 12, lineHeight: 1.7, maxWidth: 210 }}>
-                A decentralized matrix platform based on fair algorithms. Fair queue. Full ledger. Five tiers.
-              </p>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--faint)", marginBottom: 14 }}>Play</div>
-              {[["Register", "/register"], ["Log in", "/login"], ["The ladder", "#ladder"], ["How it works", "#how"]].map(([label, href]) => (
-                <Link key={label} href={href} style={{ display: "block", fontSize: 14, color: "var(--muted)", marginBottom: 10 }}>{label}</Link>
-              ))}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--faint)", marginBottom: 14 }}>Learn</div>
-              {[["Earnings example", "#earn"], ["FAQ", "#faq"], ["How to join", "/dashboard/guide"], ["Royalty program", "/dashboard/royalty"]].map(([label, href]) => (
-                <Link key={label} href={href} style={{ display: "block", fontSize: 14, color: "var(--muted)", marginBottom: 10 }}>{label}</Link>
-              ))}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--faint)", marginBottom: 14 }}>Guarantees</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {[
-                  { icon: ShieldCheck, text: "Provably fair algorithm" },
-                  { icon: Lock,        text: "FIFO queue enforced" },
-                  { icon: BarChart3,   text: "Full audit trail" },
-                  { icon: GitFork,     text: "Open strategy" },
-                ].map((b) => (
-                  <div key={b.text} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <b.icon size={13} color="var(--gold)" />
-                    <span style={{ fontSize: 13, color: "var(--muted)" }}>{b.text}</span>
+      {/* ─── FAQ + CTA side by side ─── */}
+      <section id="faq" className="container" style={{ padding: "20px 24px 80px" }}>
+        <div className="lp-faq-row" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 32, alignItems: "start" }}>
+          {/* FAQ side */}
+          <div>
+            <div style={{ marginBottom: 32 }}>
+              <span className="kicker" style={{ marginBottom: 10, display: "block" }}>Got questions?</span>
+              <h2 style={{ fontSize: "clamp(26px,4vw,38px)", marginBottom: 10 }}>We&apos;ve got answers.</h2>
+              {/* Chat bubble icon */}
+              <div style={{ display: "inline-flex", gap: 6, marginTop: 10, marginBottom: 24 }}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface-2)", border: "1px solid var(--border-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                    {["💬", "❓", "✅"][i]}
                   </div>
                 ))}
               </div>
+              <Link href="#faq" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700, color: "var(--gold)" }}>
+                View all FAQs <ArrowRight size={14} />
+              </Link>
+            </div>
+            {FAQ_ITEMS.map((f) => (
+              <details key={f.q} className="faq-item">
+                <summary style={{ display: "flex", alignItems: "center", gap: 14, padding: "17px 20px", cursor: "pointer", userSelect: "none" }}>
+                  <span style={{ flex: 1, fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14.5 }}>{f.q}</span>
+                  <ChevronDown size={15} color="var(--gold)" className="faq-chevron" />
+                </summary>
+                <div className="faq-divider" />
+                <div style={{ padding: "14px 20px 20px", color: "var(--muted)", fontSize: 14, lineHeight: 1.75 }}>{f.a}</div>
+              </details>
+            ))}
+          </div>
+
+          {/* CTA side */}
+          <div style={{ position: "sticky", top: 90 }}>
+            <div className="lp-cta-card">
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <h2 style={{ fontSize: "clamp(24px,3vw,36px)", color: "white", background: "none", WebkitTextFillColor: "white", lineHeight: 1.15, marginBottom: 14 }}>
+                  Ready to<br />start climbing?
+                </h2>
+                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", margin: "0 0 28px", lineHeight: 1.6 }}>
+                  Secure your future. Build your legacy.<br />The system is ready. Are you?
+                </p>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+                  <Link href="/register" className="btn btn-primary" style={{ padding: "13px 24px", fontSize: 14 }}>
+                    Create your account <ArrowRight size={15} />
+                  </Link>
+                </div>
+                <Link href="/login" style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>Log in</Link>
+              </div>
             </div>
           </div>
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>© {new Date().getFullYear()} Revolutionary Income Plan</span>
-            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>Powered by automated USDT smart checkouts</span>
+        </div>
+      </section>
+
+      {/* ─── FOOTER ─── */}
+      <footer className="lp-footer">
+        <div className="container lp-footer-grid" style={{ padding: "52px 24px 32px", display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1.2fr", gap: 28 }}>
+          <div>
+            <Logo size={18} color="rgba(255,255,255,0.88)" />
+            <p style={{ color: "rgba(255,255,255,0.32)", fontSize: 13, marginTop: 14, lineHeight: 1.7, maxWidth: 200 }}>
+              A global matrix + auto pool platform based on fair algorithms. Built to create long-term value for everyone.
+            </p>
+            <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+              {[
+                { l: "𝕏", c: "#1d9bf0" },
+                { l: "f", c: "#1877f2" },
+                { l: "in", c: "#e1306c" },
+                { l: "▶", c: "#ff0000" },
+              ].map((s, i) => (
+                <div key={i} style={{ width: 32, height: 32, borderRadius: "50%", background: s.c, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "white", cursor: "pointer", fontWeight: 700 }}>
+                  {s.l}
+                </div>
+              ))}
+            </div>
+          </div>
+          {[
+            { head: "Navigate", links: [["How it works", "#how"], ["The 2-Pool", "#ladder"], ["Earnings", "#earn"], ["FAQ", "#faq"], ["About", "#benefits"]] },
+            { head: "Account", links: [["Log in", "/login"], ["Create account", "/register"], ["My dashboard", "/dashboard"], ["My referrals", "/dashboard"], ["Support", "/login"]] },
+            { head: "Resources", links: [["Privacy Policy", "#"], ["Terms of Service", "#"], ["Refund Policy", "#"], ["Contact Us", "#"]] },
+          ].map((col) => (
+            <div key={col.head}>
+              <div className="lp-footer-head">{col.head}</div>
+              {col.links.map(([label, href]) => (
+                <Link key={label} href={href} className="lp-footer-link">{label}</Link>
+              ))}
+            </div>
+          ))}
+          <div>
+            <div className="lp-footer-head">Stay connected</div>
+            <div style={{ display: "flex", gap: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <input
+                placeholder="Your email"
+                style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "none", padding: "10px 14px", color: "white", fontSize: 13, outline: "none", minWidth: 0 }}
+              />
+              <button style={{ background: "var(--gold)", border: "none", padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                <ArrowRight size={16} color="#0a0a0a" />
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", marginTop: 10, lineHeight: 1.6 }}>
+              No spam. Unsubscribe anytime.
+            </p>
+          </div>
+        </div>
+        <div className="container" style={{ padding: "0 24px 28px" }}>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 22, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            <span style={{ color: "rgba(255,255,255,0.22)", fontSize: 12 }}>© {new Date().getFullYear()} Revolutionary Group. All rights reserved.</span>
+            <span style={{ color: "rgba(255,255,255,0.22)", fontSize: 12 }}>Secure • Autonomous • High-Velocity</span>
           </div>
         </div>
       </footer>

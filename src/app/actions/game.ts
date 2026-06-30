@@ -17,6 +17,7 @@ export async function activateAction() {
   if (!s) return { error: "Not authenticated" };
   const user = await db.query.users.findFirst({ where: eq(users.id, s.uid) });
   if (!user) return { error: "User not found" };
+  if (user.status === "registered") return { error: "Account not activated. Please complete activation payment first." };
   if (user.currentSlab !== 0) return { error: "Already activated" };
 
   try {
@@ -35,6 +36,9 @@ export async function activateAction() {
 export async function decideAction(choice: "exit" | "upgrade") {
   const s = await getSession();
   if (!s) return { error: "Not authenticated" };
+  const user = await db.query.users.findFirst({ where: eq(users.id, s.uid) });
+  if (!user) return { error: "User not found" };
+  if (user.status === "registered") return { error: "Account not activated. Please complete activation payment first." };
   try {
     await decideChoice(s.uid, choice);
   } catch (e) {

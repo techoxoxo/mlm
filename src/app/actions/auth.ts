@@ -24,7 +24,7 @@ const registerSchema = z.object({
   name: z.string().trim().min(2, "Name too short").max(80, "Name too long"),
   email: z.string().trim().email("Invalid email"),
   password: z.string().min(8, "Password must be 8+ characters"),
-  ref: z.string().trim().optional(),
+  ref: z.string({ required_error: "Referral code or sponsor link is required" }).trim().min(1, "Referral code or sponsor link is required"),
 });
 
 export type ActionState = { error?: string } | null;
@@ -91,12 +91,9 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) return { error: "Email already registered" };
 
-  let sponsorId: string | null = null;
-  if (ref) {
-    const sponsor = await db.query.users.findFirst({ where: eq(users.referralCode, ref.toUpperCase()) });
-    if (!sponsor) return { error: "Referral code not found — leave it blank to join without one" };
-    sponsorId = sponsor.id;
-  }
+  const sponsor = await db.query.users.findFirst({ where: eq(users.referralCode, ref.toUpperCase()) });
+  if (!sponsor) return { error: "Invalid referral code. Please check your sponsor link or code." };
+  const sponsorId = sponsor.id;
 
   const passwordHash = await hashPassword(password);
 

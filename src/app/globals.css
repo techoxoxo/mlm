@@ -63,9 +63,10 @@
 :root {
   --app-aside-bg-from: #ffffff;
   --app-aside-bg-to: #f9f6ee;
-  --app-header-bg: linear-gradient(90deg, rgba(255,255,255,0.92) 0%, rgba(253,249,238,0.88) 100%);
+  --app-header-bg: rgba(255, 255, 255, 0.4);
   --app-aside-text: var(--text);
   --app-aside-nav-text: var(--muted);
+  --portal-bg: linear-gradient(160deg, #f8f5ff 0%, #efe8ff 30%, #e8eeff 65%, #f4f0ff 100%);
 }
 
 /* ------------------------------------------------------------------ dark theme */
@@ -89,7 +90,8 @@
 
   --app-aside-bg-from: rgba(12, 10, 8, 0.97);
   --app-aside-bg-to: rgba(8, 7, 5, 0.99);
-  --app-header-bg: linear-gradient(90deg, rgba(12, 10, 8, 0.92) 0%, rgba(19, 17, 13, 0.82) 100%);
+  --app-header-bg: rgba(6, 8, 15, 0.6);
+  --portal-bg: linear-gradient(160deg, #06080f 0%, #090c1a 40%, #070914 100%);
 }
 
 * {
@@ -732,6 +734,7 @@ h4 {
   /* landing nav */
   .landing-nav-links { display: none !important; }
   .landing-chevrons { display: none !important; }
+  .highlights-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
 
   /* hero */
   .hero-grid { grid-template-columns: 1fr !important; }
@@ -784,4 +787,28 @@ h4 {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ------------------------------------------------------------------ portal main gradient background */
+.app-main-wrapper {
+  position: relative;
+  background: var(--portal-bg) !important;
+  z-index: 1;
+}
+.app-main-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: 
+    radial-gradient(700px 480px at 72% 35%, rgba(124, 58, 237, 0.06), transparent 60%),
+    radial-gradient(500px 320px at 5% 75%, rgba(168, 85, 247, 0.04), transparent 55%),
+    radial-gradient(400px 300px at 85% 85%, rgba(245, 198, 23, 0.03), transparent 60%);
+  z-index: -1;
+}
+[data-theme="dark"] .app-main-wrapper::before {
+  background: 
+    radial-gradient(900px 600px at 68% 38%, rgba(100, 55, 220, 0.12), transparent 62%),
+    radial-gradient(600px 400px at 12% 68%, rgba(245, 198, 23, 0.05), transparent 58%),
+    radial-gradient(400px 300px at 50% 100%, rgba(90, 40, 200, 0.06), transparent 60%);
 }

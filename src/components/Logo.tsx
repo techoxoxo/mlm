@@ -21,7 +21,7 @@ export function Logo({ size = 22, withWord = true, color }: { size?: number; wit
       >
         <Image
           src="/images/rv_mlm.png"
-          alt="Revolutionary Income Plan logo"
+          alt="Revolutionary Grouplogo"
           width={imgSize}
           height={imgSize}
           style={{ objectFit: "contain", width: "100%", height: "100%" }}
@@ -39,7 +39,7 @@ export function Logo({ size = 22, withWord = true, color }: { size?: number; wit
             color: color || "inherit"
           }}
         >
-          Revolutionary Income Plan
+          Revolutionary Group
         </span>
       )}
     </span>
