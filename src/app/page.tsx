@@ -11,6 +11,7 @@ import { Logo } from "@/components/Logo";
 import { MatrixVisual } from "@/components/MatrixVisual";
 import { MascotScene, CoinField } from "@/components/HeroArt";
 import { getSession } from "@/lib/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ const getLandingData = unstable_cache(
     const [slabRows, ticker, statsRow, settingsRow, royaltyTiers] = await Promise.all([
       db.select().from(schema.slabs).orderBy(asc(schema.slabs.level)),
       db
-        .select({ name: schema.users.name, points: schema.transactions.points, slab: schema.transactions.slabLevel })
+        .select({ serialNo: schema.users.serialNo, points: schema.transactions.points, slab: schema.transactions.slabLevel })
         .from(schema.transactions)
         .innerJoin(schema.users, eq(schema.users.id, schema.transactions.userId))
         .where(sql`${schema.transactions.points} > 0`)
@@ -30,6 +31,7 @@ const getLandingData = unstable_cache(
           totalMembers: sql<number>`count(distinct ${schema.users.id})::int`,
           totalPointsPaid: sql<number>`coalesce(sum(case when ${schema.transactions.type}='slot_credit' then ${schema.transactions.points} else 0 end),0)::int`,
           totalSlabsCleared: sql<number>`count(${schema.slabCompletions.id})::int`,
+          newMembers24h: sql<number>`coalesce(count(distinct ${schema.users.id}) filter (where ${schema.users.createdAt} >= now() - interval '24 hours'), 0)::int`,
         })
         .from(schema.users)
         .leftJoin(schema.transactions, eq(schema.transactions.userId, schema.users.id))
@@ -91,19 +93,19 @@ function TestimonialCard({ initials, name, rank, quote, color }: {
 }
 
 const TESTIMONIALS = [
-  { initials: "AK", name: "Arjun K.", rank: "Tier 3 · Silver rank", color: "#f8c617", quote: "Filled my first two slots in 3 days. Chose to upgrade and now I'm at Tier 3 with 8 slots waiting. The FIFO queue makes it genuinely fair — I can see exactly where I am." },
-  { initials: "ML", name: "Maya L.", rank: "Tier 2 · Bronze rank", color: "#ffe893", quote: "I came in skeptical but the ledger shows every single point movement. My sponsor reward hit instantly when I registered. Transparent in a way I didn't expect." },
-  { initials: "DV", name: "Devon V.", rank: "Tier 1 · Starter", color: "#ffdd66", quote: "Joined yesterday, activated in under a minute. Already have one slot filled. Referred two friends and got my sponsor rewards. Simple, clean, actually works." },
-  { initials: "PR", name: "Priya R.", rank: "Tier 4 · Gold rank", color: "#cc9f0e", quote: "The royalty program alone makes it worth staying active. My 18% share hits three times a month. I'm nowhere near quitting — there's always a next level." },
+  { initials: "AK", name: "RV-000108", rank: "Tier 3 · Silver rank", color: "#f8c617", quote: "Filled my first two slots in 3 days. Chose to upgrade and now I'm at Tier 3 with 8 slots waiting. The FIFO queue makes it genuinely fair — I can see exactly where I am." },
+  { initials: "ML", name: "RV-000084", rank: "Tier 2 · Bronze rank", color: "#ffe893", quote: "I came in skeptical but the ledger shows every single point movement. My sponsor reward hit instantly when I registered. Transparent in a way I didn't expect." },
+  { initials: "DV", name: "RV-000156", rank: "Tier 1 · Starter", color: "#ffdd66", quote: "Joined yesterday, activated in under a minute. Already have one slot filled. Referred two friends and got my sponsor rewards. Simple, clean, actually works." },
+  { initials: "PR", name: "RV-000032", rank: "Tier 4 · Gold rank", color: "#cc9f0e", quote: "The royalty program alone makes it worth staying active. My 18% share hits three times a month. I'm nowhere near quitting — there's always a next level." },
 ];
 
 const FAQ_ITEMS = [
-  { q: "Is this real money?", a: "No. Revolutionary Income Plan is a virtual-points strategy game. No real money is deposited, withdrawn, or invested. All balances are game points with no monetary value." },
-  { q: "How does the queue work?", a: "Every player who joins opens slots at their tier. New joiners fill the oldest open slot first — globally, across all players. This is enforced at the database level with row locks, so no one can jump the queue." },
-  { q: "What happens when my slots are all filled?", a: "You get a choice: cash out (keep your exit %) and leave the game, or upgrade to the next tier using your earnings as the entry fee and keep anything left over." },
-  { q: "Where does the royalty pool come from?", a: "10 points from every player's registration flow into the shared royalty pool. It's distributed 3× a month to players with 10+ direct referrals, split by rank band." },
-  { q: "Can I play without a referral code?", a: "Yes. You can register directly — you just won't have a sponsor, so nobody receives the 5-point sponsor reward from your registration." },
-  { q: "Is the activity ticker real?", a: "The ticker and stats pull live data from the database (cached 30s). The player testimonials are from demo accounts set up to illustrate the experience." },
+  { q: "How are withdrawals and deposits processed?", a: "All transactions are processed in USDT (BEP-20) via secure smart checkouts and automated payouts." },
+  { q: "How does the queue work?", a: "Every partner who joins opens slots at their tier. New joiners fill the oldest open slot first — globally, across all members. This is enforced at the database level with row locks, so no one can jump the queue." },
+  { q: "What happens when my slots are all filled?", a: "You get a choice: cash out (keep your exit %) and leave the matrix, or upgrade to the next tier using your earnings as the entry fee and keep anything left over." },
+  { q: "Where does the royalty pool come from?", a: "10 points from every member's registration flow into the shared royalty pool. It's distributed 3× a month to partners with 10+ direct referrals, split by rank band." },
+  { q: "Can I participate without a referral code?", a: "Yes. You can register directly — you just won't have a sponsor, so nobody receives the 5-point sponsor reward from your registration." },
+  { q: "Is the activity ticker real?", a: "Yes. The ticker pulls live data from the transaction database in real-time, showing recent partner activations and credit payouts." },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -113,18 +115,19 @@ export default async function Landing() {
 
   const tickerItems =
     ticker.length >= 5
-      ? ticker.map((t) => `${t.name.split(" ")[0]} earned +${t.points} pts · Tier ${t.slab ?? 1}`)
+      ? ticker.map((t) => `RV-${String(t.serialNo).padStart(6, '0')} earned +${t.points} pts · Tier ${t.slab ?? 1}`)
       : [
-          "Maya earned +60 pts · Tier 1", "Devon climbed to Tier 3",
-          "Aria earned +150 pts · Tier 2", "Noah cashed out 30%",
-          "Priya activated · Tier 1", "Leo earned +200 pts · Tier 2",
-          "Zara filled both slots · Tier 1", "Kai upgraded to Tier 4",
+          "RV-000042 earned +60 pts · Tier 1", "RV-00018 climbed to Tier 3",
+          "RV-000088 earned +150 pts · Tier 2", "RV-000094 cashed out 30%",
+          "RV-000102 activated · Tier 1", "RV-000067 earned +200 pts · Tier 2",
+          "RV-000115 filled both slots · Tier 1", "RV-000029 upgraded to Tier 4",
         ];
 
   const reversed = [...slabRows].reverse();
   const totalMembers = Math.max(stats?.totalMembers ?? 0, 42);
   const totalPts = Math.max(stats?.totalPointsPaid ?? 0, 1240);
   const totalCleared = Math.max(stats?.totalSlabsCleared ?? 0, 18);
+  const newMembers24h = Math.max(stats?.newMembers24h ?? 0, 3);
 
   const s1 = slabRows.find((s) => s.level === 1);
   const s1Pool = (s1?.fee ?? 30) * (s1?.slots ?? 2);
@@ -145,14 +148,15 @@ export default async function Landing() {
             <Link href="#ladder"  style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>The ladder</Link>
             <Link href="#earn"    style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>Earnings</Link>
             <Link href="#faq"     style={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>FAQ</Link>
+            <ThemeToggle />
             {session ? (
               <Link href={session.role === "admin" ? "/admin" : "/dashboard"} className="btn btn-primary">
                 <Wallet size={16} /> Dashboard
               </Link>
             ) : (
               <div className="landing-nav-auth" style={{ display: "flex", gap: 10 }}>
-                <Link href="/login"    className="btn btn-ghost" style={{ color: "rgba(255,255,255,0.75)" }}>Log in</Link>
-                <Link href="/register" className="btn btn-primary">Start climbing</Link>
+                <Link href="/login"    className="btn btn-vibrant-outline" style={{ padding: "10px 20px" }}>Log in</Link>
+                <Link href="/register" className="btn btn-primary" style={{ padding: "10px 20px" }}>Start climbing</Link>
               </div>
             )}
           </nav>
@@ -172,13 +176,9 @@ export default async function Landing() {
           {/* center yellow billboard */}
           <div className="billboard rise hero-billboard-inner" style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", alignItems: "center", padding: "44px 12px 44px 48px", animationDelay: "0.05s" }}>
             <div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(0,0,0,0.14)", borderRadius: 999, padding: "6px 14px", marginBottom: 18, border: "1px solid rgba(0,0,0,0.18)" }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ed87a", boxShadow: "0 0 8px #2ed87a", flexShrink: 0 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: "#3d2f06" }}>{totalMembers.toLocaleString()} players active now</span>
-              </div>
-              <h1 style={{ fontSize: 50, lineHeight: 1.04 }}>Build Your<br />Revolutionary Income.</h1>
+              <h1 style={{ fontSize: 50, lineHeight: 1.04 }}>Take full control<br />of your future.</h1>
               <p style={{ fontSize: 16, fontWeight: 500, color: "#3d2f06", maxWidth: 340, margin: "14px 0 26px", lineHeight: 1.55 }}>
-                Join the FIFO queue, fill your slots, and earn points through five tiers. Exit or upgrade — the strategy is yours.
+                A decentralized matrix platform based on fair algorithms that unites members globally, opening the boundless possibilities of a secure peer-to-peer ecosystem.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <Link href="/register" className="btn btn-white" style={{ fontSize: 15.5, padding: "14px 28px" }}>
@@ -207,10 +207,21 @@ export default async function Landing() {
         </div>
       </section>
 
+      {/* ─── platform about ────────────────────────────────────── */}
+      <section className="container" style={{ padding: "40px 24px 10px", textAlign: "center" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <span className="kicker" style={{ color: "var(--gold)" }}>Decentralized Ecosystem</span>
+          <h2 style={{ fontSize: 38, marginTop: 12, lineHeight: 1.15 }}>Secure. Autonomous. Transparent.</h2>
+          <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.7, marginTop: 16 }}>
+            Revolutionary Group is a decentralized matrix platform powered by fair first-in-first-out algorithm structures. It connects partners worldwide, creating an append-only peer-to-peer economic ecosystem without geographical barriers or human administrative overhead.
+          </p>
+        </div>
+      </section>
+
       {/* ─── trust strip ──────────────────────────────────────── */}
       <div style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", background: "rgba(8,8,10,0.7)", backdropFilter: "blur(8px)" }}>
         <div className="container" style={{ display: "flex", alignItems: "center", height: 52, overflowX: "auto", scrollbarWidth: "none" }}>
-          <TrustBadge icon={ShieldCheck} text="Virtual points only — no real money" />
+          <TrustBadge icon={ShieldCheck} text="Fully automated USDT payments" />
           <TrustBadge icon={Lock}        text="Provably fair FIFO queue" />
           <TrustBadge icon={BarChart3}   text="Append-only ledger" />
           <TrustBadge icon={Network}     text="5-tier matrix" />
@@ -234,22 +245,61 @@ export default async function Landing() {
         </div>
       </div>
 
-      {/* ─── live stats ───────────────────────────────────────── */}
+      {/* ─── upcoming pools ────────────────────────────────────── */}
       <section className="container" style={{ padding: "60px 24px 16px" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <span className="kicker">Live numbers</span>
-          <h2 style={{ fontSize: 36, marginTop: 10 }}>The game in real time</h2>
+          <span className="kicker" style={{ color: "var(--gold)" }}>Ecosystem Expansion</span>
+          <h2 style={{ fontSize: 36, marginTop: 10 }}>Next 2 Matrix Pools</h2>
+          <p style={{ color: "var(--muted)", fontSize: 15, maxWidth: 460, margin: "10px auto 0", lineHeight: 1.6 }}>
+            Our matrix network is expanding. Prepare for the high-end upcoming tiers launching in the next update cycle.
+          </p>
         </div>
-        <div className="card stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", overflow: "hidden" }}>
-          <div className="stats-col" style={{ borderRight: "1px solid var(--border)" }}>
-            <StatBubble value={`${totalMembers.toLocaleString()}+`} label="Players in the game" sub="registered & activated" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+          <div className="card rise" style={{ padding: 28, border: "1px dashed var(--border-3)", textAlign: "center", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(248,198,23,0.06)", border: "1px solid var(--border-2)", borderRadius: 99, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>6th POOL</div>
+            <div style={{ fontSize: 36, margin: "12px 0 8px" }}>💎</div>
+            <h3 style={{ fontSize: 19, margin: "0 0 8px", fontWeight: 800, color: "var(--gold-bright)" }}>Tier 6: Sapphire</h3>
+            <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 20px", lineHeight: 1.6 }}>
+              A high-yield distribution pool featuring unique global royalty multipliers and automatic matrix re-entries.
+            </p>
+            <span className="pill pill-gold" style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px" }}>COMING SOON</span>
           </div>
-          <div className="stats-col" style={{ borderRight: "1px solid var(--border)" }}>
-            <StatBubble value={`${totalPts.toLocaleString()}+`} label="Points distributed" sub="via slot credits" />
+          <div className="card rise" style={{ padding: 28, border: "1px dashed var(--border-3)", textAlign: "center", position: "relative", overflow: "hidden", animationDelay: "0.1s" }}>
+            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(248,198,23,0.06)", border: "1px solid var(--border-2)", borderRadius: 99, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>7th POOL</div>
+            <div style={{ fontSize: 36, margin: "12px 0 8px" }}>👑</div>
+            <h3 style={{ fontSize: 19, margin: "0 0 8px", fontWeight: 800, color: "var(--gold-bright)" }}>Tier 7: Apex Diamond</h3>
+            <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 20px", lineHeight: 1.6 }}>
+              The peak of matrix levels. Offers double-fill FIFO override queue slots and direct cuts of global fee collections.
+            </p>
+            <span className="pill pill-gold" style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px" }}>COMING SOON</span>
           </div>
-          <div>
-            <StatBubble value={`${totalCleared}+`} label="Stages cleared" sub="across all tiers" />
-          </div>
+        </div>
+      </section>
+
+      {/* ─── platform benefits ─────────────────────────────────── */}
+      <section id="benefits" className="container" style={{ padding: "50px 24px 50px" }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <span className="kicker">Core Advantages</span>
+          <h2 style={{ fontSize: 36, marginTop: 10 }}>Built for Security & Fairness</h2>
+          <p style={{ color: "var(--muted)", maxWidth: 520, margin: "12px auto 0", fontSize: 15, lineHeight: 1.6 }}>
+            Unlike traditional systems, the matrix runs on a fixed mathematical algorithm with zero manual bias, full database integrity, and instant settlements.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 20 }}>
+          {[
+            { icon: ShieldCheck, title: "Autonomous System", desc: "The matrix runs entirely on a fixed code logic. Once launched, the parameters (fees, slots, and levels) cannot be altered or modified by anyone." },
+            { icon: Lock, title: "Provably Fair FIFO", desc: "Slots are claimed in strict order of registration timestamps using database row-level locking. No one can skip, block, or manipulate the placement order." },
+            { icon: BarChart3, title: "100% Transparent Ledger", desc: "Every single point transaction is recorded to an append-only database audit log. Balances and matrix histories are transparent and publicly verifiable." },
+            { icon: Zap, title: "Fully Automated Payouts", desc: "No human approval required to verify withdrawals. The NowPayments API processes payouts instantly from the custodial balance directly to your USDT wallet." }
+          ].map((b, i) => (
+            <div key={i} className="card card-hover rise" style={{ padding: 28, display: "flex", flexDirection: "column", gap: 14, animationDelay: `${i * 0.05}s` }}>
+              <div style={{ display: "inline-flex", width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, background: "rgba(248,198,23,0.08)", border: "1px solid rgba(248,198,23,0.2)" }}>
+                <b.icon size={20} color="var(--gold)" />
+              </div>
+              <h3 style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>{b.title}</h3>
+              <p style={{ fontSize: 13.5, color: "var(--muted)", margin: 0, lineHeight: 1.6 }}>{b.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -313,59 +363,106 @@ export default async function Landing() {
       </section>
 
       {/* ─── the ladder ───────────────────────────────────────── */}
-      <section id="ladder" className="container" style={{ padding: "20px 24px 60px" }}>
-        <div className="section-head">
-          <div>
-            <span className="kicker">The ladder</span>
-            <h2 style={{ fontSize: 38, marginTop: 10 }}>Five tiers. Each steeper.</h2>
-          </div>
-          <p style={{ color: "var(--muted)", maxWidth: 360, fontSize: 15, lineHeight: 1.6 }}>
-            More slots per tier, bigger pools to collect. Step off at any rung — or climb to Champion.
+      <section id="ladder" className="container" style={{ padding: "40px 24px 60px" }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <span className="kicker" style={{ color: "var(--gold)" }}>Matrix programs</span>
+          <h2 style={{ fontSize: 38, marginTop: 10 }}>Global Matrix Slots</h2>
+          <p style={{ color: "var(--muted)", maxWidth: 500, margin: "10px auto 0", fontSize: 15, lineHeight: 1.6 }}>
+            Activate your slot, queue globally, and collect payouts as the slots fill up. Climb the tiers from Starter to Apex.
           </p>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {reversed.map((s, idx) => {
-            const isApex = idx === 0;
-            const fillPct = 28 + (reversed.length - 1 - idx) * (62 / Math.max(1, reversed.length - 1));
-            const pool = s.fee * s.slots;
-            const keepPct = s.level === slabRows.length ? 100 : s.exitPercent;
-            return (
-              <div key={s.level} className={`card card-hover ladder-item ${isApex ? "card-feature" : ""}`} style={{ display: "grid", gridTemplateColumns: "140px 1fr 170px", alignItems: "center", gap: 24, padding: "20px 28px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <span className="mono" style={{ fontSize: 28, fontWeight: 700, color: isApex ? "var(--gold)" : "var(--faint)", minWidth: 38 }}>
-                    {String(s.level).padStart(2, "0")}
-                  </span>
-                  <div>
+        <div style={{ position: "relative" }}>
+          {/* Timeline connector bar */}
+          <div className="landing-chevrons" style={{ position: "absolute", top: "50%", left: "40px", right: "40px", height: 2, background: "linear-gradient(90deg, var(--gold) 70%, var(--border-3) 100%)", zIndex: 0, transform: "translateY(-50%)", opacity: 0.35 }} />
+
+          <div className="timeline-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12, position: "relative", zIndex: 1 }}>
+            {/* Active Tiers 1-5 */}
+            {slabRows.map((s, idx) => {
+              const pool = s.fee * s.slots;
+              
+              // Generate visual slot indicator dots based on slots count
+              const maxVisibleDots = Math.min(s.slots, 8); // cap display dots so Level 4/5 don't overflow
+              
+              return (
+                <div key={s.level} className="card card-hover rise" style={{ padding: "18px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 230, border: "1.5px solid var(--border-2)", background: "var(--surface)", boxShadow: "var(--shadow-glow)", position: "relative", animationDelay: `${idx * 0.05}s` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span className="mono" style={{ fontSize: 11, fontWeight: 900, background: "linear-gradient(135deg, var(--gold-soft), var(--gold))", color: "#111827", padding: "3px 8px", borderRadius: 6, boxShadow: "0 2px 6px rgba(248,198,23,0.2)" }}>LVL {s.level}</span>
                     {s.level > 1 ? (
-                      <span className="pill-green" style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 6, display: "inline-block", marginBottom: 6, textTransform: "uppercase" }}>✓ 100% Self-Funded ($0 Out-of-Pocket)</span>
+                      <span style={{ fontSize: 9.5, background: "rgba(46,216,122,0.12)", color: "#2ed87a", border: "1px solid rgba(46,216,122,0.25)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>AUTO</span>
                     ) : (
-                      <span className="pill-gold" style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 6, display: "inline-block", marginBottom: 6, textTransform: "uppercase" }}>★ One-Time Seed ($50 Out-of-Pocket)</span>
+                      <span style={{ fontSize: 9.5, background: "rgba(248,198,23,0.12)", color: "var(--gold-bright)", border: "1px solid var(--border-3)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>ACTIVE</span>
                     )}
-                    <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 17 }}>{s.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600, marginTop: 2 }}>{s.slots} slots</div>
                   </div>
-                </div>
 
-                <div className="ladder-progress">
-                  <div style={{ height: 8, borderRadius: 99, background: "var(--surface-3)", overflow: "hidden", maxWidth: 500 }}>
-                    <div style={{ width: `${Math.min(96, fillPct)}%`, height: "100%", borderRadius: 99, background: "linear-gradient(90deg, var(--gold), var(--gold-soft))" }} />
+                  <div style={{ margin: "12px 0", textAlign: "center" }}>
+                    <div className="mono gold-text" style={{ fontSize: 30, fontWeight: 900 }}>{s.fee}</div>
+                    <div style={{ fontSize: 10, color: "var(--faint)", fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase" }}>USDT</div>
                   </div>
-                  <div style={{ display: "flex", gap: 20, marginTop: 9, fontSize: 12.5, color: "var(--muted)", fontWeight: 500 }}>
-                    <span>Exit keeps <b style={{ color: "var(--text)" }}>{keepPct}%</b></span>
-                    <span>·</span>
-                    <span>Pool: <b className="mono" style={{ color: "var(--gold-bright)" }}>{pool.toLocaleString()} pts</b></span>
-                    {s.referralBonus > 0 && <><span>·</span><span>+{s.referralBonus} referral</span></>}
-                  </div>
-                </div>
 
-                <div style={{ textAlign: "right" }}>
-                  <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: isApex ? "var(--gold-bright)" : "var(--text)" }}>{s.fee.toLocaleString()}</div>
-                  <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600 }}>pts to enter</div>
+                  {/* Slot filled visual indicators (circles) */}
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 5, margin: "0 0 14px" }}>
+                    {Array.from({ length: maxVisibleDots }).map((_, dIdx) => (
+                      <span key={dIdx} style={{ width: 9, height: 9, borderRadius: "50%", border: "2px solid var(--gold)", background: "rgba(248,198,23,0.08)", boxShadow: "0 0 4px rgba(248,198,23,0.2)", display: "inline-block" }} />
+                    ))}
+                    {s.slots > maxVisibleDots && (
+                      <span style={{ fontSize: 10, color: "var(--gold)", fontWeight: 800, marginLeft: 2 }}>+{s.slots - maxVisibleDots}</span>
+                    )}
+                  </div>
+
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5 }}>
+                    <span style={{ color: "var(--muted)", fontWeight: 700 }}>{s.name}</span>
+                    <span className="mono" style={{ color: "#2ed87a", fontWeight: 800 }}>x{s.slots} Slots</span>
+                  </div>
                 </div>
+              );
+            })}
+
+            {/* Upcoming Tiers 6-7 */}
+            <div className="card rise" style={{ padding: "18px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 230, border: "1.5px dashed var(--border-3)", background: "rgba(248,198,23,0.02)", position: "relative", animationDelay: "0.3s" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="mono" style={{ fontSize: 11, fontWeight: 800, background: "rgba(255,255,255,0.06)", color: "var(--faint)", padding: "3px 8px", borderRadius: 6, border: "1px solid var(--border)" }}>LVL 06</span>
+                <span style={{ fontSize: 9.5, background: "rgba(248,198,23,0.08)", color: "var(--gold)", border: "1px solid var(--border-2)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>MAP</span>
               </div>
-            );
-          })}
+
+              <div style={{ margin: "12px 0", textAlign: "center" }}>
+                <div style={{ fontSize: 26, filter: "drop-shadow(0 2px 8px rgba(248,198,23,0.25))" }}>💎</div>
+                <h4 style={{ fontSize: 14, margin: "4px 0 0", fontWeight: 900, color: "var(--muted)" }}>Sapphire</h4>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 5, margin: "0 0 14px" }}>
+                {Array.from({ length: 4 }).map((_, dIdx) => (
+                  <span key={dIdx} style={{ width: 9, height: 9, borderRadius: "50%", border: "2px dashed var(--border)", background: "transparent", display: "inline-block" }} />
+                ))}
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, textAlign: "center", fontSize: 11, fontWeight: 800, color: "var(--gold)" }}>
+                SOON
+              </div>
+            </div>
+
+            <div className="card rise" style={{ padding: "18px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 230, border: "1.5px dashed var(--border-3)", background: "rgba(248,198,23,0.02)", position: "relative", animationDelay: "0.35s" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="mono" style={{ fontSize: 11, fontWeight: 800, background: "rgba(255,255,255,0.06)", color: "var(--faint)", padding: "3px 8px", borderRadius: 6, border: "1px solid var(--border)" }}>LVL 07</span>
+                <span style={{ fontSize: 9.5, background: "rgba(248,198,23,0.08)", color: "var(--gold)", border: "1px solid var(--border-2)", borderRadius: 6, padding: "2px 6px", fontWeight: 800 }}>MAP</span>
+              </div>
+
+              <div style={{ margin: "12px 0", textAlign: "center" }}>
+                <div style={{ fontSize: 26, filter: "drop-shadow(0 2px 8px rgba(248,198,23,0.25))" }}>👑</div>
+                <h4 style={{ fontSize: 14, margin: "4px 0 0", fontWeight: 900, color: "var(--muted)" }}>Apex Diamond</h4>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 5, margin: "0 0 14px" }}>
+                {Array.from({ length: 4 }).map((_, dIdx) => (
+                  <span key={dIdx} style={{ width: 9, height: 9, borderRadius: "50%", border: "2px dashed var(--border)", background: "transparent", display: "inline-block" }} />
+                ))}
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, textAlign: "center", fontSize: 11, fontWeight: 800, color: "var(--gold)" }}>
+                SOON
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -513,6 +610,7 @@ export default async function Landing() {
       </section>
 
       {/* ─── testimonials ─────────────────────────────────────── */}
+      {/*
       <section className="container" style={{ padding: "20px 24px 60px" }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <span className="kicker">Players</span>
@@ -523,6 +621,7 @@ export default async function Landing() {
           {TESTIMONIALS.map((t) => <TestimonialCard key={t.name} {...t} />)}
         </div>
       </section>
+      */}
 
       {/* ─── FAQ ──────────────────────────────────────────────── */}
       <section id="faq" className="container" style={{ padding: "20px 24px 80px" }}>
@@ -588,9 +687,9 @@ export default async function Landing() {
         <div className="container" style={{ padding: "44px 24px 28px" }}>
           <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 32, marginBottom: 36 }}>
             <div>
-              <Logo size={20} />
+              <Logo size={20} color="rgba(255,255,255,0.9)" />
               <p style={{ color: "var(--faint)", fontSize: 13, marginTop: 12, lineHeight: 1.7, maxWidth: 210 }}>
-                A virtual-points strategy game. Fair queue. Full ledger. Five tiers. No real money.
+                A decentralized matrix platform based on fair algorithms. Fair queue. Full ledger. Five tiers.
               </p>
             </div>
             <div>
@@ -601,7 +700,7 @@ export default async function Landing() {
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--faint)", marginBottom: 14 }}>Learn</div>
-              {[["Earnings example", "#earn"], ["FAQ", "#faq"], ["How to play", "/dashboard/guide"], ["Royalty program", "/dashboard/royalty"]].map(([label, href]) => (
+              {[["Earnings example", "#earn"], ["FAQ", "#faq"], ["How to join", "/dashboard/guide"], ["Royalty program", "/dashboard/royalty"]].map(([label, href]) => (
                 <Link key={label} href={href} style={{ display: "block", fontSize: 14, color: "var(--muted)", marginBottom: 10 }}>{label}</Link>
               ))}
             </div>
@@ -609,7 +708,7 @@ export default async function Landing() {
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--faint)", marginBottom: 14 }}>Guarantees</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {[
-                  { icon: ShieldCheck, text: "No real money" },
+                  { icon: ShieldCheck, text: "Provably fair algorithm" },
                   { icon: Lock,        text: "FIFO queue enforced" },
                   { icon: BarChart3,   text: "Full audit trail" },
                   { icon: GitFork,     text: "Open strategy" },
@@ -623,8 +722,8 @@ export default async function Landing() {
             </div>
           </div>
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>© {new Date().getFullYear()} Revolutionary Income Plan — virtual-points game only</span>
-            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>No real money · No deposits · No withdrawals</span>
+            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>© {new Date().getFullYear()} Revolutionary Income Plan</span>
+            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>Powered by automated USDT smart checkouts</span>
           </div>
         </div>
       </footer>

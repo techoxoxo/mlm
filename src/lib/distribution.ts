@@ -297,16 +297,37 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
       })
       .where(eq(users.id, userId));
   } else {
-    await tx
-      .insert(slabCompletions)
-      .values({ userId, slabLevel: level, collected, status: "pending" })
-      .onConflictDoNothing();
+    // Check if the user is flagged for automatic upgrade
+    const [user] = await tx.select({ autoUpgrade: users.autoUpgrade }).from(users).where(eq(users.id, userId));
+    const isAutoUpgrade = user?.autoUpgrade ?? false;
 
-    // clearing a stage resets the royalty-reserve inactivity clock
-    await tx
-      .update(users)
-      .set({ pendingChoiceSlab: level, lastStageClearedAt: sql`now()` })
-      .where(eq(users.id, userId));
+    if (isAutoUpgrade) {
+      const kept = Math.max(0, collected - nextSlab.fee);
+      await post(tx, userId, "upgrade_take", 0, {
+        slabLevel: level,
+        note: `Auto upgrade to ${nextSlab.name}: seed ${nextSlab.fee}, kept ${kept} of ${collected}`,
+        meta: { kept, seed: nextSlab.fee, collected },
+      });
+      await tx
+        .insert(slabCompletions)
+        .values({ userId, slabLevel: level, collected, status: "upgraded", payout: kept, decidedAt: sql`now()` })
+        .onConflictDoNothing();
+
+      const entry = await enterSlab(tx, userId, level + 1);
+      // Trigger notifications asynchronously
+      notifyEntry(userId, entry).catch(console.error);
+    } else {
+      await tx
+        .insert(slabCompletions)
+        .values({ userId, slabLevel: level, collected, status: "pending" })
+        .onConflictDoNothing();
+
+      // clearing a stage resets the royalty-reserve inactivity clock
+      await tx
+        .update(users)
+        .set({ pendingChoiceSlab: level, lastStageClearedAt: sql`now()` })
+        .where(eq(users.id, userId));
+    }
   }
 }
 

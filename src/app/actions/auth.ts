@@ -15,6 +15,9 @@ import { chargeRegistration } from "@/lib/distribution";
 import { enqueueActivationAsync } from "@/lib/queue";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
+import { connection } from "@/lib/redis";
+import { sendOtpEmail } from "@/lib/email";
+
 const { users } = schema;
 
 const registerSchema = z.object({
@@ -40,6 +43,28 @@ function isUniqueViolation(e: unknown): { constraint?: string } | null {
   return null;
 }
 
+export async function sendOtpAction(email: string): Promise<{ ok: boolean; error?: string }> {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes("@")) {
+    return { ok: false, error: "Please enter a valid email address" };
+  }
+
+  const ip = await clientIp();
+  const rl = await rateLimit(`otp:${ip}`, 3, 300); // 3 OTP requests / 5 min / IP
+  if (!rl.ok) return { ok: false, error: `Too many attempts. Try again in ${rl.retryAfter}s.` };
+
+  const existing = await db.query.users.findFirst({ where: eq(users.email, cleanEmail) });
+  if (existing) return { ok: false, error: "Email already registered" };
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  await connection.set(`otp:${cleanEmail}`, otp, "EX", 900);
+
+  const sent = await sendOtpEmail(cleanEmail, otp);
+  if (!sent) return { ok: false, error: "Failed to dispatch verification email" };
+
+  return { ok: true };
+}
+
 export async function registerAction(_prev: ActionState, form: FormData): Promise<ActionState> {
   const ip = await clientIp();
   const rl = await rateLimit(`register:${ip}`, 5, 600); // 5 signups / 10 min / IP
@@ -54,6 +79,14 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
   if (!parsed.success) return { error: parsed.error.errors[0].message };
   const { name, password, ref } = parsed.data;
   const email = parsed.data.email.toLowerCase();
+
+  const otp = String(form.get("otp") || "").trim();
+  if (!otp) return { error: "Verification code is required" };
+
+  const savedOtp = await connection.get(`otp:${email}`);
+  if (!savedOtp || savedOtp !== otp) {
+    return { error: "Invalid or expired verification code" };
+  }
 
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) return { error: "Email already registered" };
@@ -95,6 +128,7 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
   }
   if (!created) return { error: "Could not create account, please try again" };
 
+  await connection.del(`otp:${email}`);
   await setSession({ uid: created.id, role: created.role, email: created.email });
   redirect("/dashboard");
 }

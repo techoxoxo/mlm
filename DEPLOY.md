@@ -1,6 +1,6 @@
-# Deploying Apex
+# Deploying revolutionary-group
 
-Apex runs as **two processes** against managed **PostgreSQL** and **Redis**.
+revolutionary-group runs as **two processes** against managed **PostgreSQL** and **Redis**.
 
 ## 1. Provision
 - PostgreSQL 14+ (managed: Supabase / RDS / Railway)
@@ -32,8 +32,8 @@ worker: npm run worker   # REQUIRED — registration, distribution & royalty run
 ```
 Or with a process manager:
 ```bash
-pm2 start "npm run start"  --name apex-web
-pm2 start "npm run worker" --name apex-worker
+pm2 start "npm run start"  --name revolutionary-group-web
+pm2 start "npm run worker" --name revolutionary-group-worker
 ```
 
 ## 5. Health

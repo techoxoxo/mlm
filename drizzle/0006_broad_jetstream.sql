@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "auto_upgrade" boolean DEFAULT false NOT NULL;

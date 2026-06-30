@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getUserJourney } from "@/lib/queries";
 import { memberCode } from "@/db/schema";
+import { toggleAutoUpgradeAction } from "@/app/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -58,10 +59,19 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
       <div className="card" style={{ padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14 }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <h2 style={{ fontSize: 22 }}>{user.name}</h2>
               <span className="pill pill-gold mono">{memberCode(user.serialNo)}</span>
               <span className="pill" style={{ textTransform: "capitalize" }}>{user.status}</span>
+              
+              <form action={async () => {
+                "use server";
+                await toggleAutoUpgradeAction(user.id, !user.autoUpgrade);
+              }}>
+                <button type="submit" className={user.autoUpgrade ? "pill pill-gold" : "pill"} style={{ border: "1px solid var(--border)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                  {user.autoUpgrade ? "⚙️ Auto-Upgrade: ON" : "⚙️ Auto-Upgrade: OFF"}
+                </button>
+              </form>
             </div>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "6px 0 0" }}>{user.email}</p>
             <p style={{ color: "var(--faint)", fontSize: 12.5, margin: "4px 0 0" }}>

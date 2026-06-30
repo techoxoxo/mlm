@@ -159,3 +159,13 @@ export async function updateSlabAction(form: FormData) {
   revalidatePath("/admin/slabs");
   revalidatePath("/admin");
 }
+
+export async function toggleAutoUpgradeAction(userId: string, autoUpgrade: boolean) {
+  await requireAdmin();
+  await db
+    .update(users)
+    .set({ autoUpgrade })
+    .where(eq(users.id, userId));
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin/users");
+}

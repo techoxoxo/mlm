@@ -178,6 +178,9 @@ export const users = pgTable(
     // royalty bookkeeping
     lastStageClearedAt: timestamp("last_stage_cleared_at", { withTimezone: true }),
     lastReserveRewardAt: timestamp("last_reserve_reward_at", { withTimezone: true }),
+
+    // automatic admin-driven slab upgrading
+    autoUpgrade: boolean("auto_upgrade").notNull().default(false),
   },
   (t) => ({
     emailIdx: uniqueIndex("users_email_idx").on(t.email),

@@ -4,6 +4,10 @@ import { readDb as db, schema } from "@/db";
 
 const { users, slabs, slots, transactions, slabCompletions, royaltyPayouts } = schema;
 
+export function maskName(serialNo: number | null): string {
+  return serialNo ? `RV-${String(serialNo).padStart(6, '0')}` : "RV-000000";
+}
+
 export async function getDashboard(uid: string) {
   const user = await db.query.users.findFirst({ where: eq(users.id, uid) });
   if (!user) return null;
@@ -82,10 +86,10 @@ export async function getDashboard(uid: string) {
     collected,
     pending,
     recentTx,
-    referrals,
+    referrals: referrals.map((r) => ({ ...r, name: maskName(r.serialNo) })),
     totalEarned: earned,
     earningsByType,
-    leaderboard,
+    leaderboard: leaderboard.map((l) => ({ ...l, name: maskName(l.serialNo) })),
   };
 }
 
@@ -132,11 +136,12 @@ export async function getNodeSummary(id: string, level: number) {
 
   return {
     ...user,
+    name: maskName(user.serialNo),
     totalEarned: earned?.v ?? 0,
     royaltyEarned: royalty?.v ?? 0,
     directs: directsRow?.v ?? 0,
-    upline: (upRes.rows as { serial_no: number; name: string; depth: number }[]).map((r) => ({ serialNo: r.serial_no, name: r.name })),
-    downline: downRes,
+    upline: (upRes.rows as { serial_no: number; name: string; depth: number }[]).map((r) => ({ serialNo: r.serial_no, name: maskName(r.serial_no) })),
+    downline: downRes.map((d) => ({ ...d, name: maskName(d.serialNo) })),
   };
 }
 export type NodeSummary = NonNullable<Awaited<ReturnType<typeof getNodeSummary>>>;
@@ -158,7 +163,7 @@ export async function getMatrixSubtree(rootId: string, level: number, maxDepth =
   `);
   const rows = res.rows as { id: string; serial_no: number; name: string; depth: number; position: number | null; parent: string | null }[];
   const byId = new Map<string, MatrixNode>();
-  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: r.name, position: r.position, depth: r.depth, children: [] });
+  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: maskName(r.serial_no), position: r.position, depth: r.depth, children: [] });
   let root: MatrixNode | null = null;
   for (const r of rows) {
     const node = byId.get(r.id)!;
@@ -183,6 +188,7 @@ export async function getMyRoyalty(uid: string) {
  * The autopool placement forest for one stage: owner → the occupants of their
  * slots, recursively. Roots are stage entrants who filled no upline slot.
  * Each entrant fills exactly one upline slot per stage, so this is a clean tree.
+ * Note: Names are masked for privacy.
  */
 export async function getSlotHierarchy(level: number, maxDepth = 12, maxRows = 2000) {
   const res = await db.execute(sql`
@@ -206,7 +212,7 @@ export async function getSlotHierarchy(level: number, maxDepth = 12, maxRows = 2
   }[];
 
   const byId = new Map<string, MatrixNode>();
-  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: r.name, position: r.position, depth: r.depth, children: [] });
+  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: maskName(r.serial_no), position: r.position, depth: r.depth, children: [] });
   const roots: MatrixNode[] = [];
   for (const r of rows) {
     const node = byId.get(r.id)!;
@@ -295,21 +301,22 @@ export async function getUserJourney(uid: string) {
 export async function getDownlineTree(uid: string, maxDepth = 6, maxRows = 500): Promise<TreeNode | null> {
   const res = await db.execute(sql`
     WITH RECURSIVE tree AS (
-      SELECT id, name, sponsor_id, current_slab, status, 0 AS depth
+      SELECT id, name, serial_no, sponsor_id, current_slab, status, 0 AS depth
       FROM users WHERE id = ${uid}
       UNION ALL
-      SELECT u.id, u.name, u.sponsor_id, u.current_slab, u.status, t.depth + 1
+      SELECT u.id, u.name, u.serial_no, u.sponsor_id, u.current_slab, u.status, t.depth + 1
       FROM users u
       JOIN tree t ON u.sponsor_id = t.id
       WHERE t.depth < ${maxDepth}
     )
-    SELECT id, name, sponsor_id, current_slab, status, depth
+    SELECT id, name, serial_no, sponsor_id, current_slab, status, depth
     FROM tree ORDER BY depth LIMIT ${maxRows}
   `);
 
   const rows = res.rows as {
     id: string;
     name: string;
+    serial_no: number | null;
     sponsor_id: string | null;
     current_slab: number;
     status: string;
@@ -319,7 +326,7 @@ export async function getDownlineTree(uid: string, maxDepth = 6, maxRows = 500):
 
   const byId = new Map<string, TreeNode>();
   for (const r of rows) {
-    byId.set(r.id, { id: r.id, name: r.name, slab: r.current_slab, status: r.status, depth: r.depth, children: [] });
+    byId.set(r.id, { id: r.id, name: maskName(r.serial_no), slab: r.current_slab, status: r.status, depth: r.depth, children: [] });
   }
   let root: TreeNode | null = null;
   for (const r of rows) {

@@ -20,11 +20,11 @@ export default async function Guide() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <Card>
-        <Kicker>How to play</Kicker>
+        <Kicker>How it works</Kicker>
         <h2 style={{ fontSize: 26, margin: "0 0 8px" }}>Build your network, climb the matrix.</h2>
         <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-          Revolutionary Income Plan is a strategy game on a fair, first-in-first-out queue. You join once, take a position, and earn points
-          as new players fill your slots. At every stage you choose: cash out, or climb higher.
+          Revolutionary Income Plan is built on a fair, first-in-first-out queue. You join once, take a position, and earn payouts
+          as new members fill your slots. At every stage you choose: cash out, or upgrade to the next tier.
         </p>
       </Card>
 
@@ -62,7 +62,7 @@ export default async function Guide() {
             ))}
           </tbody>
         </table>
-        <p style={{ color: "var(--faint)", fontSize: 13, margin: "12px 0 0" }}>New players drop into the oldest open slot first (FIFO). Each filled slot pays you that stage&apos;s entry fee.</p>
+        <p style={{ color: "var(--faint)", fontSize: 13, margin: "12px 0 0" }}>New members drop into the oldest open slot first (FIFO). Each filled slot pays you that stage&apos;s entry fee.</p>
       </Card>
 
       <Card>
@@ -89,8 +89,8 @@ export default async function Guide() {
       <Card>
         <Kicker>4 · Royalty rewards</Kicker>
         <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.7, margin: "0 0 12px" }}>
-          Refer players directly (your link) to earn a share of the royalty pool, paid 3× a month. The 5% reserve helps
-          players who haven&apos;t cleared a stage in 6 months stay in the game.
+          Refer new members directly (your link) to earn a share of the royalty pool, paid 3× a month. The 5% reserve helps
+          members who haven&apos;t cleared a stage in 6 months stay active.
         </p>
         <table className="table">
           <thead><tr><th>Rank</th><th>Direct referrals</th><th style={{ textAlign: "right" }}>Pool share</th></tr></thead>
@@ -101,10 +101,6 @@ export default async function Guide() {
           </tbody>
         </table>
       </Card>
-
-      <p style={{ textAlign: "center", color: "var(--faint)", fontSize: 12.5, margin: "4px 0 8px" }}>
-        Revolutionary Income Plan is a virtual-points game — no real money, deposits, or withdrawals.
-      </p>
     </div>
   );
 }

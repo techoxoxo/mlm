@@ -55,7 +55,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* logo */}
         <Link href="/">
-          <Logo size={22} />
+          <Logo size={22} color="#1a1508" />
         </Link>
 
         {/* main brand copy */}
@@ -128,7 +128,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <p style={{ color: "#a0845c", fontSize: 12, position: "relative" }}>
-          Virtual points only · Powered by USDT crypto rails
+          Powered by USDT crypto rails
         </p>
       </aside>
 
