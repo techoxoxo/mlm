@@ -99,7 +99,7 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) return { error: "Email already registered" };
 
-  const firstUser = await db.select({ id: users.id }).from(users).limit(1);
+  const firstUser = await db.select({ id: users.id }).from(users).where(eq(users.role, "user")).limit(1);
   const isFirstUser = firstUser.length === 0;
 
   let sponsorId: string | null = null;

@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { eq } from "drizzle-orm";
 import { AuthForm } from "@/components/AuthForm";
 import { db, schema } from "@/db";
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ ref?: string }> }) {
   const { ref } = await searchParams;
-  const firstUser = await db.select({ id: schema.users.id }).from(schema.users).limit(1);
+  const firstUser = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.role, "user")).limit(1);
   const isFirstUser = firstUser.length === 0;
 
   return (
