@@ -158,9 +158,14 @@ export function WalletCard({
               </p>
             )}
 
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", padding: "12px 0" }} disabled={withdrawPending || estimatedPayout <= 0}>
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              style={{ width: "100%", padding: "12px 0" }} 
+              disabled={withdrawPending || pointsBalance < withdrawPoints || pointsBalance < 20 || estimatedPayout <= 0}
+            >
               {withdrawPending ? <Loader2 size={16} className="spin" style={{ marginRight: 6 }} /> : null}
-              Withdraw USDT
+              {pointsBalance < withdrawPoints ? "Insufficient Balance" : "Withdraw USDT"}
             </button>
           </form>
         </div>
