@@ -285,6 +285,13 @@ export const slotsRelations = relations(slots, ({ one }) => ({
 
 /* ------------------------------------------------------------------ crypto transactions */
 
+export const cryptoGateway = pgEnum("crypto_gateway", [
+  "razcrypto",
+  "nowpayments",
+  "oxapay",
+  "cryptomus",
+]);
+
 export const cryptoTransactions = pgTable("crypto_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull(),
@@ -294,10 +301,18 @@ export const cryptoTransactions = pgTable("crypto_transactions", {
   amountPoints: integer("amount_points").notNull(),
   feeUsdt: numeric("fee_usdt", { precision: 18, scale: 6 }).notNull().default("0.000000"),
   network: text("network").notNull(),
+  gateway: cryptoGateway("gateway").notNull().default("razcrypto"),
   paymentId: text("payment_id"),
   txHash: text("tx_hash"),
   encryptedWalletAddress: text("encrypted_wallet_address"),
   hashedWalletAddress: text("hashed_wallet_address"),
+  // admin audit trail for manual approval / rejection
+  approvedByAdminId: uuid("approved_by_admin_id"),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  rejectedByAdminId: uuid("rejected_by_admin_id"),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  rejectionReason: text("rejection_reason"),
+  ipAddress: text("ip_address"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
@@ -308,6 +323,42 @@ export const cryptoTransactions = pgTable("crypto_transactions", {
 export const cryptoTransactionsRelations = relations(cryptoTransactions, ({ one }) => ({
   user: one(users, { fields: [cryptoTransactions.userId], references: [users.id] }),
 }));
+
+/* ------------------------------------------------------------------ audit log (append-only admin action trail) */
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminId: uuid("admin_id").notNull(),
+    action: text("action").notNull(), // e.g. 'update_settings', 'approve_withdrawal', 'reset_system'
+    targetType: text("target_type"), // e.g. 'user', 'settings', 'slab', 'royalty_tier', 'crypto_transaction'
+    targetId: text("target_id"), // id of the affected entity
+    before: jsonb("before"), // snapshot before the change
+    after: jsonb("after"), // snapshot after the change
+    ipAddress: text("ip_address"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    adminIdx: index("audit_log_admin_idx").on(t.adminId),
+    actionIdx: index("audit_log_action_idx").on(t.action),
+    targetIdx: index("audit_log_target_idx").on(t.targetType, t.targetId),
+    createdIdx: index("audit_log_created_idx").on(t.createdAt),
+  }),
+);
+
+/* ------------------------------------------------------------------ balance reconciliation log */
+
+export const reconciliationRuns = pgTable("reconciliation_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  totalUsers: integer("total_users").notNull(),
+  mismatchCount: integer("mismatch_count").notNull(),
+  mismatches: jsonb("mismatches"), // [{ userId, cached, calculated, drift }]
+  autoFixed: boolean("auto_fixed").notNull().default(false),
+  triggeredBy: text("triggered_by").notNull(), // 'cron' | 'admin'
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /* ------------------------------------------------------------------ inferred types */
 
@@ -324,6 +375,8 @@ export type RoyaltyRun = typeof royaltyRuns.$inferSelect;
 export type RoyaltyPayout = typeof royaltyPayouts.$inferSelect;
 export type CryptoTransaction = typeof cryptoTransactions.$inferSelect;
 export type NewCryptoTransaction = typeof cryptoTransactions.$inferInsert;
+export type AuditLog = typeof auditLog.$inferSelect;
+export type ReconciliationRun = typeof reconciliationRuns.$inferSelect;
 
 export const sqlNow = sql`now()`;
 

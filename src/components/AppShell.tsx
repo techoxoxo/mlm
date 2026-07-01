@@ -35,7 +35,7 @@ export function AppShell({
           overflow: "hidden",
         }}
       >
-        {/* sidebar glow orb */}
+        {/* sidebar glow orbs */}
         <div
           aria-hidden
           style={{
@@ -45,7 +45,20 @@ export function AppShell({
             width: 260,
             height: 260,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(248,198,23,0.18) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: "40%",
+            right: -40,
+            width: 180,
+            height: 180,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)",
             pointerEvents: "none",
           }}
         />
@@ -58,7 +71,7 @@ export function AppShell({
             width: 200,
             height: 200,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(248,198,23,0.06) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(248,198,23,0.08) 0%, transparent 70%)",
             pointerEvents: "none",
           }}
         />

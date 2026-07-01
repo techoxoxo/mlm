@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { RoyaltyTier } from "@/db/schema";
 import { post, getSettings, withTxRetry } from "./distribution";
+import { publishEvent } from "./events";
 
 const { users, pools, royaltyTiers, royaltyRuns, royaltyPayouts } = schema;
 
@@ -29,7 +30,7 @@ export type RoyaltyResult = {
  * haven't received a reserve reward within that same window.
  */
 export async function distributeRoyalty(): Promise<RoyaltyResult> {
-  return withTxRetry(() =>
+  const result = await withTxRetry(() =>
     db.transaction(async (tx) => {
       const cfg = await getSettings(tx);
       const [pool] = await tx.select().from(pools).where(eq(pools.id, 1)).for("update");
@@ -79,7 +80,10 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
         const per = Math.floor(subPool / members.length);
         if (per <= 0) continue;
         for (const uid of members) {
-          await post(tx, uid, "royalty_payout", per, { note: `Royalty rank reward (${t.label})` });
+          await post(tx, uid, "royalty_payout", per, {
+            note: `Royalty rank reward (${t.label})`,
+            idempotencyKey: `royalty_rank:${run.id}:${uid}`,
+          });
           await tx.insert(royaltyPayouts).values({
             runId: run.id,
             userId: uid,
@@ -115,7 +119,10 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
         const per = Math.floor(reserveBalance / eligible.length);
         if (per > 0) {
           for (const u of eligible) {
-            await post(tx, u.id, "royalty_reserve_reward", per, { note: "Royalty reserve reward" });
+            await post(tx, u.id, "royalty_reserve_reward", per, {
+              note: "Royalty reserve reward",
+              idempotencyKey: `royalty_reserve:${run.id}:${u.id}`,
+            });
             await tx.update(users).set({ lastReserveRewardAt: sql`now()` }).where(eq(users.id, u.id));
             await tx.insert(royaltyPayouts).values({ runId: run.id, userId: u.id, kind: "reserve", amount: per });
             reserveDistributed += per;
@@ -136,6 +143,11 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
         .set({ rankDistributed, reserveDistributed, rankRecipients, reserveRecipients })
         .where(eq(royaltyRuns.id, run.id));
 
+      // Collect recipient IDs for post-commit notifications
+      const notifyIds: string[] = [];
+      for (const members of bandMembers.values()) notifyIds.push(...members);
+      if (reserveDistributed > 0) notifyIds.push(...eligible.map((u) => u.id));
+
       return {
         poolBefore,
         reserveAdded,
@@ -145,9 +157,22 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
         reserveRecipients,
         carryPool,
         carryReserve,
+        _notifyIds: notifyIds,
       };
     }),
   );
+
+  // Fire SSE notifications after the transaction commits (best-effort)
+  const uniqueIds = [...new Set(result._notifyIds)];
+  await Promise.all(
+    uniqueIds.map((uid: string) =>
+      publishEvent(uid, { type: "royalty_payout" }).catch(() => {}),
+    ),
+  );
+
+  // Strip internal field from return value
+  const { _notifyIds, ...publicResult } = result;
+  return publicResult;
 }
 
 /** Pool/reserve state + tier config + a player's current standing (for UI). */

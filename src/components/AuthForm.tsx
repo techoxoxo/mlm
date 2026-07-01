@@ -60,7 +60,48 @@ export function AuthForm({ mode, refCode, next }: { mode: "login" | "register"; 
   const errorMessage = clientError || state?.error;
 
   return (
-    <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <form action={formAction} className="auth-form-cyber" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <style>{`
+        .auth-form-cyber input.input {
+          background: rgba(18, 14, 28, 0.8) !important;
+          border: 1px solid rgba(139, 92, 246, 0.2) !important;
+          color: #f5f0e8 !important;
+          border-radius: 12px !important;
+          padding: 12px 14px !important;
+          width: 100% !important;
+          display: block !important;
+          transition: all 0.25s ease !important;
+        }
+        .auth-form-cyber input.input:focus {
+          border-color: #a78bfa !important;
+          box-shadow: 0 0 12px rgba(139, 92, 246, 0.4) !important;
+          background: rgba(18, 14, 28, 0.95) !important;
+          outline: none !important;
+        }
+        .auth-form-cyber label.label {
+          color: #94a3b8 !important;
+          font-weight: 600 !important;
+          font-size: 13px !important;
+          margin-bottom: 6px !important;
+          display: block !important;
+        }
+        .auth-form-cyber .btn-primary {
+          background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%) !important;
+          border: none !important;
+          color: #ffffff !important;
+          font-weight: 800 !important;
+          border-radius: 12px !important;
+          width: 100% !important;
+          transition: all 0.25s ease !important;
+          box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+          cursor: pointer;
+        }
+        .auth-form-cyber .btn-primary:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5) !important;
+          color: #ffffff !important;
+        }
+      `}</style>
       {next && <input type="hidden" name="next" value={next} />}
       
       {/* Step 1 Form Fields */}

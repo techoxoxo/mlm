@@ -23,6 +23,16 @@
   --gold-deep: #a17c06;
   --gold-ink: #111827;
 
+  /* purple & blue accent palette */
+  --purple: #8b5cf6;
+  --purple-bright: #a78bfa;
+  --purple-deep: #6d28d9;
+  --purple-soft: rgba(139, 92, 246, 0.15);
+  --blue: #3b82f6;
+  --blue-bright: #60a5fa;
+  --blue-deep: #2563eb;
+  --blue-soft: rgba(59, 130, 246, 0.12);
+
   --danger: #ef4444;
   --success: #10b981;
 
@@ -38,6 +48,8 @@
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
   --shadow-md: 0 20px 40px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.02);
   --shadow-glow: 0 0 0 1px rgba(245, 196, 83, 0.3), 0 8px 30px rgba(245, 196, 83, 0.15);
+  --shadow-glow-purple: 0 0 0 1px rgba(139, 92, 246, 0.25), 0 8px 30px rgba(139, 92, 246, 0.12);
+  --shadow-glow-blue: 0 0 0 1px rgba(59, 130, 246, 0.25), 0 8px 30px rgba(59, 130, 246, 0.12);
 
   /* legacy aliases — older markup uses these */
   --bg-3: var(--surface-3);
@@ -62,11 +74,11 @@
 /* ------------------------------------------------------------------ app shell sidebar/header tokens */
 :root {
   --app-aside-bg-from: #ffffff;
-  --app-aside-bg-to: #f9f6ee;
+  --app-aside-bg-to: #f5f0ff;
   --app-header-bg: rgba(255, 255, 255, 0.4);
   --app-aside-text: var(--text);
   --app-aside-nav-text: var(--muted);
-  --portal-bg: linear-gradient(160deg, #f8f5ff 0%, #efe8ff 30%, #e8eeff 65%, #f4f0ff 100%);
+  --portal-bg: linear-gradient(160deg, #f8f5ff 0%, #ede5ff 30%, #e4ecff 65%, #f2edff 100%);
 }
 
 /* ------------------------------------------------------------------ dark theme */
@@ -88,10 +100,10 @@
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.18);
   --shadow-md: 0 20px 40px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.25);
 
-  --app-aside-bg-from: rgba(12, 10, 8, 0.97);
-  --app-aside-bg-to: rgba(8, 7, 5, 0.99);
-  --app-header-bg: rgba(6, 8, 15, 0.6);
-  --portal-bg: linear-gradient(160deg, #06080f 0%, #090c1a 40%, #070914 100%);
+  --app-aside-bg-from: rgba(14, 10, 24, 0.97);
+  --app-aside-bg-to: rgba(8, 6, 16, 0.99);
+  --app-header-bg: rgba(8, 6, 18, 0.6);
+  --portal-bg: linear-gradient(160deg, #08061a 0%, #0c0a1e 40%, #060818 100%);
 }
 
 * {
@@ -120,11 +132,12 @@ body::before {
   background-color: var(--bg);
   background-image:
     radial-gradient(rgba(248, 198, 23, 0.015) 1px, transparent 1px),
-    linear-gradient(215deg, rgba(248, 198, 23, 0.04) 0%, transparent 45%),
+    linear-gradient(215deg, rgba(139, 92, 246, 0.04) 0%, transparent 45%),
     radial-gradient(1100px 700px at 90% -10%, rgba(248, 198, 23, 0.08), transparent 60%),
-    radial-gradient(800px 500px at 10% 100%, rgba(59, 130, 246, 0.05), transparent 65%),
+    radial-gradient(800px 500px at 10% 100%, rgba(59, 130, 246, 0.07), transparent 65%),
+    radial-gradient(900px 500px at 70% 80%, rgba(139, 92, 246, 0.05), transparent 60%),
     radial-gradient(1000px 600px at 50% 50%, rgba(248, 198, 23, 0.01), transparent 70%);
-  background-size: 24px 24px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-size: 24px 24px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
   pointer-events: none;
 }
 
@@ -461,11 +474,12 @@ h4 {
   background-color: var(--bg);
   background-image:
     radial-gradient(rgba(255, 255, 255, 0.015) 1.5px, transparent 1.5px),
-    linear-gradient(215deg, rgba(248, 198, 23, 0.06) 0%, transparent 38%),
+    linear-gradient(215deg, rgba(139, 92, 246, 0.07) 0%, transparent 38%),
     radial-gradient(900px 500px at 85% -5%, rgba(248, 198, 23, 0.05), transparent 55%),
-    radial-gradient(700px 400px at 15% 90%, rgba(59, 130, 246, 0.04), transparent 60%),
+    radial-gradient(700px 400px at 15% 90%, rgba(59, 130, 246, 0.06), transparent 60%),
+    radial-gradient(800px 400px at 75% 70%, rgba(139, 92, 246, 0.06), transparent 55%),
     radial-gradient(600px 300px at 60% 50%, rgba(248, 198, 23, 0.03), transparent 70%);
-  background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
 }
 
 /* converging chevrons beside the glow CTA */
@@ -800,15 +814,18 @@ h4 {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: 
-    radial-gradient(700px 480px at 72% 35%, rgba(124, 58, 237, 0.06), transparent 60%),
-    radial-gradient(500px 320px at 5% 75%, rgba(168, 85, 247, 0.04), transparent 55%),
-    radial-gradient(400px 300px at 85% 85%, rgba(245, 198, 23, 0.03), transparent 60%);
+  background:
+    radial-gradient(700px 480px at 72% 35%, rgba(124, 58, 237, 0.08), transparent 60%),
+    radial-gradient(600px 400px at 5% 75%, rgba(59, 130, 246, 0.06), transparent 55%),
+    radial-gradient(500px 320px at 40% 10%, rgba(168, 85, 247, 0.05), transparent 55%),
+    radial-gradient(400px 300px at 85% 85%, rgba(245, 198, 23, 0.04), transparent 60%);
   z-index: -1;
 }
 [data-theme="dark"] .app-main-wrapper::before {
-  background: 
-    radial-gradient(900px 600px at 68% 38%, rgba(100, 55, 220, 0.12), transparent 62%),
+  background:
+    radial-gradient(900px 600px at 68% 38%, rgba(100, 55, 220, 0.14), transparent 62%),
+    radial-gradient(700px 450px at 15% 20%, rgba(59, 130, 246, 0.08), transparent 58%),
     radial-gradient(600px 400px at 12% 68%, rgba(245, 198, 23, 0.05), transparent 58%),
-    radial-gradient(400px 300px at 50% 100%, rgba(90, 40, 200, 0.06), transparent 60%);
+    radial-gradient(500px 350px at 85% 80%, rgba(59, 130, 246, 0.06), transparent 55%),
+    radial-gradient(400px 300px at 50% 100%, rgba(90, 40, 200, 0.08), transparent 60%);
 }

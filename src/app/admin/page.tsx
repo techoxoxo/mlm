@@ -44,12 +44,12 @@ export default async function AdminOverview() {
   const distributed = txAgg.distributed;
 
   const stats = [
-    { icon: Users, label: "Total players", value: totalUsers, color: "var(--gold-bright)" },
-    { icon: Activity, label: "Active", value: active, color: "#00e676" },
-    { icon: Layers, label: "Slots filled", value: filledSlots, color: "#6fc3f7" },
-    { icon: Coins, label: "Points distributed", value: distributed.toLocaleString(), color: "var(--gold)" },
+    { icon: Users, label: "Total players", value: totalUsers, color: "#8b5cf6" },
+    { icon: Activity, label: "Active", value: active, color: "#10b981" },
+    { icon: Layers, label: "Slots filled", value: filledSlots, color: "#3b82f6" },
+    { icon: Coins, label: "Points distributed", value: distributed.toLocaleString(), color: "#f5c453" },
     { icon: LogOut, label: "Exited", value: exited, color: "#f97316" },
-    { icon: Trophy, label: "Completed", value: completed, color: "#e88aff" },
+    { icon: Trophy, label: "Completed", value: completed, color: "#a78bfa" },
   ];
 
   return (
@@ -59,8 +59,8 @@ export default async function AdminOverview() {
         style={{
           padding: "20px 26px",
           borderRadius: 18,
-          background: "linear-gradient(135deg, rgba(255,82,82,0.05) 0%, rgba(16,15,18,0.85) 70%)",
-          border: "1px solid rgba(255,82,82,0.15)",
+          background: "linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(59,130,246,0.04) 40%, rgba(16,15,24,0.85) 70%)",
+          border: "1px solid rgba(139,92,246,0.2)",
           display: "flex",
           alignItems: "center",
           gap: 14,
@@ -74,11 +74,11 @@ export default async function AdminOverview() {
             alignItems: "center",
             justifyContent: "center",
             borderRadius: 11,
-            background: "rgba(255,82,82,0.1)",
-            border: "1px solid rgba(255,82,82,0.2)",
+            background: "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.1))",
+            border: "1px solid rgba(139,92,246,0.25)",
           }}
         >
-          <Zap size={20} color="#ff5252" />
+          <Zap size={20} color="#a78bfa" />
         </span>
         <div>
           <h2 style={{ fontSize: 20, margin: 0 }}>Control Room</h2>
@@ -94,13 +94,13 @@ export default async function AdminOverview() {
             gap: 8,
             padding: "6px 14px",
             borderRadius: 99,
-            background: "rgba(255,82,82,0.08)",
-            border: "1px solid rgba(255,82,82,0.2)",
+            background: "rgba(139,92,246,0.08)",
+            border: "1px solid rgba(139,92,246,0.2)",
             fontSize: 11,
             fontWeight: 800,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
-            color: "#ff5252",
+            color: "#a78bfa",
           }}
         >
           ● Live

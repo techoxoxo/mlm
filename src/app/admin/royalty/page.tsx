@@ -3,6 +3,7 @@ import { db, schema } from "@/db";
 import { getRoyaltyOverview } from "@/lib/royalty";
 import { RoyaltyRunButton } from "@/components/RoyaltyRunButton";
 import { updateRoyaltyTierAction } from "@/app/actions/admin";
+import { SettingsLockWrapper } from "@/components/SettingsLockWrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -34,25 +35,26 @@ export default async function RoyaltyAdmin() {
         <RoyaltyRunButton />
       </div>
 
-      <div className="card" style={{ padding: 24 }}>
-        <h3 style={{ fontSize: 16, marginBottom: 4 }}>Rank tiers</h3>
-        <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 16px" }}>
-          Editable pool-share bands by direct-referral count. The reserve hold-back % is set on the Distribution page.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {tiers.map((t) => (
-            <form key={t.minDirects} action={updateRoyaltyTierAction} style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 90px", gap: 10, alignItems: "center" }}>
-              <input type="hidden" name="minDirects" value={t.minDirects} />
-              <span className="pill">{t.minDirects}+ refs</span>
-              <input name="label" defaultValue={t.label} className="input" />
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input name="percent" type="number" min={0} max={100} defaultValue={t.percent} className="input" style={{ width: 70 }} />
-                <span style={{ color: "var(--muted)", fontSize: 13 }}>%</span>
-              </div>
-              <button type="submit" className="btn btn-ghost" style={{ padding: "8px 12px", fontSize: 13 }}>Save</button>
-            </form>
-          ))}
-        </div>
+      <div className="card" style={{ padding: 24, maxWidth: 640 }}>
+        <SettingsLockWrapper title="Rank Tiers Config">
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 16px" }}>
+            Editable pool-share bands by direct-referral count. The reserve hold-back % is set on the Distribution page.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {tiers.map((t) => (
+              <form key={t.minDirects} action={updateRoyaltyTierAction} style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 90px", gap: 10, alignItems: "center" }}>
+                <input type="hidden" name="minDirects" value={t.minDirects} />
+                <span className="pill" style={{ textAlign: "center" }}>{t.minDirects}+ refs</span>
+                <input name="label" defaultValue={t.label} className="input" />
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input name="percent" type="number" min={0} max={100} defaultValue={t.percent} className="input" style={{ width: 70 }} />
+                  <span style={{ color: "var(--muted)", fontSize: 13 }}>%</span>
+                </div>
+                <button type="submit" className="btn btn-ghost" style={{ padding: "8px 12px", fontSize: 13 }}>Save</button>
+              </form>
+            ))}
+          </div>
+        </SettingsLockWrapper>
       </div>
 
       <div className="card" style={{ padding: 24 }}>

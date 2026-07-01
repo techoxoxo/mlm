@@ -50,6 +50,13 @@
       "when": 1782731626429,
       "tag": "0006_broad_jetstream",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782903008787,
+      "tag": "0007_rapid_terror",
+      "breakpoints": true
     }
   ]
 }

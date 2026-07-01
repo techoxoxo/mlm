@@ -9,11 +9,15 @@ import {
   ensureRoyaltySchedule,
   PAYMENT_CREDIT_QUEUE,
   PAYMENT_PAYOUT_QUEUE,
+  RECONCILIATION_QUEUE,
   PaymentCreditJob,
   PaymentPayoutJob,
+  ensureReconciliationSchedule,
+  RECONCILIATION_CRON,
 } from "@/lib/queue";
 import { activate, decideChoice, post } from "@/lib/distribution";
 import { distributeRoyalty } from "@/lib/royalty";
+import { reconcileBalances } from "@/lib/reconciliation";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { decrypt, hashWallet } from "@/lib/crypto";
@@ -63,13 +67,17 @@ ensureRoyaltySchedule()
   .then(() => console.log(`Royalty schedule registered (cron "${ROYALTY_CRON}").`))
   .catch((e) => console.error("Failed to register royalty schedule:", e.message));
 
+ensureReconciliationSchedule()
+  .then(() => console.log(`Reconciliation schedule registered (cron "${RECONCILIATION_CRON}").`))
+  .catch((e) => console.error("Failed to register reconciliation schedule:", e.message));
+
 // Payment Credit Worker
 const paymentCreditWorker = new Worker<PaymentCreditJob>(
   PAYMENT_CREDIT_QUEUE,
   async (job) => {
     const { userId, paymentId, amountPoints } = job.data;
 
-    // Re-verify payment status with NowPayments before crediting
+    // Re-verify payment status with RazCrypto before crediting
     try {
       const paymentCheck = await getPaymentStatus(paymentId);
       if (paymentCheck.status !== "completed") {
@@ -81,13 +89,15 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
       throw verifyErr;
     }
 
+    let isActivation = false;
+
     await db.transaction(async (tx) => {
       const [ctx] = await tx
         .select()
         .from(schema.cryptoTransactions)
         .where(eq(schema.cryptoTransactions.paymentId, paymentId))
         .for("update");
-      
+
       if (ctx && ctx.status === "completed") {
         return;
       }
@@ -108,6 +118,7 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
           .set({ status: "completed", updatedAt: new Date() })
           .where(eq(schema.cryptoTransactions.id, ctx.id));
       } else {
+        // Fallback insert with onConflictDoNothing to prevent duplicate inserts
         await tx.insert(schema.cryptoTransactions).values({
           userId,
           type: "deposit",
@@ -115,12 +126,14 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
           amountUsdt: (amountPoints * 1).toFixed(6),
           amountPoints,
           network: "bep20",
+          gateway: "razcrypto",
           paymentId,
           updatedAt: new Date(),
-        });
+        }).onConflictDoNothing();
       }
 
       if (user.status === "registered") {
+        isActivation = true;
         // Credit the activation deposit
         await post(tx, userId, "usdt_deposit", amountPoints, {
           note: `USDT Activation Deposit (ID: ${paymentId})`,
@@ -141,6 +154,10 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
       }
     });
 
+    // Notify user of successful payment and activation
+    if (isActivation) {
+      await publishEvent(userId, { type: "entered", level: 1 });
+    }
     await publishEvent(userId, { type: "payment_update", status: "completed" });
   },
   { connection, concurrency: 4 }
@@ -153,12 +170,12 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
   PAYMENT_PAYOUT_QUEUE,
   async (job) => {
     const { cryptoTxId } = job.data;
-    
+
     const [ctx] = await db
       .select()
       .from(schema.cryptoTransactions)
       .where(eq(schema.cryptoTransactions.id, cryptoTxId));
-      
+
     if (!ctx || (ctx.status !== "pending" && ctx.status !== "pending_admin_approval")) {
       return;
     }
@@ -246,7 +263,7 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
           .where(eq(schema.cryptoTransactions.id, cryptoTxId));
 
         await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
-          note: `Refund: NowPayments payout failed for transaction ${cryptoTxId}`,
+          note: `Refund: Payout failed for transaction ${cryptoTxId}`,
           idempotencyKey: `refund:${cryptoTxId}`,
         });
       });
@@ -259,7 +276,19 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
 paymentPayoutWorker.on("completed", (job) => console.log(`✓ payout ${job.id}`));
 paymentPayoutWorker.on("failed", (job, err) => console.error(`✗ payout ${job?.id}: ${err.message}`));
 
-console.log("Distribution and Payment workers started. Waiting for jobs…");
+// Balance Reconciliation Worker (nightly cron)
+const reconciliationWorker = new Worker(
+  RECONCILIATION_QUEUE,
+  async () => {
+    const res = await reconcileBalances("cron");
+    console.log(`✓ reconciliation: ${res.totalUsers} users checked, ${res.mismatchCount} mismatches`);
+    return res;
+  },
+  { connection, concurrency: 1 },
+);
+reconciliationWorker.on("failed", (job, err) => console.error(`✗ reconciliation ${job?.id}: ${err.message}`));
+
+console.log("Distribution, Payment, and Reconciliation workers started. Waiting for jobs…");
 
 const shutdown = async () => {
   console.log("Shutting down workers…");
@@ -268,6 +297,7 @@ const shutdown = async () => {
     royaltyWorker.close(),
     paymentCreditWorker.close(),
     paymentPayoutWorker.close(),
+    reconciliationWorker.close(),
   ]);
   process.exit(0);
 };

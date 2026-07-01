@@ -8,6 +8,15 @@ const { users, slabs, slots, transactions, settings, slabCompletions } = schema;
 type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
 type TxType = (typeof schema.txType.enumValues)[number];
 
+/** Transaction types that are allowed to push a user's balance below zero. */
+const SYSTEM_DEBIT_TYPES: Set<TxType> = new Set([
+  "activation_fee",
+  "upgrade_fee",
+  "id_pin_fee",
+  "royalty_fee",
+  "company_fee",
+]);
+
 /** Postgres deadlock (40P01) / serialization (40001) — safe to retry whole tx. */
 function isRetryableTxError(e: unknown): boolean {
   const err = e as { code?: string; cause?: { code?: string } };
@@ -58,6 +67,17 @@ async function post(
   if (!u) throw new Error(`post: user ${userId} not found`);
 
   const balanceAfter = u.balance + points;
+
+  // Prevent negative balance on user-initiated debits.
+  // System debits (fees charged during activation/upgrade) are allowed to go
+  // negative because they're immediately preceded by a deposit credit within
+  // the same transaction.
+  if (balanceAfter < 0 && points < 0 && !SYSTEM_DEBIT_TYPES.has(type)) {
+    throw new Error(
+      `Insufficient balance: ${u.balance} + (${points}) = ${balanceAfter} for ${type}`,
+    );
+  }
+
   await tx
     .update(users)
     .set({ pointsBalance: balanceAfter })
@@ -134,6 +154,8 @@ export async function enterSlab(
   level: number,
 ): Promise<EntryResult> {
   const slab = await getSlab(tx, level);
+  if (!slab.active) throw new Error(`Slab ${level} (${slab.name}) is not active`);
+
   const cfg = await getSettings(tx);
 
   const [member] = await tx.select().from(users).where(eq(users.id, userId));
@@ -170,6 +192,7 @@ export async function enterSlab(
   await post(tx, userId, level === 1 ? "activation_fee" : "upgrade_fee", -slab.fee, {
     slabLevel: level,
     note: `Enter ${slab.name} (slab ${level})`,
+    idempotencyKey: `enter:${userId}:${level}:${Date.now()}`,
   });
 
   let uplineOwnerId: string | null = null;
@@ -191,11 +214,14 @@ export async function enterSlab(
       counterpartyId: userId,
       slabLevel: level,
       note: `Slot ${openSlot.position} filled at slab ${level}`,
+      idempotencyKey: `slot_credit:${openSlot.id}`,
     });
     if (houseCut > 0) {
       await post(tx, openSlot.ownerId, "company_fee", -houseCut, {
+        counterpartyId: userId,
         slabLevel: level,
-        note: "House cut",
+        note: `House cut on slot ${openSlot.position} at slab ${level}`,
+        idempotencyKey: `company_fee:${openSlot.id}`,
       });
     }
 
@@ -216,7 +242,7 @@ export async function enterSlab(
     }
   }
 
-  // 3) Referral bonus to the direct sponsor (system-funded).
+  // 4) Referral bonus to the direct sponsor (system-funded).
   let referralPaid = 0;
   if (member.sponsorId && slab.referralBonus > 0) {
     referralPaid = slab.referralBonus;
@@ -224,10 +250,11 @@ export async function enterSlab(
       counterpartyId: userId,
       slabLevel: level,
       note: `Referral bonus for ${member.name}`,
+      idempotencyKey: `ref_bonus:${userId}:${level}`,
     });
   }
 
-  // 4) Open the member's own slots — they now wait in the FIFO queue.
+  // 5) Open the member's own slots — they now wait in the FIFO queue.
   await tx.insert(slots).values(
     Array.from({ length: slab.slots }, (_, i) => ({
       ownerId: userId,
@@ -237,7 +264,7 @@ export async function enterSlab(
     })),
   );
 
-  // 5) Advance the member's state.
+  // 6) Advance the member's state.
   await tx
     .update(users)
     .set({
@@ -284,7 +311,7 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
     await post(tx, userId, "exit_payout", 0, {
       slabLevel: level,
       note: `Auto exit at final slab ${level}: kept 100% = ${collected}`,
-      meta: { payout: collected, keepPct: 100 },
+      meta: { payout: collected, keepPct: 100, auto: true, reason: "final_slab" },
     });
 
     await tx
@@ -306,7 +333,7 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
       await post(tx, userId, "upgrade_take", 0, {
         slabLevel: level,
         note: `Auto upgrade to ${nextSlab.name}: seed ${nextSlab.fee}, kept ${kept} of ${collected}`,
-        meta: { kept, seed: nextSlab.fee, collected },
+        meta: { kept, seed: nextSlab.fee, collected, auto: true },
       });
       await tx
         .insert(slabCompletions)
@@ -327,6 +354,9 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
         .update(users)
         .set({ pendingChoiceSlab: level, lastStageClearedAt: sql`now()` })
         .where(eq(users.id, userId));
+
+      // Notify the user that a decision is required
+      publishEvent(userId, { type: "slab_complete", level }).catch(() => {});
     }
   }
 }
@@ -364,13 +394,14 @@ export async function decideChoice(userId: string, choice: "exit" | "upgrade") {
         await post(tx, userId, "company_fee", -forfeit, {
           slabLevel: level,
           note: `Exit forfeit (${100 - keepPct}% of ${collected})`,
+          idempotencyKey: `exit_forfeit:${userId}:${level}`,
         });
       }
       const payout = collected - forfeit;
       await post(tx, userId, "exit_payout", 0, {
         slabLevel: level,
         note: `Exit at slab ${level}: kept ${keepPct}% = ${payout}`,
-        meta: { payout, keepPct },
+        meta: { payout, keepPct, auto: isFinal && choice !== "exit" },
       });
       await tx
         .update(users)
@@ -416,6 +447,11 @@ export async function activate(userId: string) {
     const [user] = await tx.select().from(users).where(eq(users.id, userId));
     if (!user) throw new Error("user not found");
     if (user.currentSlab !== 0) throw new Error("Already activated");
+
+    // Verify slab 1 exists and is active before attempting entry
+    const [slab1] = await tx.select().from(slabs).where(eq(slabs.level, 1));
+    if (!slab1 || !slab1.active) throw new Error("Slab 1 is not configured or not active");
+
     return enterSlab(tx, userId, 1);
   }));
   await notifyEntry(userId, result);
@@ -436,7 +472,10 @@ export async function chargeRegistration(tx: Tx, userId: string) {
 
   // registrant pays the full ID & PIN fee…
   if (cfg.idPinFee > 0) {
-    await post(tx, userId, "id_pin_fee", -cfg.idPinFee, { note: "ID & PIN fee" });
+    await post(tx, userId, "id_pin_fee", -cfg.idPinFee, {
+      note: "ID & PIN fee",
+      idempotencyKey: `id_pin:${userId}`,
+    });
   }
   // …of which the sponsor reward is routed to the referrer (if any). With no
   // sponsor the whole id_pin_fee stays with the system. Not tied to a slab.
@@ -444,10 +483,14 @@ export async function chargeRegistration(tx: Tx, userId: string) {
     await post(tx, member.sponsorId, "referral_bonus", cfg.sponsorReward, {
       counterpartyId: userId,
       note: `Sponsor reward for ${member?.name ?? "referral"}`,
+      idempotencyKey: `sponsor_reward:${userId}`,
     });
   }
   if (cfg.royaltyFee > 0) {
-    await post(tx, userId, "royalty_fee", -cfg.royaltyFee, { note: "Royalty program contribution" });
+    await post(tx, userId, "royalty_fee", -cfg.royaltyFee, {
+      note: "Royalty program contribution",
+      idempotencyKey: `royalty_fee:${userId}`,
+    });
     // the contribution flows into the shared royalty pool
     await tx
       .update(schema.pools)

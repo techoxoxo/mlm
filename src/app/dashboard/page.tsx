@@ -61,7 +61,7 @@ function StatCard({
           width: 80,
           height: 80,
           borderRadius: "50%",
-          background: `radial-gradient(circle, ${accent ? "rgba(248,198,23,0.18)" : "rgba(248,198,23,0.08)"} 0%, transparent 70%)`,
+          background: `radial-gradient(circle, ${c}30 0%, transparent 70%)`,
         }}
       />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -76,9 +76,9 @@ function StatCard({
             alignItems: "center",
             justifyContent: "center",
             borderRadius: 10,
-            background: `linear-gradient(135deg, rgba(248,198,23,0.15), rgba(248,198,23,0.06))`,
-            border: "1px solid rgba(248,198,23,0.2)",
-            boxShadow: accent ? "0 0 14px rgba(248,198,23,0.2)" : "none",
+            background: `linear-gradient(135deg, ${c}25, ${c}10)`,
+            border: `1px solid ${c}35`,
+            boxShadow: accent ? `0 0 14px ${c}30` : "none",
           }}
         >
           <Icon size={17} color={c} />
@@ -153,8 +153,8 @@ export default async function DashboardHome() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 24,
-          background: `linear-gradient(135deg, rgba(248,198,23,0.07) 0%, var(--surface) 60%)`,
-          borderColor: "rgba(248,198,23,0.2)",
+          background: `linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(248,198,23,0.04) 40%, var(--surface) 70%)`,
+          borderColor: "rgba(139,92,246,0.2)",
           overflow: "hidden",
           position: "relative",
         }}
@@ -169,7 +169,19 @@ export default async function DashboardHome() {
             width: 300,
             height: 300,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(248,198,23,0.12) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%)",
+          }}
+        />
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            bottom: -40,
+            left: -20,
+            width: 200,
+            height: 200,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%)",
           }}
         />
         <div>
@@ -238,10 +250,10 @@ export default async function DashboardHome() {
 
       {/* ── stats ────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
-        <StatCard icon={TrendingUp} label="Total earned" value={data.totalEarned.toLocaleString()} sub="all-time points" />
-        <StatCard icon={Layers} label="Collected this tier" value={collected.toLocaleString()} sub="current slab" />
-        <StatCard icon={Users} label="Direct referrals" value={String(data.referrals.length)} sub="active members" />
-        <StatCard icon={Wallet} label="Convertible balance" value={user.pointsBalance.toLocaleString()} sub={`≈ $${(user.pointsBalance * 1).toFixed(2)} USDT`} accent />
+        <StatCard icon={TrendingUp} label="Total earned" value={data.totalEarned.toLocaleString()} sub="all-time points" color="#8b5cf6" />
+        <StatCard icon={Layers} label="Collected this tier" value={collected.toLocaleString()} sub="current slab" color="#3b82f6" />
+        <StatCard icon={Users} label="Direct referrals" value={String(data.referrals.length)} sub="active members" color="#a78bfa" />
+        <StatCard icon={Wallet} label="Convertible balance" value={user.pointsBalance.toLocaleString()} sub={`≈ $${(user.pointsBalance * 1).toFixed(2)} USDT`} accent color="#f5c453" />
       </div>
 
       {/* ── primary action ────────────────────────────── */}
@@ -456,11 +468,11 @@ export default async function DashboardHome() {
               alignItems: "center",
               justifyContent: "center",
               borderRadius: 10,
-              background: "linear-gradient(135deg, rgba(248,198,23,0.2), rgba(248,198,23,0.06))",
-              border: "1px solid rgba(248,198,23,0.25)",
+              background: "linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.08))",
+              border: "1px solid rgba(139,92,246,0.25)",
             }}
           >
-            <Gift size={17} color="var(--gold-bright)" />
+            <Gift size={17} color="#a78bfa" />
           </span>
           <div>
             <h3 style={{ fontSize: 17 }}>Royalty program</h3>
@@ -555,7 +567,7 @@ export default async function DashboardHome() {
                     <div key={e.type}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 7 }}>
                         <span style={{ color: "var(--muted)" }}>{SOURCE_LABEL[e.type] ?? e.type}</span>
-                        <span className="mono" style={{ fontWeight: 700, color: "var(--gold-bright)" }}>
+                        <span className="mono" style={{ fontWeight: 700, color: "#a78bfa" }}>
                           +{e.total.toLocaleString()}
                         </span>
                       </div>
@@ -572,7 +584,7 @@ export default async function DashboardHome() {
                             width: `${Math.round((e.total / max) * 100)}%`,
                             height: "100%",
                             borderRadius: 99,
-                            background: "linear-gradient(90deg, var(--gold), var(--gold-soft))",
+                            background: "linear-gradient(90deg, #8b5cf6, #3b82f6, var(--gold-soft))",
                           }}
                         />
                       </div>

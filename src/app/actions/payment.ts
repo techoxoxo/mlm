@@ -6,9 +6,11 @@ import { db, schema } from "@/db";
 import { getSession } from "@/lib/auth";
 import { post } from "@/lib/distribution";
 import { createInvoice, createPayout } from "@/lib/razcrypto";
-import { encrypt, decrypt } from "@/lib/crypto";
+import { encrypt, decrypt, hashWallet } from "@/lib/crypto";
 import { enqueuePaymentPayout } from "@/lib/queue";
 import { publishEvent } from "@/lib/events";
+import { logAudit } from "@/lib/audit";
+import { clientIp } from "@/lib/ratelimit";
 
 const { cryptoTransactions, users } = schema;
 
@@ -46,6 +48,15 @@ async function requireAdmin() {
   return s;
 }
 
+/** Best-effort IP capture — returns null outside of request context. */
+async function safeClientIp(): Promise<string | null> {
+  try {
+    return await clientIp();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Initiate a points purchase using NowPayments USDT (BEP-20).
  * amountUsdt is the amount of USDT the user wants to spend (minimum 10 USDT).
@@ -78,6 +89,8 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
       cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=cancelled`,
     });
 
+    const ip = await safeClientIp();
+
     // Write pending row to database
     await db.insert(cryptoTransactions).values({
       userId,
@@ -86,7 +99,9 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
       amountUsdt: amountUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
+      gateway: "razcrypto",
       paymentId: payment.payment_id,
+      ipAddress: ip,
       updatedAt: new Date(),
     });
 
@@ -144,6 +159,10 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
 
     // Encrypt the target wallet address before database write
     const encryptedWalletAddress = encrypt(trimmedAddress);
+    // Hash immediately for audit trail (before approval)
+    const hashedWallet = hashWallet(trimmedAddress);
+
+    const ip = await safeClientIp();
 
     const result = await db.transaction(async (tx) => {
       // 1) Lock user and check balance
@@ -163,7 +182,7 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
         note: `Withdrawal request: ${amountPoints} points to ${trimmedAddress.slice(0, 6)}...`,
       });
 
-      // 3) Create database record
+      // 3) Create database record with hashed wallet from the start
       const [ctx] = await tx
         .insert(cryptoTransactions)
         .values({
@@ -174,7 +193,10 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
           amountPoints,
           feeUsdt: "2.000000",
           network: "bep20",
+          gateway: "razcrypto",
           encryptedWalletAddress,
+          hashedWalletAddress: hashedWallet,
+          ipAddress: ip,
           updatedAt: new Date(),
         })
         .returning();
@@ -208,10 +230,12 @@ export async function adminApprovePayoutAction(cryptoTxId: string): Promise<Acti
   try {
     await requireAdmin();
 
+    // Use FOR UPDATE to prevent race between two admins approving the same tx
     const [ctx] = await db
       .select()
       .from(cryptoTransactions)
       .where(and(eq(cryptoTransactions.id, cryptoTxId), eq(cryptoTransactions.status, "pending_admin_approval")))
+      .for("update")
       .limit(1);
 
     if (!ctx) {
@@ -226,6 +250,15 @@ export async function adminApprovePayoutAction(cryptoTxId: string): Promise<Acti
 
     // Enqueue payout job
     await enqueuePaymentPayout(cryptoTxId);
+
+    await logAudit({
+      action: "approve_payout_queue",
+      targetType: "crypto_transaction",
+      targetId: cryptoTxId,
+      before: { status: "pending_admin_approval" },
+      after: { status: "pending" },
+      note: `Re-queued withdrawal ${cryptoTxId} for payout processing`,
+    });
 
     safeRevalidate("/admin/users");
     safeRevalidate("/dashboard/transactions");
@@ -271,6 +304,8 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
       cancelUrl: `${appUrl}/dashboard?payment=cancelled`,
     });
 
+    const ip = await safeClientIp();
+
     await db.insert(cryptoTransactions).values({
       userId,
       type: "deposit",
@@ -278,7 +313,9 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
       amountUsdt: totalUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
+      gateway: "razcrypto",
       paymentId: invoice.payment_id,
+      ipAddress: ip,
       updatedAt: new Date(),
     });
 
@@ -334,46 +371,62 @@ export async function approveWithdrawalAction(
   txHash: string
 ): Promise<ActionState<void>> {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
 
     const trimmedHash = txHash.trim();
     if (!trimmedHash || trimmedHash.length < 10) {
       return { ok: false, error: "Please enter a valid Transaction Hash (TxID)" };
     }
 
-    const [ctx] = await db
-      .select()
-      .from(cryptoTransactions)
-      .where(eq(cryptoTransactions.id, cryptoTxId))
-      .limit(1);
+    // Use FOR UPDATE to prevent two admins approving the same tx concurrently
+    const result = await db.transaction(async (tx) => {
+      const [ctx] = await tx
+        .select()
+        .from(cryptoTransactions)
+        .where(eq(cryptoTransactions.id, cryptoTxId))
+        .for("update")
+        .limit(1);
 
-    if (!ctx || ctx.type !== "withdrawal") {
-      return { ok: false, error: "Withdrawal transaction not found" };
-    }
+      if (!ctx || ctx.type !== "withdrawal") {
+        throw new Error("Withdrawal transaction not found");
+      }
 
-    if (ctx.status !== "pending_admin_approval" && ctx.status !== "pending") {
-      return { ok: false, error: `Transaction is already in status: ${ctx.status}` };
-    }
+      if (ctx.status !== "pending_admin_approval" && ctx.status !== "pending") {
+        throw new Error(`Transaction is already in status: ${ctx.status}`);
+      }
 
-    if (!ctx.encryptedWalletAddress) {
-      return { ok: false, error: "Wallet address is missing or already processed" };
-    }
+      // Decrypt wallet for hashing, then clear the encrypted version
+      let walletAddress = "";
+      if (ctx.encryptedWalletAddress) {
+        walletAddress = decrypt(ctx.encryptedWalletAddress);
+      }
 
-    const { hashWallet } = await import("@/lib/crypto");
-    const walletAddress = decrypt(ctx.encryptedWalletAddress);
+      await tx
+        .update(cryptoTransactions)
+        .set({
+          status: "completed",
+          txHash: trimmedHash,
+          encryptedWalletAddress: null,
+          hashedWalletAddress: walletAddress ? hashWallet(walletAddress) : ctx.hashedWalletAddress,
+          approvedByAdminId: session.uid,
+          approvedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(cryptoTransactions.id, cryptoTxId));
 
-    await db
-      .update(cryptoTransactions)
-      .set({
-        status: "completed",
-        txHash: trimmedHash,
-        encryptedWalletAddress: null,
-        hashedWalletAddress: hashWallet(walletAddress),
-        updatedAt: new Date(),
-      })
-      .where(eq(cryptoTransactions.id, cryptoTxId));
+      return ctx;
+    });
 
-    await publishEvent(ctx.userId, { type: "payment_update", status: "completed" });
+    await logAudit({
+      action: "approve_withdrawal",
+      targetType: "crypto_transaction",
+      targetId: cryptoTxId,
+      before: { status: result.status, amountUsdt: result.amountUsdt, amountPoints: result.amountPoints },
+      after: { status: "completed", txHash: trimmedHash },
+      note: `Approved withdrawal of ${result.amountUsdt} USDT (${result.amountPoints} points) for user ${result.userId}`,
+    });
+
+    await publishEvent(result.userId, { type: "payment_update", status: "completed" });
     safeRevalidate("/admin/payments");
 
     return { ok: true };
@@ -387,44 +440,61 @@ export async function approveWithdrawalAction(
  * Reject a pending withdrawal, marking it failed and refunding the points back to the user balance.
  */
 export async function rejectWithdrawalAction(
-  cryptoTxId: string
+  cryptoTxId: string,
+  reason?: string
 ): Promise<ActionState<void>> {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
 
-    const [ctx] = await db
-      .select()
-      .from(cryptoTransactions)
-      .where(eq(cryptoTransactions.id, cryptoTxId))
-      .limit(1);
+    const result = await db.transaction(async (tx) => {
+      // Use FOR UPDATE to prevent race conditions
+      const [ctx] = await tx
+        .select()
+        .from(cryptoTransactions)
+        .where(eq(cryptoTransactions.id, cryptoTxId))
+        .for("update")
+        .limit(1);
 
-    if (!ctx || ctx.type !== "withdrawal") {
-      return { ok: false, error: "Withdrawal transaction not found" };
-    }
+      if (!ctx || ctx.type !== "withdrawal") {
+        throw new Error("Withdrawal transaction not found");
+      }
 
-    if (ctx.status !== "pending_admin_approval" && ctx.status !== "pending") {
-      return { ok: false, error: `Transaction is already in status: ${ctx.status}` };
-    }
+      if (ctx.status !== "pending_admin_approval" && ctx.status !== "pending") {
+        throw new Error(`Transaction is already in status: ${ctx.status}`);
+      }
 
-    await db.transaction(async (tx) => {
-      // 1) Mark transaction as failed
+      // 1) Mark transaction as failed with rejection details
       await tx
         .update(cryptoTransactions)
         .set({
           status: "failed",
           encryptedWalletAddress: null,
+          rejectedByAdminId: session.uid,
+          rejectedAt: new Date(),
+          rejectionReason: reason || "Rejected by admin",
           updatedAt: new Date(),
         })
         .where(eq(cryptoTransactions.id, cryptoTxId));
 
       // 2) Refund points to the user
       await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
-        note: `Refund: Withdrawal request rejected by Admin`,
+        note: `Refund: Withdrawal rejected${reason ? ` — ${reason}` : ""}`,
         idempotencyKey: `refund:${cryptoTxId}`,
       });
+
+      return ctx;
     });
 
-    await publishEvent(ctx.userId, { type: "payment_update", status: "failed" });
+    await logAudit({
+      action: "reject_withdrawal",
+      targetType: "crypto_transaction",
+      targetId: cryptoTxId,
+      before: { status: result.status, amountUsdt: result.amountUsdt, amountPoints: result.amountPoints },
+      after: { status: "failed", reason: reason || "Rejected by admin" },
+      note: `Rejected withdrawal of ${result.amountUsdt} USDT for user ${result.userId}. ${result.amountPoints} points refunded.`,
+    });
+
+    await publishEvent(result.userId, { type: "payment_update", status: "failed" });
     safeRevalidate("/admin/payments");
 
     return { ok: true };
@@ -433,4 +503,3 @@ export async function rejectWithdrawalAction(
     return { ok: false, error: (error as Error).message };
   }
 }
-

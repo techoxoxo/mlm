@@ -12,7 +12,8 @@ export type GameEvent =
   | { type: "slab_complete"; level: number }
   | { type: "entered"; level: number }
   | { type: "referral"; level: number }
-  | { type: "payment_update"; status: string };
+  | { type: "payment_update"; status: string }
+  | { type: "royalty_payout" };
 
 export function channel(uid: string) {
   return `events:user:${uid}`;

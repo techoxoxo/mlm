@@ -139,5 +139,28 @@ export function enqueuePaymentPayout(cryptoTxId: string) {
   );
 }
 
+/* ------------------------------------------------------------------ reconciliation queue */
+
+export const RECONCILIATION_QUEUE = "reconciliation";
+export const RECONCILIATION_CRON = process.env.RECONCILIATION_CRON ?? "0 3 * * *"; // daily at 03:00
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __mlmReconciliationQueue: Queue | undefined;
+}
+
+export const reconciliationQueue =
+  global.__mlmReconciliationQueue ??
+  new Queue(RECONCILIATION_QUEUE, {
+    connection,
+    defaultJobOptions: { attempts: 2, backoff: { type: "exponential", delay: 5000 }, removeOnComplete: 30, removeOnFail: 30 },
+  });
+if (process.env.NODE_ENV !== "production") global.__mlmReconciliationQueue = reconciliationQueue;
+
+/** Register the nightly reconciliation cron. Called by the worker on startup. */
+export async function ensureReconciliationSchedule() {
+  await reconciliationQueue.add("reconcile", {}, { repeat: { pattern: RECONCILIATION_CRON }, jobId: "reconciliation-nightly" });
+}
+
 export { queueEvents };
 

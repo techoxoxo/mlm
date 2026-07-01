@@ -5,6 +5,7 @@ import { enqueuePaymentCredit } from "@/lib/queue";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { publishEvent } from "@/lib/events";
+import { connection } from "@/lib/redis";
 
 export async function POST(req: Request) {
   try {
@@ -33,7 +34,21 @@ export async function POST(req: Request) {
         .limit(1);
 
       if (paymentStatus === "completed") {
+        // Idempotency: use Redis SET NX to prevent duplicate credit enqueuing
+        // on webhook retries. Key expires after 24h as a safety net.
+        const idempotencyKey = `webhook:credited:${paymentId}`;
+        const wasSet = await connection.set(idempotencyKey, "1", "EX", 86400, "NX");
+        if (!wasSet) {
+          console.log(`RazCrypto Webhook: Duplicate webhook for ${paymentId}, skipping credit`);
+          return NextResponse.json({ ok: true, duplicate: true });
+        }
+
         if (ctx) {
+          // Skip if already completed in our DB
+          if (ctx.status === "completed") {
+            console.log(`RazCrypto Webhook: Payment ${paymentId} already completed, skipping`);
+            return NextResponse.json({ ok: true, already_completed: true });
+          }
           console.log(`RazCrypto Webhook: Enqueuing credit of ${ctx.amountPoints} points to user ${ctx.userId}`);
           await enqueuePaymentCredit(ctx.userId, paymentId, ctx.amountPoints);
         } else {

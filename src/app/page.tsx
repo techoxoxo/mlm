@@ -285,25 +285,25 @@ export default async function Landing() {
           background: linear-gradient(160deg, #f8f5ff 0%, #efe8ff 30%, #e8eeff 65%, #f4f0ff 100%);
         }
         [data-theme="dark"] .lp-hero {
-          background: linear-gradient(160deg, #06080f 0%, #090c1a 40%, #070914 100%);
+          background: linear-gradient(160deg, #090514 0%, #0c0827 40%, #050212 100%);
         }
         .lp-hero::before {
           content:''; position:absolute; inset:0; pointer-events:none;
           background:
             radial-gradient(700px 480px at 72% 35%, rgba(124,58,237,0.11), transparent 60%),
             radial-gradient(500px 320px at 5% 75%, rgba(168,85,247,0.06), transparent 55%),
-            radial-gradient(400px 300px at 85% 85%, rgba(245,198,23,0.05), transparent 60%);
+            radial-gradient(400px 300px at 85% 85%, rgba(59,130,246,0.08), transparent 60%);
         }
         [data-theme="dark"] .lp-hero::before {
           background:
-            radial-gradient(900px 600px at 68% 38%, rgba(100,55,220,0.16), transparent 62%),
-            radial-gradient(600px 400px at 12% 68%, rgba(245,198,23,0.06), transparent 58%),
-            radial-gradient(400px 300px at 50% 100%, rgba(90,40,200,0.08), transparent 60%);
+            radial-gradient(900px 600px at 68% 38%, rgba(139,92,246,0.18), transparent 62%),
+            radial-gradient(600px 400px at 12% 68%, rgba(59,130,246,0.12), transparent 58%),
+            radial-gradient(400px 300px at 50% 100%, rgba(139,92,246,0.1), transparent 60%);
         }
 
         /* Hero text: purple accent on light, gold on dark */
         .lp-h1-accent { color: #7c3aed; -webkit-text-fill-color: #7c3aed; background: none; }
-        [data-theme="dark"] .lp-h1-accent { color: #f5c617; -webkit-text-fill-color: #f5c617; }
+        [data-theme="dark"] .lp-h1-accent { color: #a855f7; -webkit-text-fill-color: #a855f7; }
 
         /* Hero h1: light says "Build today. Benefit forever.", dark says "Take full control of your future." */
         .lp-h1-light { display:block; }
@@ -325,7 +325,7 @@ export default async function Landing() {
           letter-spacing:0.18em; color:#7c3aed; text-transform:uppercase;
         }
         [data-theme="dark"] .lp-badge {
-          background:rgba(245,198,23,0.08); border-color:rgba(245,198,23,0.3); color:#f5c617;
+          background:rgba(139,92,246,0.12); border-color:rgba(139,92,246,0.3); color:#c084fc;
         }
 
         /* Stats card */
@@ -347,7 +347,7 @@ export default async function Landing() {
         .lp-ftag { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600; color:rgba(30,27,75,0.75); }
         [data-theme="dark"] .lp-ftag { color:rgba(255,255,255,0.75); }
         .lp-fdot { width:8px; height:8px; border-radius:50%; background:#7c3aed; }
-        [data-theme="dark"] .lp-fdot { background:#f5c617; }
+        [data-theme="dark"] .lp-fdot { background:#8b5cf6; }
 
         /* Outline button in hero */
         .lp-hero-outline {
@@ -1050,9 +1050,9 @@ export default async function Landing() {
       {/* ─── WHY JOIN US ─── */}
       <section className="container" style={{ padding: "60px 24px" }}>
         <div style={{
-          background: "linear-gradient(135deg, #f5c617 0%, #e0b010 100%)",
+          background: "linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)",
           border: "2px solid rgba(255, 255, 255, 0.4)",
-          boxShadow: "0 10px 40px rgba(245, 198, 23, 0.3)",
+          boxShadow: "0 10px 40px rgba(139, 92, 246, 0.3)",
           borderRadius: 28,
           padding: "48px 36px",
           maxWidth: 960,
@@ -1065,13 +1065,13 @@ export default async function Landing() {
             justifyContent: "center",
             padding: "4px 12px",
             borderRadius: 99,
-            background: "rgba(0, 0, 0, 0.08)",
-            border: "1px solid rgba(0, 0, 0, 0.15)",
+            background: "rgba(255, 255, 255, 0.15)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
             fontSize: 11,
             fontWeight: 800,
             letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: "#191508",
+            color: "#ffffff",
             marginBottom: 14
           }}>
             ✦ Why Choose Us ✦

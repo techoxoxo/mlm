@@ -56,6 +56,14 @@ export async function sendOtpAction(email: string): Promise<{ ok: boolean; error
   const existing = await db.query.users.findFirst({ where: eq(users.email, cleanEmail) });
   if (existing) return { ok: false, error: "Email already registered" };
 
+  const emailEnabled = process.env.EMAIL_OTP_ENABLED !== "false";
+
+  if (!emailEnabled) {
+    // Dev/test mode: store fixed OTP 123456, skip email
+    await connection.set(`otp:${cleanEmail}`, "123456", "EX", 900);
+    return { ok: true };
+  }
+
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   await connection.set(`otp:${cleanEmail}`, otp, "EX", 900);
 
