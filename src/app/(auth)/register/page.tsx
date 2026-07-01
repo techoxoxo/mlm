@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { AuthForm } from "@/components/AuthForm";
+import { db, schema } from "@/db";
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ ref?: string }> }) {
   const { ref } = await searchParams;
+  const firstUser = await db.select({ id: schema.users.id }).from(schema.users).limit(1);
+  const isFirstUser = firstUser.length === 0;
+
   return (
     <>
       {/* kicker */}
@@ -33,7 +37,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
           : "Join the queue-backed matrix and climb from Starter to Platinum."}
       </p>
 
-      <AuthForm mode="register" refCode={ref} />
+      <AuthForm mode="register" refCode={ref} isFirstUser={isFirstUser} />
 
       <p style={{ color: "#94a3b8", fontSize: 14, marginTop: 20, textAlign: "center" }}>
         Already have an account?{" "}

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { loginAction, registerAction, sendOtpAction, type ActionState } from "@/app/actions/auth";
 
-export function AuthForm({ mode, refCode, next }: { mode: "login" | "register"; refCode?: string; next?: string }) {
+export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "login" | "register"; refCode?: string; next?: string; isFirstUser?: boolean }) {
   const action = mode === "login" ? loginAction : registerAction;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, null);
   
@@ -37,7 +37,7 @@ export function AuthForm({ mode, refCode, next }: { mode: "login" | "register"; 
       setClientError("Passwords do not match.");
       return;
     }
-    if (mode === "register" && !refInput.trim()) {
+    if (mode === "register" && !isFirstUser && !refInput.trim()) {
       setClientError("Referral code is required. You cannot register without a valid referral code.");
       return;
     }
