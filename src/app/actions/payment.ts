@@ -5,8 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSession } from "@/lib/auth";
 import { post } from "@/lib/distribution";
-import { createPayment, createInvoice, getPaymentStatus } from "@/lib/nowpayments";
-import type { NowPaymentStatus } from "@/lib/nowpayments";
+import { createInvoice, createPayout } from "@/lib/cryptomus";
 import { encrypt } from "@/lib/crypto";
 import { enqueuePaymentPayout } from "@/lib/queue";
 
@@ -72,8 +71,11 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
     // orderId formatted for webhook parser: dep:${userId}:${amountPoints}
     const orderId = `dep:${userId}:${amountPoints}`;
 
-    // Create payment in NowPayments
-    const payment = await createPayment(orderId, amountUsdt, "usdtbsc");
+    // Create payment in Cryptomus
+    const payment = await createInvoice(orderId, amountUsdt, {
+      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
+      cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=cancelled`,
+    });
 
     // Write pending row to database
     await db.insert(cryptoTransactions).values({
@@ -83,16 +85,16 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
       amountUsdt: amountUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
-      paymentId: payment.payment_id,
+      paymentId: payment.uuid,
       updatedAt: new Date(),
     });
 
     return {
       ok: true,
       data: {
-        payAddress: payment.pay_address,
-        paymentId: payment.payment_id,
-        amountUsdt: payment.pay_amount,
+        payAddress: payment.url,
+        paymentId: payment.uuid,
+        amountUsdt: Number(payment.amount),
         amountPoints,
       },
     };
@@ -275,15 +277,15 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
       amountUsdt: totalUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
-      paymentId: invoice.id,
+      paymentId: invoice.uuid,
       updatedAt: new Date(),
     });
 
     return {
       ok: true,
       data: {
-        invoiceUrl: invoice.invoice_url,
-        invoiceId: invoice.id,
+        invoiceUrl: invoice.url,
+        invoiceId: invoice.uuid,
         amountUsdt: totalUsdt,
         amountPoints,
       },
@@ -296,29 +298,25 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
 
 export async function checkPaymentStatusAction(
   paymentId: string
-): Promise<ActionState<{ status: NowPaymentStatus; actuallyPaid: number }>> {
+): Promise<ActionState<{ status: string; actuallyPaid: number }>> {
   try {
     await requireUser();
 
-    const payment = await getPaymentStatus(paymentId);
+    // In Cryptomus, we look up the transaction status from our database table (cryptoTransactions)
+    // since webhook IPN/SSE already handles status updates in real-time.
+    const [tx] = await db
+      .select()
+      .from(cryptoTransactions)
+      .where(eq(cryptoTransactions.paymentId, paymentId))
+      .limit(1);
 
-    if (
-      payment.payment_status === "expired" ||
-      payment.payment_status === "failed" ||
-      payment.payment_status === "refunded"
-    ) {
-      const dbStatus = payment.payment_status === "refunded" ? "failed" as const : payment.payment_status;
-      await db
-        .update(cryptoTransactions)
-        .set({ status: dbStatus, updatedAt: new Date() })
-        .where(eq(cryptoTransactions.paymentId, paymentId));
-    }
+    const status = tx?.status === "completed" ? "paid" : tx?.status || "process";
 
     return {
       ok: true,
       data: {
-        status: payment.payment_status,
-        actuallyPaid: payment.actually_paid ?? 0,
+        status,
+        actuallyPaid: tx ? Number(tx.amountUsdt) : 0,
       },
     };
   } catch (error) {

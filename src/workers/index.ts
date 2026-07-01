@@ -17,7 +17,7 @@ import { distributeRoyalty } from "@/lib/royalty";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { decrypt, hashWallet } from "@/lib/crypto";
-import { createPayout, getPaymentStatus } from "@/lib/nowpayments";
+import { createPayout, getPaymentStatus } from "@/lib/cryptomus";
 import { publishEvent } from "@/lib/events";
 
 /**
@@ -72,8 +72,8 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
     // Re-verify payment status with NowPayments before crediting
     try {
       const paymentCheck = await getPaymentStatus(paymentId);
-      if (paymentCheck.payment_status !== "finished") {
-        throw new Error(`Payment ${paymentId} not finished (status: ${paymentCheck.payment_status}), skipping credit`);
+      if (paymentCheck.status !== "paid" && paymentCheck.status !== "paid_over") {
+        throw new Error(`Payment ${paymentId} not finished (status: ${paymentCheck.status}), skipping credit`);
       }
     } catch (verifyErr) {
       // If verification fails due to API error, let BullMQ retry
@@ -195,13 +195,11 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
     try {
       const payoutRes = await createPayout(
         walletAddress,
-        Number(ctx.amountUsdt),
-        ctx.network
+        Number(ctx.amountUsdt)
       );
 
-      const withdrawal = payoutRes.withdrawals?.[0];
-      const payoutId = payoutRes.id;
-      const txHash = withdrawal?.txid ?? null;
+      const payoutId = payoutRes.uuid;
+      const txHash = payoutRes.txid ?? null;
 
       await db
         .update(schema.cryptoTransactions)
@@ -217,7 +215,7 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
 
       await publishEvent(ctx.userId, { type: "payment_update", status: "completed" });
     } catch (apiError) {
-      console.error(`NowPayments payout API error for payout ${cryptoTxId}:`, apiError);
+      console.error(`Cryptomus payout API error for payout ${cryptoTxId}:`, apiError);
 
       // Atomically mark failed + refund with idempotency key to prevent double-refunds on retry
       await db.transaction(async (tx) => {
