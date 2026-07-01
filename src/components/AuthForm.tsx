@@ -37,6 +37,10 @@ export function AuthForm({ mode, refCode, next }: { mode: "login" | "register"; 
       setClientError("Passwords do not match.");
       return;
     }
+    if (mode === "register" && !refInput.trim()) {
+      setClientError("Referral code is required. You cannot register without a valid referral code.");
+      return;
+    }
 
     setSendingOtp(true);
     try {

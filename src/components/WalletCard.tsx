@@ -39,9 +39,7 @@ export function WalletCard({
         setWithdrawError(res.error || "Failed to process withdrawal request.");
       } else {
         setWithdrawSuccess(
-          res.data.status === "pending_admin_approval"
-            ? "Withdrawal requested successfully! It is queued for admin manual approval."
-            : "Withdrawal processed successfully! Points deducted and enqueued for USDT transfer."
+          "Withdrawal submitted! Points deducted and USDT transfer is being processed. Check the transaction history below for status updates."
         );
         setWithdrawAddress("");
         setWithdrawPoints(20);
@@ -144,7 +142,7 @@ export function WalletCard({
             {withdrawPoints >= 100 && (
               <div style={{ display: "flex", gap: 6, background: "rgba(248,198,23,0.06)", border: "1px solid rgba(248,198,23,0.15)", padding: 10, borderRadius: 8, fontSize: 11, color: "var(--color-muted)", lineHeight: 1.4 }}>
                 <AlertTriangle size={14} color="var(--color-brand)" style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>Large withdrawals (≥ 100 points / $100) are flagged for manual review and will process within 24 hours.</span>
+                <span>Large withdrawals may take a few minutes to process.</span>
               </div>
             )}
 

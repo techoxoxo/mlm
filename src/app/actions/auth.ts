@@ -127,6 +127,9 @@ export async function registerAction(_prev: ActionState, form: FormData): Promis
 
   await connection.del(`otp:${email}`);
   await setSession({ uid: created.id, role: created.role, email: created.email });
+  // Purge cached pages so dashboard loads fresh data for this user
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
   redirect("/dashboard");
 }
 
@@ -145,6 +148,9 @@ export async function loginAction(_prev: ActionState, form: FormData): Promise<A
   }
 
   await setSession({ uid: user.id, role: user.role, email: user.email });
+  // Purge cached pages so dashboard loads fresh data for this user
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
 
   const fallback = user.role === "admin" ? "/admin" : "/dashboard";
   const next = safeNext(form.get("next"));
@@ -155,5 +161,8 @@ export async function loginAction(_prev: ActionState, form: FormData): Promise<A
 
 export async function logoutAction() {
   await clearSession();
+  // Purge all cached server component data so the next user doesn't see stale pages
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
   redirect("/login");
 }

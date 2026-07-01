@@ -18,7 +18,7 @@ export default async function ReferralsAdmin() {
       referralCode: users.referralCode,
       status: users.status,
       currentSlab: users.currentSlab,
-      referralCount: sql<number>`(select count(*)::int from ${users} u where u.sponsor_id = ${users.id})`,
+      referralCount: sql<number>`(select count(*)::int from "users" u where u.sponsor_id = "users"."id")`,
     })
     .from(users)
     .where(eq(users.role, "user"))
@@ -39,7 +39,7 @@ export default async function ReferralsAdmin() {
     })
     .from(transactions)
     .innerJoin(users, eq(users.id, transactions.userId))
-    .leftJoin(sql`users cp`, sql`${transactions.counterpartyId} = cp.id`)
+    .leftJoin(sql`"users" cp`, sql`${transactions.counterpartyId} = cp.id`)
     .where(eq(transactions.type, "referral_bonus"))
     .orderBy(desc(transactions.createdAt))
     .limit(100);

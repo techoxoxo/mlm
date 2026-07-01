@@ -174,12 +174,12 @@ export async function getPaymentStatus(paymentId: string): Promise<GetPaymentSta
   if (isMockMode()) {
     return {
       payment_id: Number(paymentId) || 0,
-      payment_status: "waiting",
+      payment_status: "finished",
       pay_address: "BSC_MOCK_WALLET",
       price_amount: 50,
       price_currency: "usd",
       pay_amount: 50,
-      actually_paid: 0,
+      actually_paid: 50,
       pay_currency: "usdtbsc",
       order_id: "",
       order_description: null,
