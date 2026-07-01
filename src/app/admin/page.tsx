@@ -151,7 +151,7 @@ export default async function AdminOverview() {
         ))}
       </div>
 
-      <SimulatePanel />
+      {/* <SimulatePanel /> */}
 
       {/* players by slab */}
       <div className="card" style={{ padding: 26 }}>
@@ -209,7 +209,7 @@ export default async function AdminOverview() {
         </div>
       </div>
 
-      <ResetSystemButton />
+      {/* <ResetSystemButton /> */}
     </div>
   );
 }

@@ -55,18 +55,18 @@ async function main() {
   }
 
   console.log("Seeding admin user…");
-  const adminEmail = "admin@mlm.local";
+  const adminEmail = "info@revolutionary-group.com";
   const existing = await db.query.users.findFirst({ where: eq(users.email, adminEmail) });
   if (!existing) {
     await db.insert(users).values({
       email: adminEmail,
-      passwordHash: await hashPassword("admin123"),
+      passwordHash: await hashPassword("adminRevolution@369"),
       name: "Administrator",
       role: "admin",
       status: "active",
       referralCode: genReferralCode(),
     });
-    console.log("  → admin@mlm.local / admin123");
+    console.log("  → info@revolutionary-group.com / adminRevolution@369");
   } else {
     console.log("  → admin already exists");
   }
