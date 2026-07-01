@@ -85,7 +85,7 @@ export function AppShell({
           position: "sticky",
           top: 0,
           height: "100vh",
-          overflow: "hidden",
+          overflowY: "auto",
         }}
       >
         {/* sidebar glow orbs */}
