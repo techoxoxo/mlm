@@ -85,19 +85,19 @@ export function ActivationPaymentScreen() {
 
     const sendWebhook = async (status: string, paidAmount: number) => {
       const payload = {
-        uuid: mockInvoiceId,
+        payment_id: mockInvoiceId,
         status: status,
-        order_id: mockOrderId,
         amount: mockAmount.toString(),
         currency: "USDT",
         actually_paid: paidAmount.toString(),
-        sign: "mock_ipn_sig"
+        custom_data: { orderId: mockOrderId }
       };
       
-      const res = await fetch("/api/webhooks/cryptomus", {
+      const res = await fetch("/api/webhooks/razcrypto", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-razcrypto-signature": "mock_ipn_sig"
         },
         body: JSON.stringify(payload)
       });
@@ -109,18 +109,13 @@ export function ActivationPaymentScreen() {
 
     try {
       if (selectedCase === "success") {
-        log("🔄 Emulating waiting phase ('process')...");
-        await sendWebhook("process", 0);
+        log("🔄 Emulating waiting phase ('pending')...");
+        await sendWebhook("pending", 0);
         setSimStatus("waiting");
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        log("🔄 Blockchain confirmation started ('confirm')...");
-        await sendWebhook("confirm", 0);
-        setSimStatus("confirming");
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        log("✅ Payment finished successfully ('paid')!");
-        await sendWebhook("paid", mockAmount);
+        log("✅ Payment finished successfully ('completed')!");
+        await sendWebhook("completed", mockAmount);
         setSimStatus("finished");
         log("🎉 Simulation finished. Redirecting to success page...");
         
@@ -129,35 +124,35 @@ export function ActivationPaymentScreen() {
         }, 1500);
 
       } else if (selectedCase === "partially_paid") {
-        log("🔄 Emulating waiting phase ('process')...");
-        await sendWebhook("process", 0);
+        log("🔄 Emulating waiting phase ('pending')...");
+        await sendWebhook("pending", 0);
         setSimStatus("waiting");
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        log("⚠️ Simulation: Partially paid transaction ('wrong_amount')");
-        await sendWebhook("wrong_amount", Math.floor(mockAmount / 2));
+        log("⚠️ Simulation: Partially paid transaction ('pending')");
+        await sendWebhook("pending", Math.floor(mockAmount / 2));
         setSimStatus("partially_paid");
         log("❌ Transaction marked as partially paid.");
 
       } else if (selectedCase === "failed") {
-        log("🔄 Emulating waiting phase ('process')...");
-        await sendWebhook("process", 0);
+        log("🔄 Emulating waiting phase ('pending')...");
+        await sendWebhook("pending", 0);
         setSimStatus("waiting");
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        log("❌ Simulation: Blockchain failure ('fail')");
-        await sendWebhook("fail", 0);
+        log("❌ Simulation: Blockchain failure ('expired')");
+        await sendWebhook("expired", 0);
         setSimStatus("failed");
         log("❌ Webhook status updated to failed.");
 
       } else if (selectedCase === "expired") {
-        log("🔄 Emulating waiting phase ('process')...");
-        await sendWebhook("process", 0);
+        log("🔄 Emulating waiting phase ('pending')...");
+        await sendWebhook("pending", 0);
         setSimStatus("waiting");
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        log("⏳ Simulation: Session expired ('cancel')");
-        await sendWebhook("cancel", 0);
+        log("⏳ Simulation: Session expired ('expired')");
+        await sendWebhook("expired", 0);
         setSimStatus("expired");
         log("❌ Webhook status updated to expired.");
       }

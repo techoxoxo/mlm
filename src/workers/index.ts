@@ -17,7 +17,7 @@ import { distributeRoyalty } from "@/lib/royalty";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { decrypt, hashWallet } from "@/lib/crypto";
-import { createPayout, getPaymentStatus } from "@/lib/cryptomus";
+import { createPayout, getPaymentStatus } from "@/lib/razcrypto";
 import { publishEvent } from "@/lib/events";
 
 /**
@@ -72,7 +72,7 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
     // Re-verify payment status with NowPayments before crediting
     try {
       const paymentCheck = await getPaymentStatus(paymentId);
-      if (paymentCheck.status !== "paid" && paymentCheck.status !== "paid_over") {
+      if (paymentCheck.status !== "completed") {
         throw new Error(`Payment ${paymentId} not finished (status: ${paymentCheck.status}), skipping credit`);
       }
     } catch (verifyErr) {
@@ -192,14 +192,31 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
       return;
     }
 
+    const isMock = process.env.PAYMENT_GATEWAY_MODE === "mock" || !process.env.RAZ_PUBLIC_KEY;
+
+    if (!isMock) {
+      // In production, RazCrypto is non-custodial and settles directly to the admin wallet.
+      // Thus, withdrawals must be approved/processed manually by the admin.
+      await db
+        .update(schema.cryptoTransactions)
+        .set({
+          status: "pending_admin_approval",
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.cryptoTransactions.id, cryptoTxId));
+
+      await publishEvent(ctx.userId, { type: "payment_update", status: "pending_admin_approval" });
+      return;
+    }
+
     try {
       const payoutRes = await createPayout(
         walletAddress,
         Number(ctx.amountUsdt)
       );
 
-      const payoutId = payoutRes.uuid;
-      const txHash = payoutRes.txid ?? null;
+      const payoutId = payoutRes.trackId;
+      const txHash = payoutRes.txID;
 
       await db
         .update(schema.cryptoTransactions)
@@ -215,7 +232,7 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
 
       await publishEvent(ctx.userId, { type: "payment_update", status: "completed" });
     } catch (apiError) {
-      console.error(`Cryptomus payout API error for payout ${cryptoTxId}:`, apiError);
+      console.error(`RazCrypto payout API error for payout ${cryptoTxId}:`, apiError);
 
       // Atomically mark failed + refund with idempotency key to prevent double-refunds on retry
       await db.transaction(async (tx) => {

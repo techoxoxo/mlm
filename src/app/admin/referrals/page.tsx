@@ -22,7 +22,7 @@ export default async function ReferralsAdmin() {
     })
     .from(users)
     .where(eq(users.role, "user"))
-    .orderBy(desc(sql`referral_count`));
+    .orderBy(desc(sql`(select count(*)::int from "users" u where u.sponsor_id = "users"."id")`));
 
   // Query recent referral bonus payouts
   const recentBonuses = await db

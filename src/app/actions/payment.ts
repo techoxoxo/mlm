@@ -5,9 +5,10 @@ import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSession } from "@/lib/auth";
 import { post } from "@/lib/distribution";
-import { createInvoice, createPayout } from "@/lib/cryptomus";
-import { encrypt } from "@/lib/crypto";
+import { createInvoice, createPayout } from "@/lib/razcrypto";
+import { encrypt, decrypt } from "@/lib/crypto";
 import { enqueuePaymentPayout } from "@/lib/queue";
+import { publishEvent } from "@/lib/events";
 
 const { cryptoTransactions, users } = schema;
 
@@ -71,7 +72,7 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
     // orderId formatted for webhook parser: dep:${userId}:${amountPoints}
     const orderId = `dep:${userId}:${amountPoints}`;
 
-    // Create payment in Cryptomus
+    // Create payment in RazCrypto
     const payment = await createInvoice(orderId, amountUsdt, {
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
       cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=cancelled`,
@@ -85,16 +86,16 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
       amountUsdt: amountUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
-      paymentId: payment.uuid,
+      paymentId: payment.payment_id,
       updatedAt: new Date(),
     });
 
     return {
       ok: true,
       data: {
-        payAddress: payment.url,
-        paymentId: payment.uuid,
-        amountUsdt: Number(payment.amount),
+        payAddress: payment.checkout_page,
+        paymentId: payment.payment_id,
+        amountUsdt: payment.amount,
         amountPoints,
       },
     };
@@ -277,15 +278,15 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
       amountUsdt: totalUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
-      paymentId: invoice.uuid,
+      paymentId: invoice.payment_id,
       updatedAt: new Date(),
     });
 
     return {
       ok: true,
       data: {
-        invoiceUrl: invoice.url,
-        invoiceId: invoice.uuid,
+        invoiceUrl: invoice.checkout_page,
+        invoiceId: invoice.payment_id,
         amountUsdt: totalUsdt,
         amountPoints,
       },
@@ -302,7 +303,7 @@ export async function checkPaymentStatusAction(
   try {
     await requireUser();
 
-    // In Cryptomus, we look up the transaction status from our database table (cryptoTransactions)
+    // In RazCrypto, we look up the transaction status from our database table (cryptoTransactions)
     // since webhook IPN/SSE already handles status updates in real-time.
     const [tx] = await db
       .select()
@@ -310,7 +311,7 @@ export async function checkPaymentStatusAction(
       .where(eq(cryptoTransactions.paymentId, paymentId))
       .limit(1);
 
-    const status = tx?.status === "completed" ? "paid" : tx?.status || "process";
+    const status = tx?.status === "completed" ? "completed" : tx?.status || "pending";
 
     return {
       ok: true,
@@ -321,6 +322,114 @@ export async function checkPaymentStatusAction(
     };
   } catch (error) {
     console.error("checkPaymentStatusAction failed:", error);
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Approve a pending withdrawal by assigning the transaction hash and marking it completed.
+ */
+export async function approveWithdrawalAction(
+  cryptoTxId: string,
+  txHash: string
+): Promise<ActionState<void>> {
+  try {
+    await requireAdmin();
+
+    const trimmedHash = txHash.trim();
+    if (!trimmedHash || trimmedHash.length < 10) {
+      return { ok: false, error: "Please enter a valid Transaction Hash (TxID)" };
+    }
+
+    const [ctx] = await db
+      .select()
+      .from(cryptoTransactions)
+      .where(eq(cryptoTransactions.id, cryptoTxId))
+      .limit(1);
+
+    if (!ctx || ctx.type !== "withdrawal") {
+      return { ok: false, error: "Withdrawal transaction not found" };
+    }
+
+    if (ctx.status !== "pending_admin_approval" && ctx.status !== "pending") {
+      return { ok: false, error: `Transaction is already in status: ${ctx.status}` };
+    }
+
+    if (!ctx.encryptedWalletAddress) {
+      return { ok: false, error: "Wallet address is missing or already processed" };
+    }
+
+    const { hashWallet } = await import("@/lib/crypto");
+    const walletAddress = decrypt(ctx.encryptedWalletAddress);
+
+    await db
+      .update(cryptoTransactions)
+      .set({
+        status: "completed",
+        txHash: trimmedHash,
+        encryptedWalletAddress: null,
+        hashedWalletAddress: hashWallet(walletAddress),
+        updatedAt: new Date(),
+      })
+      .where(eq(cryptoTransactions.id, cryptoTxId));
+
+    await publishEvent(ctx.userId, { type: "payment_update", status: "completed" });
+    safeRevalidate("/admin/payments");
+
+    return { ok: true };
+  } catch (error) {
+    console.error("approveWithdrawalAction failed:", error);
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Reject a pending withdrawal, marking it failed and refunding the points back to the user balance.
+ */
+export async function rejectWithdrawalAction(
+  cryptoTxId: string
+): Promise<ActionState<void>> {
+  try {
+    await requireAdmin();
+
+    const [ctx] = await db
+      .select()
+      .from(cryptoTransactions)
+      .where(eq(cryptoTransactions.id, cryptoTxId))
+      .limit(1);
+
+    if (!ctx || ctx.type !== "withdrawal") {
+      return { ok: false, error: "Withdrawal transaction not found" };
+    }
+
+    if (ctx.status !== "pending_admin_approval" && ctx.status !== "pending") {
+      return { ok: false, error: `Transaction is already in status: ${ctx.status}` };
+    }
+
+    await db.transaction(async (tx) => {
+      // 1) Mark transaction as failed
+      await tx
+        .update(cryptoTransactions)
+        .set({
+          status: "failed",
+          encryptedWalletAddress: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(cryptoTransactions.id, cryptoTxId));
+
+      // 2) Refund points to the user
+      await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
+        note: `Refund: Withdrawal request rejected by Admin`,
+        idempotencyKey: `refund:${cryptoTxId}`,
+      });
+    });
+
+    await publishEvent(ctx.userId, { type: "payment_update", status: "failed" });
+    safeRevalidate("/admin/payments");
+
+    return { ok: true };
+  } catch (error) {
+    console.error("rejectWithdrawalAction failed:", error);
     return { ok: false, error: (error as Error).message };
   }
 }
