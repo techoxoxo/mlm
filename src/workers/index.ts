@@ -80,7 +80,7 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
     // Re-verify payment status with RazCrypto before crediting
     try {
       const paymentCheck = await getPaymentStatus(paymentId);
-      if (paymentCheck.status !== "completed") {
+      if (paymentCheck.status !== "completed" && paymentCheck.status !== "success") {
         throw new Error(`Payment ${paymentId} not finished (status: ${paymentCheck.status}), skipping credit`);
       }
     } catch (verifyErr) {

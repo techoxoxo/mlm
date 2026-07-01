@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         .where(eq(schema.cryptoTransactions.paymentId, paymentId))
         .limit(1);
 
-      if (paymentStatus === "completed") {
+      if (paymentStatus === "completed" || paymentStatus === "success") {
         // Idempotency: use Redis SET NX to prevent duplicate credit enqueuing
         // on webhook retries. Key expires after 24h as a safety net.
         const idempotencyKey = `webhook:credited:${paymentId}`;

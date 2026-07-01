@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 const RAZ_API_URL = "https://razcryptogateway.com";
 
-export type RazPaymentStatus = "pending" | "completed" | "expired";
+export type RazPaymentStatus = "pending" | "completed" | "expired" | "success";
 
 export type CreatePaymentResponse = {
   payment_id: string;
@@ -130,7 +130,7 @@ export async function getPaymentStatus(
   const data = await res.json();
   return {
     status: data.status as RazPaymentStatus,
-    actually_paid: data.status === "completed" ? Number(data.amount) : 0,
+    actually_paid: (data.status === "completed" || data.status === "success") ? Number(data.amount) : 0,
   };
 }
 
