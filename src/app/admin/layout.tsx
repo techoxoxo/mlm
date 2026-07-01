@@ -11,6 +11,7 @@ const items: NavItem[] = [
   { href: "/admin/matrix", label: "Matrix", icon: "matrix" },
   { href: "/admin/payments", label: "Payments", icon: "wallet" },
   { href: "/admin/users", label: "Users", icon: "users" },
+  { href: "/admin/auto-upgrade", label: "Auto Upgrade", icon: "zap" },
   { href: "/admin/referrals", label: "Referrals", icon: "users" },
   { href: "/admin/reports", label: "Reports", icon: "receipt" },
   { href: "/admin/queue", label: "Queue", icon: "queue" },

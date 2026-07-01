@@ -14,6 +14,7 @@ import {
   GitFork,
   BookOpen,
   Wallet,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ const ICONS: Record<string, LucideIcon> = {
   tree: GitFork,
   guide: BookOpen,
   wallet: Wallet,
+  zap: Zap,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
