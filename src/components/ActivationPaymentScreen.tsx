@@ -35,9 +35,9 @@ export function ActivationPaymentScreen() {
   const [simLog, setSimLog] = useState<string[]>([]);
   const [simulating, setSimulating] = useState(false);
 
-  // If NOWPayments redirected back with ?payment=success, poll until activation completes
+  // Poll until activation completes when an invoice is pending or redirect success is active
   useEffect(() => {
-    if (!isPaymentSuccess) return;
+    if (!invoice && !isPaymentSuccess) return;
 
     const es = new EventSource("/api/events");
     es.onmessage = (e) => {
@@ -46,17 +46,17 @@ export function ActivationPaymentScreen() {
         if (ev.type === "payment_update") {
           router.refresh();
         }
-      } catch { /* ignore non-JSON pings */ }
+      } catch { /* ignore pings */ }
     };
 
-    // Fallback: poll via router.refresh every 10s in case SSE misses it
-    const interval = setInterval(() => router.refresh(), 10_000);
+    // Fallback: poll via router.refresh every 6s
+    const interval = setInterval(() => router.refresh(), 6000);
 
     return () => {
       es.close();
       clearInterval(interval);
     };
-  }, [isPaymentSuccess, router]);
+  }, [invoice, isPaymentSuccess, router]);
 
   const handleInitiate = () => {
     setError(null);
@@ -210,7 +210,7 @@ export function ActivationPaymentScreen() {
             }}>
               ⚙️ Sandbox Emulation Page
             </span>
-            <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>NOWPayments Mock Sandbox</h2>
+            <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>RazCrypto Mock Sandbox</h2>
             <p style={{ color: "#94a3b8", fontSize: 13.5, margin: "6px 0 0", lineHeight: 1.5 }}>
               Choose a checkout test case and click pay to emulate webhook IPN delivery.
             </p>
@@ -406,7 +406,7 @@ export function ActivationPaymentScreen() {
             </div>
 
             <div className="pay-text" style={{ fontSize: 13, color: "#6b5e2e", lineHeight: 1.5, background: "rgba(0,0,0,0.02)", padding: 14, borderRadius: 10, border: "1px solid rgba(0,0,0,0.08)" }}>
-              Complete your payment of <b className="pay-title" style={{ color: "#1a1508" }}>{invoice.amountUsdt.toFixed(2)} USDT</b> on the NOWPayments checkout page. You'll be redirected back automatically after payment.
+              Complete your payment of <b className="pay-title" style={{ color: "#1a1508" }}>{invoice.amountUsdt.toFixed(2)} USDT</b> on the RazCrypto checkout page. You'll be redirected back automatically after payment.
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyItems: "center", justifySelf: "center", alignSelf: "center", gap: 8, fontSize: 13, color: "var(--color-brand)", background: "rgba(248, 198, 23, 0.05)", padding: "10px 24px", borderRadius: 8 }}>

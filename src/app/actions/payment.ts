@@ -20,9 +20,9 @@ export type ActionState<T = unknown> = {
   data?: T;
 };
 
-function safeRevalidate(path: string) {
+function safeRevalidate(path: string, type?: "layout" | "page") {
   try {
-    revalidatePath(path);
+    revalidatePath(path, type);
   } catch {
     // Ignore static generation store missing error when run from CLI scripts
   }
@@ -428,6 +428,9 @@ export async function approveWithdrawalAction(
 
     await publishEvent(result.userId, { type: "payment_update", status: "completed" });
     safeRevalidate("/admin/payments");
+    safeRevalidate("/dashboard/wallet");
+    safeRevalidate("/dashboard/transactions");
+    safeRevalidate("/", "layout");
 
     return { ok: true };
   } catch (error) {
@@ -496,6 +499,9 @@ export async function rejectWithdrawalAction(
 
     await publishEvent(result.userId, { type: "payment_update", status: "failed" });
     safeRevalidate("/admin/payments");
+    safeRevalidate("/dashboard/wallet");
+    safeRevalidate("/dashboard/transactions");
+    safeRevalidate("/", "layout");
 
     return { ok: true };
   } catch (error) {

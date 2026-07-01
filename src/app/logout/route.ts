@@ -5,7 +5,8 @@ import { COOKIE } from "@/lib/session";
 // Used both by the "log out" control and as the escape hatch when a session
 // references a user that no longer exists (avoids a /login⇄/dashboard loop).
 export async function GET(request: NextRequest) {
-  const res = NextResponse.redirect(new URL("/login", request.nextUrl.origin));
+  const base = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+  const res = NextResponse.redirect(new URL("/login", base));
   res.cookies.set(COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
