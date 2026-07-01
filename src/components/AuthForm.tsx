@@ -128,7 +128,7 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
             placeholder="you@example.com" 
             value={emailInput} 
             onChange={(e) => setEmailInput(e.target.value)}
-            required 
+            required={!otpSent} 
           />
         </div>
         <div>
@@ -141,7 +141,7 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
               placeholder="••••••••"
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              required
+              required={!otpSent}
               style={{ paddingRight: 44 }}
             />
             <button
@@ -189,7 +189,7 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
               value={refInput}
               onChange={(e) => setRefInput(e.target.value)}
               placeholder="ABCD1234" 
-              required
+              required={!otpSent && !isFirstUser}
             />
           </div>
         )}
