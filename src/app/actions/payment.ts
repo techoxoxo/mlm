@@ -140,19 +140,15 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
       return { ok: false, error: "Invalid USDT BEP-20 wallet address" };
     }
 
-    // Minimum withdrawal threshold is 20 points ($20)
-    if (amountPoints < 20) {
-      return { ok: false, error: "Minimum withdrawal threshold is 20 points ($20)" };
+    // Minimum withdrawal threshold is 10 points ($10)
+    if (amountPoints < 10) {
+      return { ok: false, error: "Minimum withdrawal threshold is 10 points ($10)" };
     }
 
-    // Rate: 1 point = 1 USDT. 2% conversion buffer. Flat 2.00 USDT network surcharge.
+    // Rate: 1 point = 1 USDT. 5% withdrawal fee.
     const baseUsdt = amountPoints * 1;
-    const payoutUsdt = baseUsdt * 0.98;
-    const netUsdt = payoutUsdt - 2; // Subtract flat gas fee
-
-    if (netUsdt <= 0) {
-      return { ok: false, error: "Withdrawal amount too small to cover the 2.00 USDT network fee" };
-    }
+    const feeAmount = baseUsdt * 0.05;
+    const netUsdt = baseUsdt - feeAmount;
 
     // All withdrawals are auto-approved and queued for payout
     const status = "pending" as const;
@@ -178,9 +174,10 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
       }
 
       // 2) Debit user points in lockstep
-      await post(tx, userId, "usdt_withdrawal", -amountPoints, {
-        note: `Withdrawal request: ${amountPoints} points to ${trimmedAddress.slice(0, 6)}...`,
-      });
+      await tx
+        .update(users)
+        .set({ pointsBalance: user.balance - amountPoints })
+        .where(eq(users.id, userId));
 
       // 3) Create database record with hashed wallet from the start
       const [ctx] = await tx
@@ -191,7 +188,7 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
           status,
           amountUsdt: netUsdt.toFixed(6),
           amountPoints,
-          feeUsdt: "2.000000",
+          feeUsdt: feeAmount.toFixed(6),
           network: "bep20",
           gateway: "razcrypto",
           encryptedWalletAddress,

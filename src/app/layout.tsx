@@ -26,8 +26,8 @@ export const metadata: Metadata = {
   description:
     "Revolutionary Group: a fair, queue-backed matrix network. Refer, fill your slots, and decide: cash out or climb.",
   icons: {
-    icon: "/images/rv_mlm.png",
-    apple: "/images/rv_mlm.png",
+    icon: "/image.png",
+    apple: "/image.png",
   },
 };
 

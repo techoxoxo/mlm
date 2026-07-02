@@ -77,6 +77,27 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         .starlink-node-3 {
           animation: drift-3 7s ease-in-out infinite;
         }
+
+        /* Responsive overrides */
+        @media (max-width: 960px) {
+          .auth-grid {
+            grid-template-columns: 1fr !important;
+            padding: 24px 16px !important;
+            gap: 20px !important;
+          }
+          .hide-mobile {
+            display: none !important;
+          }
+          .auth-header {
+            padding: 16px 20px !important;
+          }
+          .auth-footer {
+            padding: 20px 16px !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+            text-align: center;
+          }
+        }
       `}</style>
 
       <svg style={{ position: "absolute", width: 0, height: 0 }}>
@@ -159,6 +180,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* Header */}
       <header
+        className="auth-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -196,6 +218,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* Main Grid Content Area */}
       <div
+        className="auth-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "1.1fr 1fr 1.1fr",
@@ -310,6 +333,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* Footer */}
       <footer
+        className="auth-footer"
         style={{
           padding: "24px 40px",
           borderTop: "1px solid rgba(255, 255, 255, 0.05)",

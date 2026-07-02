@@ -104,8 +104,12 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{t.userName}</span>
                     <span className="pill pill-gold mono" style={{ fontSize: 11 }}>APX-{t.userSerial.toString().padStart(6, "0")}</span>
                   </div>
-                  <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>
-                    Requested: {t.amountPoints} points ({Number(t.amountUsdt).toFixed(2)} USDT after fee)
+                  <div style={{ color: "var(--muted)", fontSize: 12.5, marginBottom: 6 }}>
+                    <span>Request: <strong style={{ color: "#ffffff" }}>{t.amountPoints} points (${(t.amountPoints * 1).toFixed(2)} USDT)</strong></span>
+                    <span style={{ margin: "0 8px" }}>·</span>
+                    <span>Fee (5%): <strong style={{ color: "#ef4444" }}>-${(t.amountPoints * 0.05).toFixed(2)} USDT</strong></span>
+                    <span style={{ margin: "0 8px" }}>·</span>
+                    <span>Credited: <strong style={{ color: "#10b981" }}>{Number(t.amountUsdt).toFixed(2)} USDT</strong></span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span className="mono" style={{ fontSize: 12, color: "var(--gold-soft)", background: "rgba(245, 198, 23, 0.05)", padding: "2px 8px", borderRadius: 4 }}>

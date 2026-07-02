@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { SideNav, type NavItem } from "@/components/SideNav";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { LogOut, LayoutDashboard, Network, ReceiptText, Layers, Settings, Users, ListChecks, Gift, GitFork, BookOpen, Wallet, Zap } from "lucide-react";
+import { LogOut, LayoutDashboard, Network, ReceiptText, Layers, Settings, Users, ListChecks, Gift, GitFork, BookOpen, Wallet, Zap, Menu, X } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { usePathname } from "next/navigation";
 
@@ -39,6 +40,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [showMoreDrawer, setShowMoreDrawer] = useState(false);
 
   return (
     <div className="app-shell" style={{ display: "grid", gridTemplateColumns: "272px 1fr", minHeight: "100vh" }}>
@@ -174,15 +176,16 @@ export function AppShell({
             boxShadow: "0 1px 0 var(--border)",
           }}
         >
-          {/* Left info or Logo on mobile */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div className="mobile-only" style={{ marginRight: 4 }}>
+           {/* Left info or Logo on mobile */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="mobile-only" style={{ marginRight: 2 }}>
               <Link href="/">
-                <Logo size={16} />
+                <Logo size={20} withWord={false} />
               </Link>
             </div>
-            <div>
+            <div className="desktop-only-block">
               <h1
+                className="app-header-title"
                 style={{
                   fontSize: 18,
                   fontFamily: "var(--font-display)",
@@ -201,32 +204,10 @@ export function AppShell({
             </div>
           </div>
 
-          {/* Right actions: Theme, Badge, and mobile Logout */}
+          {/* Right actions: Theme and Badge */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <ThemeToggle />
             {badge}
-
-            {/* Logout button in header for mobile */}
-            <form action={logoutAction} className="mobile-only">
-              <button
-                type="submit"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: "rgba(255, 82, 82, 0.08)",
-                  border: "1px solid rgba(255, 82, 82, 0.15)",
-                  color: "#ef4444",
-                  cursor: "pointer",
-                }}
-                aria-label="Log out"
-              >
-                <LogOut size={16} />
-              </button>
-            </form>
           </div>
         </header>
 
@@ -256,48 +237,226 @@ export function AppShell({
           boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.4)",
         }}
       >
-        {items.map((it) => {
-          const active = pathname === it.href;
-          const Icon = ICONS[it.icon] ?? LayoutDashboard;
+        {(() => {
+          const limit = 5;
+          const needsMore = items.length > limit;
+          const visibleItems = needsMore ? items.slice(0, 4) : items;
+
           return (
-            <Link
-              key={it.href}
-              href={it.href}
+            <>
+              {visibleItems.map((it) => {
+                const active = pathname === it.href;
+                const Icon = ICONS[it.icon] ?? LayoutDashboard;
+                return (
+                  <Link
+                    key={it.href}
+                    href={it.href}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      textDecoration: "none",
+                      color: active ? "var(--gold-bright)" : "var(--muted)",
+                      flexGrow: 1,
+                      minWidth: 50,
+                      height: "100%",
+                      transition: "color 0.2s ease",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        width: 32,
+                        height: 32,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 8,
+                        background: active ? "rgba(248, 198, 23, 0.12)" : "transparent",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <Icon size={18} />
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: "-0.01em" }}>
+                      {it.label}
+                    </span>
+                  </Link>
+                );
+              })}
+
+              {needsMore && (
+                <button
+                  type="button"
+                  onClick={() => setShowMoreDrawer(true)}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
+                    background: "none",
+                    border: "none",
+                    color: showMoreDrawer ? "var(--gold-bright)" : "var(--muted)",
+                    flexGrow: 1,
+                    minWidth: 50,
+                    height: "100%",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      width: 32,
+                      height: 32,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 8,
+                      background: showMoreDrawer ? "rgba(248, 198, 23, 0.12)" : "transparent",
+                    }}
+                  >
+                    <Menu size={18} />
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: "-0.01em" }}>
+                    More
+                  </span>
+                </button>
+              )}
+            </>
+          );
+        })()}
+      </nav>
+
+      {/* ─── MOBILE DRAWER MENU OVERLAY ─── */}
+      {showMoreDrawer && (
+        <div
+          className="mobile-only"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
+            background: "rgba(10, 8, 6, 0.96)",
+            backdropFilter: "blur(20px)",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* Drawer Header */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "20px 24px",
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <Logo size={24} />
+            </div>
+            <button
+              onClick={() => setShowMoreDrawer(false)}
               style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "50%",
+                width: 38,
+                height: 38,
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 4,
-                textDecoration: "none",
-                color: active ? "var(--gold-bright)" : "var(--muted)",
-                flexGrow: 1,
-                minWidth: 50,
-                height: "100%",
-                transition: "color 0.2s ease",
+                color: "var(--muted)",
+                cursor: "pointer",
               }}
             >
-              <span
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Drawer Links Scrollable Area */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {items.map((it) => {
+                const active = pathname === it.href;
+                const Icon = ICONS[it.icon] ?? LayoutDashboard;
+                return (
+                  <Link
+                    key={it.href}
+                    href={it.href}
+                    onClick={() => setShowMoreDrawer(false)}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "20px 16px",
+                      borderRadius: 14,
+                      background: active
+                        ? "linear-gradient(135deg, rgba(248,198,23,0.12) 0%, rgba(248,198,23,0.03) 100%)"
+                        : "rgba(255,255,255,0.02)",
+                      border: active
+                        ? "1px solid rgba(248,198,23,0.25)"
+                        : "1px solid rgba(255,255,255,0.04)",
+                      textDecoration: "none",
+                      color: active ? "var(--gold-bright)" : "var(--color-text)",
+                      textAlign: "center",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        width: 40,
+                        height: 40,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 10,
+                        background: active ? "rgba(248, 198, 23, 0.15)" : "rgba(255,255,255,0.05)",
+                      }}
+                    >
+                      <Icon size={20} />
+                    </span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700 }}>
+                      {it.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Drawer Footer with Logout */}
+          <div style={{ padding: "20px 24px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 12 }}>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="btn"
                 style={{
-                  display: "inline-flex",
-                  width: 32,
-                  height: 32,
+                  width: "100%",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                  color: "#ef4444",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  borderRadius: 8,
-                  background: active ? "rgba(248, 198, 23, 0.12)" : "transparent",
-                  transition: "all 0.2s ease",
+                  gap: 8,
+                  cursor: "pointer",
                 }}
               >
-                <Icon size={18} />
-              </span>
-              <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: "-0.01em" }}>
-                {it.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+                <LogOut size={16} />
+                Log Out Account
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

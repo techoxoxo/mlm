@@ -249,7 +249,7 @@ export default async function DashboardHome() {
       </div>
 
       {/* ── stats ────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 14 }}>
         <StatCard icon={TrendingUp} label="Total earned" value={data.totalEarned.toLocaleString()} sub="all-time points" color="#8b5cf6" />
         <StatCard icon={Layers} label="Collected this tier" value={collected.toLocaleString()} sub="current slab" color="#3b82f6" />
         <StatCard icon={Users} label="Direct referrals" value={String(data.referrals.length)} sub="active members" color="#a78bfa" />

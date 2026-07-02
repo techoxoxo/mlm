@@ -52,6 +52,7 @@ export default async function NetworkPage() {
       position: slots.position,
       filledAt: slots.filledAt,
       name: users.name,
+      serialNo: users.serialNo,
       status: users.status,
     })
     .from(slots)
@@ -211,7 +212,9 @@ export default async function NetworkPage() {
             <tbody>
               {placed.map((p, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "11px 0", fontWeight: 600 }}>{p.name}</td>
+                  <td style={{ padding: "11px 0", fontWeight: 700, fontFamily: "var(--font-num)" }}>
+                    APX-{p.serialNo.toString().padStart(6, "0")}
+                  </td>
                   <td style={{ color: "var(--muted)", fontSize: 13 }}>Tier {p.slab}</td>
                   <td>
                     <span
