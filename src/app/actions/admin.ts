@@ -385,7 +385,7 @@ export async function manuallyActivateUserAction(userId: string) {
         amountUsdt: "50.000000",
         amountPoints: 50,
         network: "bep20",
-        gateway: "manual",
+        gateway: "razcrypto",
         paymentId: payId,
         note: "Manual Admin Activation",
         updatedAt: new Date(),
