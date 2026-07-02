@@ -268,3 +268,91 @@ export async function toggleAutoUpgradeAction(userId: string, autoUpgrade: boole
   revalidatePath(`/admin/users/${userId}`);
   revalidatePath("/admin/users");
 }
+
+/**
+ * Manually approve a pending crypto deposit transaction.
+ * This triggers the same BullMQ worker registration/credit logic as a real webhook.
+ */
+export async function manuallyApproveDepositAction(paymentId: string) {
+  try {
+    await requireAdmin();
+
+    const [ctx] = await db
+      .select()
+      .from(schema.cryptoTransactions)
+      .where(eq(schema.cryptoTransactions.paymentId, paymentId))
+      .limit(1);
+
+    if (!ctx) {
+      return { ok: false, error: "Transaction not found" };
+    }
+    if (ctx.status === "completed") {
+      return { ok: false, error: "Transaction is already completed" };
+    }
+    if (ctx.type !== "deposit") {
+      return { ok: false, error: "Only deposit transactions can be manually approved" };
+    }
+
+    // Import enqueuePaymentCredit to trigger activation/credit flow via background worker
+    const { enqueuePaymentCredit } = await import("@/lib/queue");
+    await enqueuePaymentCredit(ctx.userId, paymentId, ctx.amountPoints);
+
+    await logAudit({
+      action: "manual_approve_deposit",
+      targetType: "crypto_transaction",
+      targetId: ctx.id,
+      before: { status: ctx.status },
+      after: { status: "completed" }
+    });
+
+    revalidatePath("/admin/payments");
+    revalidatePath("/admin/users");
+    return { ok: true };
+  } catch (err) {
+    console.error("manuallyApproveDepositAction failed:", err);
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+/**
+ * Delete a user profile who has not completed their activation payment (status is "registered").
+ * Cleans up slots, transactions, and user record to avoid database inconsistencies.
+ */
+export async function deleteRegisteredUserAction(userId: string) {
+  try {
+    await requireAdmin();
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      return { ok: false, error: "User not found" };
+    }
+    if (user.status !== "registered") {
+      return { ok: false, error: "Only unregistered/unpaid members can be deleted" };
+    }
+
+    await db.transaction(async (tx) => {
+      // Delete any associated slots (should be none for registered, but safe check)
+      await tx.delete(schema.slots).where(eq(schema.slots.ownerId, userId));
+      // Delete any associated transactions
+      await tx.delete(schema.transactions).where(eq(schema.transactions.userId, userId));
+      // Delete any associated crypto transactions
+      await tx.delete(schema.cryptoTransactions).where(eq(schema.cryptoTransactions.userId, userId));
+      // Delete the user record
+      await tx.delete(users).where(eq(users.id, userId));
+    });
+
+    await logAudit({
+      action: "delete_unregistered_user",
+      targetType: "user",
+      targetId: userId,
+      before: { name: user.name, email: user.email, status: user.status },
+      after: null
+    });
+
+    revalidatePath("/admin/users");
+    return { ok: true };
+  } catch (err) {
+    console.error("deleteRegisteredUserAction failed:", err);
+    return { ok: false, error: (err as Error).message };
+  }
+}

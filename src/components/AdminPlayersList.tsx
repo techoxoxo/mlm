@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
-import { ChevronRight, Search, Filter } from "lucide-react";
+import { ChevronRight, Search, Filter, Trash2, Loader2 } from "lucide-react";
 import { memberCode } from "@/db/schema";
+import { deleteRegisteredUserAction } from "@/app/actions/admin";
 
 export type PlayerRow = {
   id: string;
@@ -18,11 +19,14 @@ export type PlayerRow = {
 };
 
 export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) {
+  const [rows, setRows] = useState<PlayerRow[]>(initialRows);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const [deletePending, startDeleteTransition] = useTransition();
+
   const filteredRows = useMemo(() => {
-    return initialRows.filter((r) => {
+    return rows.filter((r) => {
       const matchesSearch =
         r.name.toLowerCase().includes(search.toLowerCase()) ||
         r.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -33,7 +37,24 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
 
       return matchesSearch && matchesStatus;
     });
-  }, [initialRows, search, statusFilter]);
+  }, [rows, search, statusFilter]);
+
+  const handleDeleteUser = (e: React.MouseEvent, id: string, name: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`Are you sure you want to permanently delete user "${name}"? This will clean up their registration record.`)) {
+      return;
+    }
+
+    startDeleteTransition(async () => {
+      const res = await deleteRegisteredUserAction(id);
+      if (!res.ok) {
+        alert(res.error || "Failed to delete user.");
+      } else {
+        setRows((prev) => prev.filter((u) => u.id !== id));
+      }
+    });
+  };
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -157,6 +178,7 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
                 <th>Referral</th>
                 <th>Tier</th>
                 <th>Status</th>
+                <th>Joined</th>
                 <th style={{ textAlign: "right" }}>Balance</th>
                 <th></th>
               </tr>
@@ -192,11 +214,33 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
                       {r.status}
                     </span>
                   </td>
+                  <td style={{ color: "var(--muted)", fontSize: 13 }}>
+                    {new Date(r.createdAt).toLocaleDateString()}
+                  </td>
                   <td className="mono" style={{ textAlign: "right", fontWeight: 700 }}>
                     {r.balance.toLocaleString()}
                   </td>
-                  <td style={{ textAlign: "right" }}>
-                    <Link href={`/admin/users/${r.id}`} style={{ color: "var(--faint)" }}>
+                  <td style={{ textAlign: "right", display: "flex", gap: 12, justifyContent: "flex-end", alignItems: "center" }}>
+                    {r.status === "registered" && (
+                      <button
+                        onClick={(e) => handleDeleteUser(e, r.id, r.name)}
+                        disabled={deletePending}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#ef4444",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: 4,
+                          opacity: 0.8,
+                        }}
+                        title="Delete Unregistered User"
+                      >
+                        {deletePending ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
+                      </button>
+                    )}
+                    <Link href={`/admin/users/${r.id}`} style={{ color: "var(--faint)", display: "inline-flex", alignItems: "center" }}>
                       <ChevronRight size={16} />
                     </Link>
                   </td>

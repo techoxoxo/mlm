@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Loader2, Check, X, Copy, ExternalLink, ArrowDownLeft, ArrowUpRight, ShieldCheck, Wallet2 } from "lucide-react";
 import { approveWithdrawalAction, rejectWithdrawalAction } from "@/app/actions/payment";
+import { manuallyApproveDepositAction } from "@/app/actions/admin";
 
 type TxItem = {
   id: string;
@@ -62,6 +63,25 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
         setTxs((prev) =>
           prev.map((t) =>
             t.id === id ? { ...t, status: "failed", address: "" } : t
+          )
+        );
+      }
+    });
+  };
+
+  const handleManuallyApproveDeposit = (paymentId: string) => {
+    if (!confirm("Are you sure you want to manually mark this deposit as COMPLETED? This will credit the points and activate the user profile.")) {
+      return;
+    }
+    startTransition(async () => {
+      const res = await manuallyApproveDepositAction(paymentId);
+      if (!res.ok) {
+        alert(res.error || "Failed to approve deposit.");
+      } else {
+        alert("Deposit transaction successfully approved!");
+        setTxs((prev) =>
+          prev.map((t) =>
+            t.paymentId === paymentId ? { ...t, status: "completed" } : t
           )
         );
       }
@@ -206,18 +226,39 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
                   <td className="mono" style={{ fontWeight: 600 }}>{Number(t.amountUsdt).toFixed(2)}</td>
                   <td className="mono">{t.amountPoints} pts</td>
                   <td>
-                    <span
-                      className={`pill ${
-                        t.status === "completed"
-                          ? "pill-green"
-                          : t.status === "failed" || t.status === "expired"
-                          ? "pill-red"
-                          : "pill-gold"
-                      }`}
-                      style={{ fontSize: 11 }}
-                    >
-                      {t.status}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        className={`pill ${
+                          t.status === "completed"
+                            ? "pill-green"
+                            : t.status === "failed" || t.status === "expired"
+                            ? "pill-red"
+                            : "pill-gold"
+                        }`}
+                        style={{ fontSize: 11 }}
+                      >
+                        {t.status}
+                      </span>
+                      {t.type === "deposit" && t.status === "pending" && t.paymentId && (
+                        <button
+                          onClick={() => handleManuallyApproveDeposit(t.paymentId!)}
+                          className="btn"
+                          style={{
+                            padding: "3px 8px",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            borderRadius: 4,
+                            background: "rgba(0, 230, 118, 0.08)",
+                            border: "1px solid rgba(0, 230, 118, 0.2)",
+                            color: "#00e676",
+                            cursor: "pointer",
+                          }}
+                          disabled={pending}
+                        >
+                          {pending ? <Loader2 size={10} className="spin" /> : "Approve"}
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td>
                     {t.txHash ? (
