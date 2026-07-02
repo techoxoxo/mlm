@@ -43,23 +43,21 @@ export function AppShell({
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
 
   return (
-    <div className="app-shell" style={{ display: "grid", gridTemplateColumns: "272px 1fr", minHeight: "100vh" }}>
+    <div className="app-shell" style={{ minHeight: "100vh" }}>
       <style>{`
         /* Responsive Show/Hide helpers */
         @media (min-width: 821px) {
           .desktop-only { display: flex !important; }
           .desktop-only-block { display: block !important; }
           .mobile-only { display: none !important; }
+          .app-main-wrapper {
+            margin-left: 272px;
+          }
         }
         @media (max-width: 820px) {
           .desktop-only { display: none !important; }
           .desktop-only-block { display: none !important; }
           .mobile-only { display: flex !important; }
-          
-          /* Adjust grid columns for mobile layout */
-          .app-shell {
-            grid-template-columns: 1fr !important;
-          }
           
           /* desktop sidebar gets hidden completely */
           .app-aside-desktop {
@@ -78,16 +76,17 @@ export function AppShell({
         className="app-aside-desktop desktop-only"
         style={{
           borderRight: "1px solid var(--border)",
-          padding: "28px 16px",
+          padding: "28px 16px 16px",
           display: "flex",
           flexDirection: "column",
-          gap: 8,
           background:
             "linear-gradient(180deg, var(--app-aside-bg-from, rgba(20,17,34,0.97)) 0%, var(--app-aside-bg-to, rgba(14,12,26,0.98)) 100%)",
-          position: "sticky",
+          position: "fixed",
           top: 0,
-          height: "100vh",
-          overflowY: "auto",
+          left: 0,
+          bottom: 0,
+          width: 272,
+          overflow: "hidden",
         }}
       >
         {/* sidebar glow orbs */}
@@ -131,13 +130,16 @@ export function AppShell({
           }}
         />
 
-        <Link href="/" style={{ padding: "0 10px", marginBottom: 16, display: "block" }}>
-          <Logo size={20} />
-        </Link>
+        {/* Scrollable Nav Content */}
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, paddingRight: 4 }}>
+          <Link href="/" style={{ padding: "0 10px", marginBottom: 16, display: "block" }}>
+            <Logo size={20} />
+          </Link>
+          <SideNav items={items} />
+        </div>
 
-        <SideNav items={items} />
-
-        <div style={{ marginTop: "auto", paddingTop: 16 }}>
+        {/* Fixed Bottom Footer */}
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, width: "100%" }}>
           {/* version pill */}
           <div
             style={{
@@ -212,7 +214,7 @@ export function AppShell({
         </header>
 
         {/* Content Area */}
-        <main className="app-main" style={{ padding: "36px 40px", maxWidth: 1100, width: "100%" }}>
+        <main className="app-main" style={{ padding: "36px 40px", maxWidth: "none", width: "100%" }}>
           {children}
         </main>
       </div>

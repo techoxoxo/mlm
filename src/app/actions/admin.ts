@@ -166,21 +166,43 @@ export async function resetSystemAction() {
   return { ok: true as const };
 }
 
-export async function runRoyaltyAction() {
+export async function runRankRoyaltyAction() {
   await requireAdmin();
-  const { distributeRoyalty } = await import("@/lib/royalty");
+  const { distributeRankRoyalty } = await import("@/lib/royalty");
   try {
-    const res = await distributeRoyalty();
+    const res = await distributeRankRoyalty();
 
     await logAudit({
-      action: "run_royalty",
+      action: "run_rank_royalty",
       targetType: "royalty",
       after: {
         poolBefore: res.poolBefore,
         reserveAdded: res.reserveAdded,
         rankDistributed: res.rankDistributed,
-        reserveDistributed: res.reserveDistributed,
         rankRecipients: res.rankRecipients,
+      },
+    });
+
+    revalidatePath("/admin/royalty");
+    revalidatePath("/admin");
+    return { ok: true as const, res };
+  } catch (e) {
+    return { ok: false as const, error: (e as Error).message };
+  }
+}
+
+export async function runReserveRoyaltyAction() {
+  await requireAdmin();
+  const { distributeReserveRoyalty } = await import("@/lib/royalty");
+  try {
+    const res = await distributeReserveRoyalty();
+
+    await logAudit({
+      action: "run_reserve_royalty",
+      targetType: "royalty",
+      after: {
+        reserveBefore: res.reserveBefore,
+        reserveDistributed: res.reserveDistributed,
         reserveRecipients: res.reserveRecipients,
       },
     });

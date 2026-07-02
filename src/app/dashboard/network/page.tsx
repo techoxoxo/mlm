@@ -178,7 +178,7 @@ export default async function NetworkPage() {
       <div className="card" style={{ padding: 26 }}>
         <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>Filled slots ({placed.length})</h3>
         <p style={{ color: "var(--faint)", fontSize: 13, margin: "0 0 20px" }}>
-          Players placed under you via the FIFO queue — each one earned you the slab fee.
+          Players placed under your slots via direct referral prioritization or the global FIFO queue.
         </p>
         {placed.length === 0 ? (
           <div style={{ textAlign: "center", padding: "32px 0" }}>

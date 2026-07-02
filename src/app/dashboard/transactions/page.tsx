@@ -90,7 +90,7 @@ export default async function TransactionsPage() {
           className="pill pill-gold mono"
           style={{ fontSize: 13, padding: "6px 16px" }}
         >
-          {tx.filter((t) => t.points > 0).reduce((s, t) => s + t.points, 0).toLocaleString()} pts earned total
+          {tx.filter((t) => t.points > 0 && t.type !== "usdt_deposit").reduce((s, t) => s + t.points, 0).toLocaleString()} pts earned total
         </div>
       </div>
 

@@ -360,6 +360,42 @@ export const reconciliationRuns = pgTable("reconciliation_runs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ------------------------------------------------------------------ support tickets */
+
+export const supportTickets = pgTable("support_tickets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  subject: text("subject").notNull(),
+  category: text("category").notNull(), // 'payment' | 'matrix' | 'bug' | 'other'
+  status: text("status").notNull().default("open"), // 'open' | 'answered' | 'closed'
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index("support_ticket_user_idx").on(t.userId),
+  statusIdx: index("support_ticket_status_idx").on(t.status),
+}));
+
+export const supportMessages = pgTable("support_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ticketId: uuid("ticket_id").notNull(),
+  senderId: uuid("sender_id").notNull(),
+  role: text("role").notNull(), // 'user' | 'admin'
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  ticketIdx: index("support_msg_ticket_idx").on(t.ticketId),
+}));
+
+export const supportTicketsRelations = relations(supportTickets, ({ one, many }) => ({
+  user: one(users, { fields: [supportTickets.userId], references: [users.id] }),
+  messages: many(supportMessages),
+}));
+
+export const supportMessagesRelations = relations(supportMessages, ({ one }) => ({
+  ticket: one(supportTickets, { fields: [supportMessages.ticketId], references: [supportTickets.id] }),
+  sender: one(users, { fields: [supportMessages.senderId], references: [users.id] }),
+}));
+
 /* ------------------------------------------------------------------ inferred types */
 
 export type User = typeof users.$inferSelect;
@@ -377,6 +413,8 @@ export type CryptoTransaction = typeof cryptoTransactions.$inferSelect;
 export type NewCryptoTransaction = typeof cryptoTransactions.$inferInsert;
 export type AuditLog = typeof auditLog.$inferSelect;
 export type ReconciliationRun = typeof reconciliationRuns.$inferSelect;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type SupportMessage = typeof supportMessages.$inferSelect;
 
 export const sqlNow = sql`now()`;
 

@@ -3,10 +3,7 @@ import { Worker } from "bullmq";
 import { connection } from "@/lib/redis";
 import {
   DISTRIBUTION_QUEUE,
-  ROYALTY_QUEUE,
-  ROYALTY_CRON,
   DistributionJob,
-  ensureRoyaltySchedule,
   PAYMENT_CREDIT_QUEUE,
   PAYMENT_PAYOUT_QUEUE,
   RECONCILIATION_QUEUE,
@@ -16,7 +13,6 @@ import {
   RECONCILIATION_CRON,
 } from "@/lib/queue";
 import { activate, decideChoice, post } from "@/lib/distribution";
-import { distributeRoyalty } from "@/lib/royalty";
 import { reconcileBalances } from "@/lib/reconciliation";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
@@ -51,21 +47,6 @@ worker.on("failed", (job, err) => {
   console.error(`✗ ${job?.name} ${job?.id}: ${err.message}`);
 });
 
-// Royalty distribution worker (fired by the recurring schedule, or manually).
-const royaltyWorker = new Worker(
-  ROYALTY_QUEUE,
-  async () => {
-    const res = await distributeRoyalty();
-    console.log(`✓ royalty distribution: rank ${res.rankDistributed}→${res.rankRecipients}, reserve ${res.reserveDistributed}→${res.reserveRecipients}`);
-    return res;
-  },
-  { connection, concurrency: 1 },
-);
-royaltyWorker.on("failed", (job, err) => console.error(`✗ royalty ${job?.id}: ${err.message}`));
-
-ensureRoyaltySchedule()
-  .then(() => console.log(`Royalty schedule registered (cron "${ROYALTY_CRON}").`))
-  .catch((e) => console.error("Failed to register royalty schedule:", e.message));
 
 ensureReconciliationSchedule()
   .then(() => console.log(`Reconciliation schedule registered (cron "${RECONCILIATION_CRON}").`))
@@ -294,7 +275,6 @@ const shutdown = async () => {
   console.log("Shutting down workers…");
   await Promise.all([
     worker.close(),
-    royaltyWorker.close(),
     paymentCreditWorker.close(),
     paymentPayoutWorker.close(),
     reconciliationWorker.close(),

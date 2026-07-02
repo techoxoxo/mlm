@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { Users, UserCheck, Layers, Coins, LogOut, Trophy, Activity, BarChart2, Zap } from "lucide-react";
+import { Users, UserCheck, Layers, Coins, LogOut, Trophy, Activity, BarChart2, Zap, GitBranch } from "lucide-react";
 import { db, schema } from "@/db";
 import { SimulatePanel } from "@/components/SimulatePanel";
 import { ResetSystemButton } from "@/components/ResetSystemButton";
@@ -17,7 +17,7 @@ const TIER_COLORS = [
 ];
 
 export default async function AdminOverview() {
-  const [[userAgg], [txAgg], bySlab, activeBySlab] = await Promise.all([
+  const [[userAgg], [txAgg], bySlab, activeBySlab, autopoolProgress] = await Promise.all([
     db
       .select({
         total: sql<number>`count(*) filter (where role = 'user')::int`,
@@ -42,6 +42,60 @@ export default async function AdminOverview() {
       .where(sql`role = 'user' and status = 'active'`)
       .groupBy(users.currentSlab)
       .orderBy(users.currentSlab),
+    // Autopool progress: per tier — who entered, whose slots are being filled now, progress
+    db.execute(sql`
+      WITH tier_stats AS (
+        SELECT
+          s.slab_level AS tier,
+          sl.name AS tier_name,
+          sl.slots AS slots_per_user,
+          count(*)::int AS total_slots,
+          count(*) FILTER (WHERE s.status = 'filled')::int AS filled_slots,
+          count(*) FILTER (WHERE s.status = 'open')::int AS open_slots
+        FROM ${slots} s
+        JOIN ${schema.slabs} sl ON sl.level = s.slab_level
+        GROUP BY s.slab_level, sl.name, sl.slots
+      ),
+      current_filling AS (
+        -- The user whose open slot will be filled next (oldest open slot per tier), only if they are still at this tier
+        SELECT DISTINCT ON (s.slab_level)
+          s.slab_level AS tier,
+          u.serial_no,
+          u.name,
+          s.position AS slot_position,
+          (SELECT count(*)::int FROM ${slots} s2 WHERE s2.owner_id = s.owner_id AND s2.slab_level = s.slab_level AND s2.status = 'filled') AS owner_filled
+        FROM ${slots} s
+        JOIN ${users} u ON u.id = s.owner_id
+        WHERE s.status = 'open' AND u.current_slab = s.slab_level
+        ORDER BY s.slab_level, s.queue_seq
+      ),
+      tier_entrants AS (
+        -- How many users currently have active open slots in this tier
+        SELECT slab_level AS tier, count(DISTINCT owner_id)::int AS entrants
+        FROM ${slots}
+        WHERE status = 'open'
+        GROUP BY slab_level
+      ),
+      tier_position AS (
+        -- The queue rank of the current user being filled next (always 1 in the active FIFO queue)
+        SELECT cf.tier,
+          1::int AS queue_rank
+        FROM current_filling cf
+      )
+      SELECT
+        ts.*,
+        cf.serial_no AS current_serial,
+        cf.name AS current_name,
+        cf.slot_position AS current_slot,
+        cf.owner_filled AS current_owner_filled,
+        te.entrants,
+        tp.queue_rank
+      FROM tier_stats ts
+      LEFT JOIN current_filling cf ON cf.tier = ts.tier
+      LEFT JOIN tier_entrants te ON te.tier = ts.tier
+      LEFT JOIN tier_position tp ON tp.tier = ts.tier
+      ORDER BY ts.tier
+    `),
   ]);
 
   const totalUsers = userAgg.total;
@@ -225,6 +279,82 @@ export default async function AdminOverview() {
           })}
         </div>
       </div>
+
+      {/* autopool progress by tier */}
+      {(() => {
+        const poolRows = (autopoolProgress?.rows ?? []) as {
+          tier: number; tier_name: string; slots_per_user: number;
+          total_slots: number; filled_slots: number; open_slots: number;
+          current_serial: number | null; current_name: string | null;
+          current_slot: number | null; current_owner_filled: number | null;
+          entrants: number; queue_rank: number | null;
+        }[];
+        if (poolRows.length === 0) return null;
+        return (
+          <div className="card" style={{ padding: 26 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <GitBranch size={17} color="var(--purple)" />
+              <h3 style={{ fontSize: 17, margin: 0 }}>Autopool progress</h3>
+              <span style={{ fontSize: 12, color: "var(--faint)", marginLeft: "auto" }}>Who&apos;s being filled right now</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+              {poolRows.map((t) => {
+                const pct = t.total_slots ? Math.round((t.filled_slots / t.total_slots) * 100) : 0;
+                const tierColor = TIER_COLORS[(t.tier - 1) % TIER_COLORS.length] || "var(--faint)";
+                const currentCode = t.current_serial ? `APX-${String(t.current_serial).padStart(6, "0")}` : null;
+                return (
+                  <div
+                    key={t.tier}
+                    style={{
+                      padding: 18,
+                      borderRadius: "var(--r-md)",
+                      background: "var(--surface-2)",
+                      border: "1px solid var(--border)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                    }}
+                  >
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: tierColor, boxShadow: `0 0 6px ${tierColor}` }} />
+                        <span style={{ fontWeight: 700, fontSize: 15 }}>Tier {t.tier}</span>
+                        <span style={{ color: "var(--faint)", fontSize: 12 }}>{t.tier_name}</span>
+                      </div>
+                      <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{t.entrants} entered</span>
+                    </div>
+
+                    {/* Currently filling — the key info */}
+                    {currentCode ? (
+                      <div style={{ background: `${tierColor}10`, border: `1px solid ${tierColor}30`, borderRadius: 10, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 10.5, color: "var(--faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Now filling slots for</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span className="mono" style={{ fontWeight: 700, fontSize: 15, color: tierColor }}>{currentCode}</span>
+                          {t.queue_rank != null && (
+                            <span className="pill" style={{ fontSize: 10, padding: "2px 8px", background: `${tierColor}18`, border: `1px solid ${tierColor}30`, color: tierColor }}>
+                              #{t.queue_rank} of {t.entrants} in queue
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4 }}>
+                          Slot {t.current_owner_filled != null ? t.current_owner_filled : 0} of {t.slots_per_user} filled
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#10b981" }}>
+                        All slots in this tier are filled
+                      </div>
+                    )}
+
+
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

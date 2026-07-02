@@ -29,7 +29,15 @@ export type RoyaltyResult = {
  * existed for >= reserveInactivityMonths without clearing a stage and who
  * haven't received a reserve reward within that same window.
  */
-export async function distributeRoyalty(): Promise<RoyaltyResult> {
+export type RankRoyaltyResult = {
+  poolBefore: number;
+  reserveAdded: number;
+  rankDistributed: number;
+  rankRecipients: number;
+  carryPool: number;
+};
+
+export async function distributeRankRoyalty(): Promise<RankRoyaltyResult> {
   const result = await withTxRetry(() =>
     db.transaction(async (tx) => {
       const cfg = await getSettings(tx);
@@ -51,19 +59,16 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
         })
         .returning({ id: royaltyRuns.id });
 
-      /* ---------------- rank rewards ---------------- */
-      // direct-referral counts per sponsor
       const directRows = await tx
         .select({ sponsor: users.sponsorId, n: sql<number>`count(*)::int` })
         .from(users)
-        .where(sql`${users.sponsorId} is not null and ${users.role} = 'user'`)
+        .where(sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active'`)
         .groupBy(users.sponsorId);
 
-      // assign each qualifying user to their highest band
-      const bandMembers = new Map<number, string[]>(); // minDirects -> userIds
+      const bandMembers = new Map<number, string[]>();
       for (const r of directRows) {
         let band: (typeof tiers)[number] | null = null;
-        for (const t of tiers) if (r.n >= t.minDirects) band = t; // tiers asc → ends on highest
+        for (const t of tiers) if (r.n >= t.minDirects) band = t;
         if (band && r.sponsor) {
           const arr = bandMembers.get(band.minDirects) ?? [];
           arr.push(r.sponsor);
@@ -97,8 +102,71 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
         }
       }
 
-      /* ---------------- reserve rewards ---------------- */
-      const reserveBalance = pool.royaltyReserve + reserveAdded;
+      const carryPool = poolBefore - reserveAdded - rankDistributed;
+      const carryReserve = pool.royaltyReserve + reserveAdded;
+
+      await tx
+        .update(pools)
+        .set({ royaltyPool: carryPool, royaltyReserve: carryReserve, updatedAt: sql`now()` })
+        .where(eq(pools.id, 1));
+
+      await tx
+        .update(royaltyRuns)
+        .set({ rankDistributed, rankRecipients })
+        .where(eq(royaltyRuns.id, run.id));
+
+      const notifyIds: string[] = [];
+      for (const members of bandMembers.values()) notifyIds.push(...members);
+
+      return {
+        poolBefore,
+        reserveAdded,
+        rankDistributed,
+        rankRecipients,
+        carryPool,
+        _notifyIds: notifyIds,
+      };
+    })
+  );
+
+  const uniqueIds = [...new Set(result._notifyIds)];
+  await Promise.all(
+    uniqueIds.map((uid: string) =>
+      publishEvent(uid, { type: "royalty_payout" }).catch(() => {})
+    )
+  );
+
+  const { _notifyIds, ...publicResult } = result;
+  return publicResult;
+}
+
+export type ReserveRoyaltyResult = {
+  reserveBefore: number;
+  reserveDistributed: number;
+  reserveRecipients: number;
+  carryReserve: number;
+};
+
+export async function distributeReserveRoyalty(): Promise<ReserveRoyaltyResult> {
+  const result = await withTxRetry(() =>
+    db.transaction(async (tx) => {
+      const cfg = await getSettings(tx);
+      const [pool] = await tx.select().from(pools).where(eq(pools.id, 1)).for("update");
+
+      const reserveBefore = pool.royaltyReserve;
+
+      const [run] = await tx
+        .insert(royaltyRuns)
+        .values({
+          poolBefore: 0,
+          reserveAdded: 0,
+          rankDistributed: 0,
+          reserveDistributed: 0,
+          rankRecipients: 0,
+          reserveRecipients: 0,
+        })
+        .returning({ id: royaltyRuns.id });
+
       const cutoff = sql`now() - (${cfg.reserveInactivityMonths} || ' months')::interval`;
       const eligible = await tx
         .select({ id: users.id })
@@ -107,7 +175,7 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
           and(
             eq(users.role, "user"),
             sql`${users.status} not in ('exited','completed')`,
-            lte(users.createdAt, cutoff), // has existed at least the inactivity window
+            lte(users.createdAt, cutoff),
             or(isNull(users.lastStageClearedAt), lte(users.lastStageClearedAt, cutoff)),
             or(isNull(users.lastReserveRewardAt), lte(users.lastReserveRewardAt, cutoff)),
           ),
@@ -115,8 +183,8 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
 
       let reserveDistributed = 0;
       let reserveRecipients = 0;
-      if (eligible.length > 0 && reserveBalance > 0) {
-        const per = Math.floor(reserveBalance / eligible.length);
+      if (eligible.length > 0 && reserveBefore > 0) {
+        const per = Math.floor(reserveBefore / eligible.length);
         if (per > 0) {
           for (const u of eligible) {
             await post(tx, u.id, "royalty_reserve_reward", per, {
@@ -131,46 +199,36 @@ export async function distributeRoyalty(): Promise<RoyaltyResult> {
         }
       }
 
-      /* ---------------- settle pools + audit ---------------- */
-      const carryPool = poolBefore - reserveAdded - rankDistributed; // undistributed bands + rounding
-      const carryReserve = reserveBalance - reserveDistributed;
+      const carryReserve = reserveBefore - reserveDistributed;
       await tx
         .update(pools)
-        .set({ royaltyPool: carryPool, royaltyReserve: carryReserve, updatedAt: sql`now()` })
+        .set({ royaltyReserve: carryReserve, updatedAt: sql`now()` })
         .where(eq(pools.id, 1));
+
       await tx
         .update(royaltyRuns)
-        .set({ rankDistributed, reserveDistributed, rankRecipients, reserveRecipients })
+        .set({ reserveDistributed, reserveRecipients })
         .where(eq(royaltyRuns.id, run.id));
 
-      // Collect recipient IDs for post-commit notifications
-      const notifyIds: string[] = [];
-      for (const members of bandMembers.values()) notifyIds.push(...members);
-      if (reserveDistributed > 0) notifyIds.push(...eligible.map((u) => u.id));
+      const notifyIds: string[] = eligible.map((u) => u.id);
 
       return {
-        poolBefore,
-        reserveAdded,
-        rankDistributed,
+        reserveBefore,
         reserveDistributed,
-        rankRecipients,
         reserveRecipients,
-        carryPool,
         carryReserve,
         _notifyIds: notifyIds,
       };
-    }),
+    })
   );
 
-  // Fire SSE notifications after the transaction commits (best-effort)
   const uniqueIds = [...new Set(result._notifyIds)];
   await Promise.all(
     uniqueIds.map((uid: string) =>
-      publishEvent(uid, { type: "royalty_payout" }).catch(() => {}),
-    ),
+      publishEvent(uid, { type: "royalty_payout" }).catch(() => {})
+    )
   );
 
-  // Strip internal field from return value
   const { _notifyIds, ...publicResult } = result;
   return publicResult;
 }
@@ -187,7 +245,7 @@ export async function getRoyaltyOverview(uid?: string) {
     const [{ directs }] = await db
       .select({ directs: sql<number>`count(*)::int` })
       .from(users)
-      .where(eq(users.sponsorId, uid));
+      .where(and(eq(users.sponsorId, uid), eq(users.status, "active")));
     const [{ earned }] = await db
       .select({ earned: sql<number>`coalesce(sum(${schema.transactions.points}),0)::int` })
       .from(schema.transactions)
@@ -198,4 +256,49 @@ export async function getRoyaltyOverview(uid?: string) {
   }
 
   return { pool: pool ?? { royaltyPool: 0, royaltyReserve: 0 }, tiers, me };
+}
+
+export async function getRoyaltyEligibleUsers() {
+  const tiers = await db.select().from(royaltyTiers).orderBy(asc(royaltyTiers.minDirects));
+  const activeUsers = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.role, "user"), eq(users.status, "active")));
+
+  // Get active referrals count for all active users
+  const membersWithDirects = await Promise.all(
+    activeUsers.map(async (u) => {
+      const [{ directsCount }] = await db
+        .select({ directsCount: sql<number>`count(*)::int` })
+        .from(users)
+        .where(and(eq(users.sponsorId, u.id), eq(users.status, "active")));
+      return {
+        id: u.id,
+        name: u.name,
+        serialNo: u.serialNo,
+        directsCount,
+      };
+    })
+  );
+
+  // Map members to their highest qualifying tier
+  return tiers.map((t) => {
+    // Find members whose HIGHEST tier is this one
+    const members = membersWithDirects.filter((m) => {
+      let highestTier: (typeof tiers)[number] | null = null;
+      for (const tier of tiers) {
+        if (m.directsCount >= tier.minDirects) {
+          highestTier = tier;
+        }
+      }
+      return highestTier && highestTier.minDirects === t.minDirects;
+    });
+
+    return {
+      minDirects: t.minDirects,
+      label: t.label,
+      percent: t.percent,
+      members,
+    };
+  });
 }

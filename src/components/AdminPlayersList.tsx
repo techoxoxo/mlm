@@ -16,14 +16,35 @@ export type PlayerRow = {
   balance: number;
   code: string;
   createdAt: Date;
+  matrixPos?: number | null;
+  activationType?: string | null;
 };
 
 export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) {
   const [rows, setRows] = useState<PlayerRow[]>(initialRows);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
 
   const [deletePending, startDeleteTransition] = useTransition();
+
+  const counts = useMemo(() => {
+    const active = rows.filter((r) => r.status === "active");
+    const registered = rows.filter((r) => r.status === "registered");
+    const exited = rows.filter((r) => r.status === "exited" || r.status === "completed");
+    
+    // Split active users
+    const activeGateway = active.filter((r) => r.activationType === "gateway").length;
+    const activeBypassed = active.filter((r) => r.activationType !== "gateway").length;
+
+    return {
+      all: rows.length,
+      active: active.length,
+      activeGateway,
+      activeBypassed,
+      registered: registered.length,
+      exited: exited.length,
+    };
+  }, [rows]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
@@ -81,6 +102,27 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Stats Summary Panel */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+        <div className="card" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 6, background: "rgba(255,255,255,0.01)" }}>
+          <span style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Active Players</span>
+          <span className="mono" style={{ fontSize: 24, fontWeight: 700, color: "var(--text)" }}>{counts.active}</span>
+          <span style={{ fontSize: 12, color: "var(--faint)" }}>
+            <span style={{ color: "#10b981", fontWeight: 600 }}>{counts.activeGateway} Paid</span> · <span style={{ color: "#a78bfa", fontWeight: 600 }}>{counts.activeBypassed} Bypassed</span>
+          </span>
+        </div>
+        <div className="card" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 6, background: "rgba(255,255,255,0.01)" }}>
+          <span style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Registered (Unpaid)</span>
+          <span className="mono" style={{ fontSize: 24, fontWeight: 700, color: "#f59e0b" }}>{counts.registered}</span>
+          <span style={{ fontSize: 12, color: "var(--faint)" }}>awaiting activation payment</span>
+        </div>
+        <div className="card" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 6, background: "rgba(255,255,255,0.01)" }}>
+          <span style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Exited / Completed</span>
+          <span className="mono" style={{ fontSize: 24, fontWeight: 700 }}>{counts.exited}</span>
+          <span style={{ fontSize: 12, color: "var(--faint)" }}>finished all stages</span>
+        </div>
+      </div>
+
       {/* Filter Toolbar */}
       <div
         style={{
@@ -117,10 +159,10 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
             <Filter size={14} /> Filter Status:
           </span>
           {[
-            { id: "all", label: "All" },
-            { id: "active", label: "Active", dot: "#10b981" },
-            { id: "registered", label: "Registered", dot: "#f59e0b" },
-            { id: "exited", label: "Exited", dot: "#ef4444" },
+            { id: "all", label: `All (${counts.all})` },
+            { id: "active", label: `Active (${counts.active})`, dot: "#10b981" },
+            { id: "registered", label: `Registered (${counts.registered})`, dot: "#f59e0b" },
+            { id: "exited", label: `Exited (${counts.exited})`, dot: "#ef4444" },
           ].map((btn) => {
             const active = statusFilter === btn.id;
             return (
@@ -176,7 +218,7 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
                 <th>Name</th>
                 <th>Email</th>
                 <th>Referral</th>
-                <th>Tier</th>
+                <th>Tier / Pos</th>
                 <th>Status</th>
                 <th>Joined</th>
                 <th style={{ textAlign: "right" }}>Balance</th>
@@ -198,21 +240,38 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
                   </td>
                   <td style={{ color: "var(--muted)" }}>{r.email}</td>
                   <td style={{ letterSpacing: 1, fontSize: 12.5 }}>{r.code}</td>
-                  <td>{r.slab || "—"}</td>
                   <td>
-                    <span
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: 99,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        ...getStatusStyle(r.status),
-                      }}
-                    >
-                      {r.status}
-                    </span>
+                    {r.slab ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span className="pill pill-gold" style={{ fontSize: 10, padding: "2px 7px" }}>T{r.slab}</span>
+                        {r.matrixPos != null && (
+                          <span className="mono" style={{ fontSize: 10.5, color: "var(--muted)" }}>#{r.matrixPos}</span>
+                        )}
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <span
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 99,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                          width: "fit-content",
+                          ...getStatusStyle(r.status),
+                        }}
+                      >
+                        {r.status}
+                      </span>
+                      {r.status === "active" && r.activationType && (
+                        <span style={{ fontSize: 10, color: "var(--faint)", paddingLeft: 2 }}>
+                          {r.activationType === "gateway" ? "💳 Gateway Paid" : "⚡ System Bypassed"}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td style={{ color: "var(--muted)", fontSize: 13 }}>
                     {new Date(r.createdAt).toLocaleDateString()}

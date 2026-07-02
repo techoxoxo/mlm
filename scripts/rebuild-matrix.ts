@@ -4,31 +4,39 @@ import { eq, asc, and, sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 
-const { users, slots, transactions, slabCompletions, cryptoTransactions } = schema;
+const { users, slots, transactions, slabCompletions, cryptoTransactions, pools } = schema;
 
-// Setup backup path inside the script directory
 const BACKUP_DIR = __dirname;
 console.log(`Backup Directory: ${BACKUP_DIR}`);
 
 async function rebuild() {
   console.log("\n=== LOADING EVENTS TO REPLAY ===");
   
-  // Read users backup to get original activation times and details
+  // Read users backup to get original activation times and details (pre-11:00Z)
   const origUsers = JSON.parse(fs.readFileSync(path.join(BACKUP_DIR, "users_backup.json"), "utf8")) as any[];
   
-  // Get active users (who had activatedAt in the backup)
-  const activeUsers = origUsers
+  // Get active users from backup
+  const backupActiveUsers = origUsers
     .filter((u) => u.activatedAt !== null)
     .sort((a, b) => new Date(a.activatedAt).getTime() - new Date(b.activatedAt).getTime());
 
-  console.log(`Found ${activeUsers.length} activated users to replay.`);
+  console.log(`Found ${backupActiveUsers.length} activated users from backup.`);
 
-  console.log("\n=== RESETTING MATRIX TABLES ===");
+  console.log("\n=== RESETTING MATRIX AND POOLS TABLES ===");
   await db.transaction(async (tx) => {
     // Truncate tables
     await tx.execute(sql`TRUNCATE TABLE ${slots} CASCADE`);
     await tx.execute(sql`TRUNCATE TABLE ${transactions} CASCADE`);
     await tx.execute(sql`TRUNCATE TABLE ${slabCompletions} CASCADE`);
+
+    // Reset royalty pool and reserve
+    await tx
+      .update(pools)
+      .set({
+        royaltyPool: 0,
+        royaltyReserve: 0,
+        updatedAt: sql`now()`,
+      });
 
     // Reset users
     await tx
@@ -47,19 +55,18 @@ async function rebuild() {
       .where(eq(users.serialNo, 1));
   });
 
-  console.log("Database reset complete.");
+  console.log("Database and pools reset complete.");
 
   // Import distribution engine to run placements
   const { enterSlab, chargeRegistration, post } = await import("../src/lib/distribution");
 
   console.log("\n=== REPLAYING DEPOSITS FROM BACKUP ===");
-  // Re-load original deposits from backup
   const origTxs = JSON.parse(fs.readFileSync(path.join(BACKUP_DIR, "transactions_backup.json"), "utf8")) as any[];
-  const deposits = origTxs
+  const backupDeposits = origTxs
     .filter((t) => t.type === "usdt_deposit")
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  for (const dep of deposits) {
+  for (const dep of backupDeposits) {
     await db.transaction(async (tx) => {
       await post(tx, dep.userId, "usdt_deposit", dep.points, {
         note: dep.note || "USDT Deposit",
@@ -67,21 +74,54 @@ async function rebuild() {
       });
     });
   }
-  console.log(`All ${deposits.length} deposits credited.`);
+  console.log(`All ${backupDeposits.length} backup deposits credited.`);
 
-  console.log("\n=== REPLAYING ACTIVATIONS IN ORDER ===");
-  // Replay activations only. The upgrades will be triggered naturally by slot completions.
-  for (let idx = 0; idx < activeUsers.length; idx++) {
-    const u = activeUsers[idx];
-    console.log(`[Activation ${idx+1}/${activeUsers.length}] Replaying for ${u.name} (${u.id.slice(0, 8)})`);
+  console.log("\n=== REPLAYING BACKUP ACTIVATIONS IN ORDER ===");
+  // Replay activations from backup
+  for (let idx = 0; idx < backupActiveUsers.length; idx++) {
+    const u = backupActiveUsers[idx];
+    console.log(`[Activation ${idx+1}/${backupActiveUsers.length}] Replaying for ${u.name} (${u.id.slice(0, 8)})`);
 
     await db.transaction(async (tx) => {
-      // Run registration charges (debits 20 points)
       await chargeRegistration(tx, u.id);
-
-      // Run first-time slab 1 activation (debits 30 points)
       await enterSlab(tx, u.id, 1);
     });
+  }
+
+  console.log("\n=== SCANNING AND REPLAYING NEW COMPLETED PAYMENTS ===");
+  // Find completed crypto transactions not covered by backup
+  const completedCrypto = await db
+    .select()
+    .from(cryptoTransactions)
+    .where(eq(cryptoTransactions.status, "completed"))
+    .orderBy(asc(cryptoTransactions.createdAt));
+
+  for (const c of completedCrypto) {
+    const [user] = await db.select().from(users).where(eq(users.id, c.userId));
+    if (!user) continue;
+
+    // If they were already activated during the backup replay, skip
+    if (user.status === "active") {
+      continue;
+    }
+
+    console.log(`Restoring payment & activation for ${user.name} (Serial ${user.serialNo}) - Paid: ${c.amountPoints} pts`);
+
+    await db.transaction(async (tx) => {
+      // 1. Credit their deposit
+      await post(tx, user.id, "usdt_deposit", c.amountPoints, {
+        note: `USDT Activation Deposit (ID: ${c.paymentId})`,
+        idempotencyKey: c.paymentId || undefined,
+      });
+
+      // 2. Charge registration fee
+      await chargeRegistration(tx, user.id);
+
+      // 3. Enter slab 1
+      await enterSlab(tx, user.id, 1);
+    });
+
+    console.log(`Successfully activated ${user.name}.`);
   }
 
   console.log("\n=== VERIFYING INTEGRITY ===");
@@ -101,16 +141,10 @@ async function rebuild() {
 
   console.log("✅ INTEGRITY OK: No balance mismatches.");
 
-  const finalUsers = await db.select().from(users);
-
-  console.log("\n=== BALANCE SHIFTS AUDIT ===");
-  for (const ou of origUsers) {
-    const fu = finalUsers.find((u) => u.id === ou.id);
-    if (fu) {
-      const diff = fu.pointsBalance - ou.pointsBalance;
-      console.log(`User: ${ou.name.padEnd(12)} Old Balance: ${ou.pointsBalance.toString().padStart(5)} | New Balance: ${fu.pointsBalance.toString().padStart(5)} | Shift: ${diff >= 0 ? "+" + diff : diff}`);
-    }
-  }
+  // Check royalty pool value
+  const [currentPool] = await db.select().from(pools);
+  console.log(`\nFinal Royalty Pool: ${currentPool.royaltyPool} points.`);
+  console.log(`Final Royalty Reserve: ${currentPool.royaltyReserve} points.`);
 
   await pool.end();
   console.log("\n=== MATRIX REBUILD SUCCESSFULLY COMPLETED! ===");

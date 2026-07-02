@@ -111,7 +111,7 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginTop: 18 }}>
-          <Stat label="Current stage" value={user.currentSlab ? `Tier ${user.currentSlab}` : "—"} />
+          <Stat label="Current tier" value={user.currentSlab ? `T${user.currentSlab}` : "—"} />
           <Stat label="Total earned" value={totalEarned.toLocaleString()} accent />
           <Stat label="Direct referrals" value={String(directs.length)} />
           <Stat label="Slots filled (cur.)" value={`${filled}/${ownedSlots.filter((s) => s.slabLevel === user.currentSlab).length || 0}`} />

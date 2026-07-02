@@ -261,11 +261,11 @@ export default async function Landing() {
 
   const tickerItems =
     ticker.length >= 5
-      ? ticker.map((t) => `RV-${String(t.serialNo).padStart(6, "0")} earned +${t.points} pts · Tier ${t.slab ?? 1}`)
+      ? ticker.map((t) => `APX-${String(t.serialNo).padStart(6, "0")} earned +${t.points} pts · Tier ${t.slab ?? 1}`)
       : [
-        "RV-000042 earned +60 pts · Tier 1", "RV-000018 climbed to Tier 3",
-        "RV-000088 earned +150 pts · Tier 2", "RV-000094 cashed out 30%",
-        "RV-000102 activated · Tier 1", "RV-000067 earned +200 pts · Tier 2",
+        "APX-000042 earned +60 pts · Tier 1", "APX-000018 climbed to Tier 3",
+        "APX-000088 earned +150 pts · Tier 2", "APX-000094 cashed out 30%",
+        "APX-000102 activated · Tier 1", "APX-000067 earned +200 pts · Tier 2",
       ];
 
   const totalMembers = Math.max(stats?.totalMembers ?? 0, 10000);

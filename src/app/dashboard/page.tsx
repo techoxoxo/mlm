@@ -252,8 +252,48 @@ export default async function DashboardHome() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 14 }}>
         <StatCard icon={TrendingUp} label="Total earned" value={data.totalEarned.toLocaleString()} sub="all-time points" color="#8b5cf6" />
         <StatCard icon={Layers} label="Collected this tier" value={collected.toLocaleString()} sub="current slab" color="#3b82f6" />
-        <StatCard icon={Users} label="Direct referrals" value={String(data.referrals.length)} sub="active members" color="#a78bfa" />
+        <StatCard icon={Users} label="Direct referrals" value={String(data.referrals.filter(r => r.status === "active").length)} sub="active members" color="#a78bfa" />
         <StatCard icon={Wallet} label="Convertible balance" value={user.pointsBalance.toLocaleString()} sub={`≈ $${(user.pointsBalance * 1).toFixed(2)} USDT`} accent color="#f5c453" />
+      </div>
+
+      {/* ── Financial Summary Breakout ── */}
+      <div className="card" style={{ padding: 26 }}>
+        <h3 style={{ fontSize: 16, margin: "0 0 4px", fontWeight: 700 }}>Financial Summary</h3>
+        <p style={{ color: "var(--faint)", fontSize: 13, margin: "0 0 20px" }}>Real-time breakdown of your investments, payouts, and withdrawals.</p>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+          {/* Card 1: Total Spent (Invested) */}
+          <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Total Spent (Invested)</div>
+            <div className="mono" style={{ fontSize: 24, fontWeight: 700, margin: "8px 0 4px", color: "var(--text)" }}>{data.financials.spent.toLocaleString()} <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 400 }}>pts</span></div>
+            <div style={{ fontSize: 12, color: "var(--faint)" }}>Fees paid for entering/climbing tiers</div>
+          </div>
+
+          {/* Card 2: Total Earned */}
+          <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Total Earned</div>
+            <div className="mono" style={{ fontSize: 24, fontWeight: 700, margin: "8px 0 4px", color: "var(--gold-bright)" }}>{data.totalEarned.toLocaleString()} <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 400 }}>pts</span></div>
+            <div style={{ fontSize: 12, color: "var(--faint)", display: "flex", flexDirection: "column", gap: 2 }}>
+              <span>· Matrix: <b>{data.financials.matrixEarned.toLocaleString()}</b> pts</span>
+              <span>· Referral: <b>{data.financials.referralEarned.toLocaleString()}</b> pts</span>
+              <span>· Royalty: <b>{data.financials.royaltyEarned.toLocaleString()}</b> pts</span>
+            </div>
+          </div>
+
+          {/* Card 3: Total Withdrawn */}
+          <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Total Withdrawn</div>
+            <div className="mono" style={{ fontSize: 24, fontWeight: 700, margin: "8px 0 4px", color: "#f87171" }}>{data.financials.withdrawn.toLocaleString()} <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 400 }}>pts</span></div>
+            <div style={{ fontSize: 12, color: "var(--faint)" }}>Successfully cashed out to crypto wallet</div>
+          </div>
+
+          {/* Card 4: Withdrawable Balance */}
+          <div style={{ background: "rgba(248,198,23,0.01)", border: "1px solid rgba(248,198,23,0.2)", borderRadius: 12, padding: "18px 20px", boxShadow: "0 0 15px rgba(248,198,23,0.02)" }}>
+            <div style={{ fontSize: 11, color: "var(--gold-bright)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Withdrawable Balance</div>
+            <div className="mono" style={{ fontSize: 24, fontWeight: 700, margin: "8px 0 4px", color: "var(--gold-bright)" }}>{user.pointsBalance.toLocaleString()} <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 400 }}>pts</span></div>
+            <div style={{ fontSize: 12, color: "var(--faint)" }}>≈ ${(user.pointsBalance * 1).toFixed(2)} USDT available to withdraw</div>
+          </div>
+        </div>
       </div>
 
       {/* ── primary action ────────────────────────────── */}
@@ -300,6 +340,11 @@ export default async function DashboardHome() {
               <h3 style={{ fontSize: 17 }}>Your slots · Tier {currentSlab.level}</h3>
               <p style={{ color: "var(--faint)", fontSize: 13, margin: "4px 0 0" }}>
                 Fill all {currentSlab.slots} to unlock your exit-or-climb decision.
+                {data.queuePosition !== null && (
+                  <span style={{ display: "block", color: "var(--gold-bright)", fontWeight: 600, marginTop: 6 }}>
+                    ● Queue Position: #{data.queuePosition} in line to fill next
+                  </span>
+                )}
               </p>
             </div>
             <span

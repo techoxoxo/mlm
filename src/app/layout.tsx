@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Baloo_2, Space_Grotesk, Inter } from "next/font/google";
+import { Outfit, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
-const display = Baloo_2({
+const display = Outfit({
   subsets: ["latin"],
   variable: "--font-display",
   weight: ["500", "600", "700", "800"],
@@ -15,7 +15,7 @@ const num = Space_Grotesk({
   weight: ["400", "500", "600", "700"],
 });
 
-const sans = Inter({
+const sans = Outfit({
   subsets: ["latin"],
   variable: "--font-sans",
   weight: ["400", "500", "600", "700"],

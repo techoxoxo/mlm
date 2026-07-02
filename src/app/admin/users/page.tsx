@@ -18,6 +18,25 @@ export default async function UsersAdmin() {
       balance: users.pointsBalance,
       code: users.referralCode,
       createdAt: users.createdAt,
+      matrixPos: sql<number | null>`(
+        SELECT s.queue_seq FROM slots s
+        WHERE s.occupant_id = ${users.id}
+          AND s.slab_level = ${users.currentSlab}
+        LIMIT 1
+      )`.as("matrix_pos"),
+      activationType: sql<string | null>`(
+        SELECT 
+          CASE 
+            WHEN EXISTS (
+              SELECT 1 FROM crypto_transactions ct
+              WHERE ct.user_id = users.id 
+                AND ct.type = 'deposit' 
+                AND ct.status = 'completed' 
+                AND ct.payment_id NOT LIKE 'manual_act_%'
+            ) THEN 'gateway'
+            ELSE 'bypassed'
+          END
+      )`.as("activation_type"),
     })
     .from(users)
     .where(sql`role = 'user'`)

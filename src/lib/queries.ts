@@ -5,7 +5,7 @@ import { readDb as db, schema } from "@/db";
 const { users, slabs, slots, transactions, slabCompletions, royaltyPayouts } = schema;
 
 export function maskName(serialNo: number | null): string {
-  return serialNo ? `RV-${String(serialNo).padStart(6, '0')}` : "RV-000000";
+  return serialNo ? `APX-${String(serialNo).padStart(6, '0')}` : "APX-000000";
 }
 
 export async function getDashboard(uid: string) {
@@ -13,7 +13,22 @@ export async function getDashboard(uid: string) {
   if (!user) return null;
 
   // everything below only depends on `user` — run it all in parallel
-  const [allSlabs, mySlots, collectedRows, pending, recentTx, referrals, earnedRows, earningsByType, leaderboard] =
+  const [
+    allSlabs,
+    mySlots,
+    collectedRows,
+    pending,
+    recentTx,
+    referrals,
+    earnedRows,
+    earningsByType,
+    leaderboard,
+    spentRows,
+    withdrawnRows,
+    matrixEarnedRows,
+    referralEarnedRows,
+    royaltyEarnedRows,
+  ] =
     await Promise.all([
       db.select().from(slabs).orderBy(slabs.level),
       user.currentSlab
@@ -52,22 +67,43 @@ export async function getDashboard(uid: string) {
       db
         .select({ earned: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
         .from(transactions)
-        .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`)),
+        .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`, sql`${transactions.type} != 'usdt_deposit'`)),
       // earnings by source (positive only)
       db
         .select({ type: transactions.type, total: sql<number>`sum(${transactions.points})::int` })
         .from(transactions)
-        .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`))
+        .where(and(eq(transactions.userId, uid), sql`${transactions.points} > 0`, sql`${transactions.type} != 'usdt_deposit'`))
         .groupBy(transactions.type),
       // global leaderboard — top earners
       db
-        .select({ serialNo: users.serialNo, name: users.name, earned: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0),0)::int` })
+        .select({ serialNo: users.serialNo, name: users.name, earned: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0 and ${transactions.type} != 'usdt_deposit'),0)::int` })
         .from(users)
         .leftJoin(transactions, eq(transactions.userId, users.id))
         .where(eq(users.role, "user"))
         .groupBy(users.id, users.serialNo, users.name)
-        .orderBy(desc(sql`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0),0)`))
+        .orderBy(desc(sql`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0 and ${transactions.type} != 'usdt_deposit'),0)`))
         .limit(5),
+      // Financial breakouts
+      db
+        .select({ total: sql<number>`coalesce(sum(abs(${transactions.points})),0)::int` })
+        .from(transactions)
+        .where(and(eq(transactions.userId, uid), sql`${transactions.points} < 0`)),
+      db
+        .select({ total: sql<number>`coalesce(sum(${schema.cryptoTransactions.amountPoints}),0)::int` })
+        .from(schema.cryptoTransactions)
+        .where(and(eq(schema.cryptoTransactions.userId, uid), eq(schema.cryptoTransactions.type, "withdrawal"), eq(schema.cryptoTransactions.status, "completed"))),
+      db
+        .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+        .from(transactions)
+        .where(and(eq(transactions.userId, uid), sql`${transactions.type} in ('slot_credit', 'upgrade_take')`)),
+      db
+        .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+        .from(transactions)
+        .where(and(eq(transactions.userId, uid), eq(transactions.type, "referral_bonus"))),
+      db
+        .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+        .from(transactions)
+        .where(and(eq(transactions.userId, uid), sql`${transactions.type} in ('royalty_payout', 'royalty_reserve_reward')`)),
     ]);
 
   const currentSlab = allSlabs.find((s) => s.level === user.currentSlab) ?? null;
@@ -76,7 +112,44 @@ export async function getDashboard(uid: string) {
   const collected = collectedRows[0]?.collected ?? 0;
   const earned = earnedRows[0]?.earned ?? 0;
 
+  let queuePosition: number | null = null;
+  if (user.currentSlab) {
+    const [myOldestSlot] = await db
+      .select({ queueSeq: slots.queueSeq })
+      .from(slots)
+      .where(
+        and(
+          eq(slots.ownerId, uid),
+          eq(slots.slabLevel, user.currentSlab),
+          eq(slots.status, "open")
+        )
+      )
+      .orderBy(slots.queueSeq)
+      .limit(1);
+
+    if (myOldestSlot) {
+      const [{ countBefore }] = await db
+        .select({ countBefore: sql<number>`count(*)::int` })
+        .from(slots)
+        .where(
+          and(
+            eq(slots.slabLevel, user.currentSlab),
+            eq(slots.status, "open"),
+            sql`${slots.queueSeq} < ${myOldestSlot.queueSeq}`
+          )
+        );
+      queuePosition = countBefore + 1;
+    }
+  }
+
+  const spent = spentRows[0]?.total ?? 0;
+  const withdrawn = withdrawnRows[0]?.total ?? 0;
+  const matrixEarned = matrixEarnedRows[0]?.total ?? 0;
+  const referralEarned = referralEarnedRows[0]?.total ?? 0;
+  const royaltyEarned = royaltyEarnedRows[0]?.total ?? 0;
+
   return {
+    queuePosition,
     user,
     currentSlab,
     nextSlab,
@@ -90,6 +163,13 @@ export async function getDashboard(uid: string) {
     totalEarned: earned,
     earningsByType,
     leaderboard: leaderboard.map((l) => ({ ...l, name: maskName(l.serialNo) })),
+    financials: {
+      spent,
+      withdrawn,
+      matrixEarned,
+      referralEarned,
+      royaltyEarned,
+    },
   };
 }
 
@@ -99,6 +179,8 @@ export type MatrixNode = {
   id: string;
   serialNo: number;
   name: string;
+  slab: number;
+  rank: number | null; // user's entry position within this tier (1-based)
   position: number | null; // which of the parent's slots this user filled
   depth: number;
   children: MatrixNode[];
@@ -150,20 +232,27 @@ export type NodeSummary = NonNullable<Awaited<ReturnType<typeof getNodeSummary>>
 export async function getMatrixSubtree(rootId: string, level: number, maxDepth = 12, maxRows = 1000) {
   const res = await db.execute(sql`
     WITH RECURSIVE tree AS (
-      SELECT u.id, u.serial_no, u.name, 0 AS depth, NULL::int AS position, NULL::uuid AS parent
+      SELECT u.id, u.serial_no, u.name, u.current_slab, 0 AS depth, NULL::int AS position, NULL::uuid AS parent
       FROM ${users} u WHERE u.id = ${rootId}
       UNION ALL
-      SELECT u.id, u.serial_no, u.name, t.depth + 1, s.position, t.id
+      SELECT u.id, u.serial_no, u.name, u.current_slab, t.depth + 1, s.position, t.id
       FROM ${slots} s
       JOIN ${users} u ON u.id = s.occupant_id
       JOIN tree t ON s.owner_id = t.id
       WHERE s.slab_level = ${level} AND s.occupant_id IS NOT NULL AND t.depth < ${maxDepth}
+    ),
+    ranked AS (
+      SELECT t.*, DENSE_RANK() OVER (ORDER BY min_seq) AS rank
+      FROM tree t
+      LEFT JOIN LATERAL (
+        SELECT min(s.queue_seq) AS min_seq FROM ${slots} s WHERE s.owner_id = t.id AND s.slab_level = ${level}
+      ) sq ON true
     )
-    SELECT id, serial_no, name, depth, position, parent FROM tree ORDER BY depth, position LIMIT ${maxRows}
+    SELECT id, serial_no, name, current_slab, depth, position, parent, rank::int FROM ranked ORDER BY depth, position LIMIT ${maxRows}
   `);
-  const rows = res.rows as { id: string; serial_no: number; name: string; depth: number; position: number | null; parent: string | null }[];
+  const rows = res.rows as { id: string; serial_no: number; name: string; current_slab: number; depth: number; position: number | null; parent: string | null; rank: number }[];
   const byId = new Map<string, MatrixNode>();
-  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: maskName(r.serial_no), position: r.position, depth: r.depth, children: [] });
+  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: maskName(r.serial_no), slab: r.current_slab, rank: r.rank, position: r.position, depth: r.depth, children: [] });
   let root: MatrixNode | null = null;
   for (const r of rows) {
     const node = byId.get(r.id)!;
@@ -193,32 +282,86 @@ export async function getMyRoyalty(uid: string) {
 export async function getSlotHierarchy(level: number, maxDepth = 12, maxRows = 2000) {
   const res = await db.execute(sql`
     WITH RECURSIVE tree AS (
-      SELECT u.id, u.serial_no, u.name, 0 AS depth, NULL::int AS position, NULL::uuid AS parent
+      SELECT u.id, u.serial_no, u.name, u.current_slab, 0 AS depth, NULL::int AS position, NULL::uuid AS parent
       FROM ${users} u
       WHERE u.id IN (SELECT DISTINCT owner_id FROM ${slots} WHERE slab_level = ${level})
         AND NOT EXISTS (SELECT 1 FROM ${slots} s WHERE s.slab_level = ${level} AND s.occupant_id = u.id)
       UNION ALL
-      SELECT u.id, u.serial_no, u.name, t.depth + 1, s.position, t.id
+      SELECT u.id, u.serial_no, u.name, u.current_slab, t.depth + 1, s.position, t.id
       FROM ${slots} s
       JOIN ${users} u ON u.id = s.occupant_id
       JOIN tree t ON s.owner_id = t.id
       WHERE s.slab_level = ${level} AND s.occupant_id IS NOT NULL AND t.depth < ${maxDepth}
+    ),
+    ranked AS (
+      SELECT t.*, DENSE_RANK() OVER (ORDER BY min_seq) AS rank
+      FROM tree t
+      LEFT JOIN LATERAL (
+        SELECT min(s.queue_seq) AS min_seq FROM ${slots} s WHERE s.owner_id = t.id AND s.slab_level = ${level}
+      ) sq ON true
     )
-    SELECT id, serial_no, name, depth, position, parent FROM tree ORDER BY depth, position LIMIT ${maxRows}
+    SELECT id, serial_no, name, current_slab, depth, position, parent, rank::int FROM ranked ORDER BY depth, position LIMIT ${maxRows}
   `);
 
   const rows = res.rows as {
-    id: string; serial_no: number; name: string; depth: number; position: number | null; parent: string | null;
+    id: string; serial_no: number; name: string; current_slab: number; depth: number; position: number | null; parent: string | null; rank: number;
   }[];
 
   const byId = new Map<string, MatrixNode>();
-  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: maskName(r.serial_no), position: r.position, depth: r.depth, children: [] });
+  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: maskName(r.serial_no), slab: r.current_slab, rank: r.rank, position: r.position, depth: r.depth, children: [] });
   const roots: MatrixNode[] = [];
   for (const r of rows) {
     const node = byId.get(r.id)!;
     if (r.parent && byId.has(r.parent)) byId.get(r.parent)!.children.push(node);
     else roots.push(node);
   }
+  roots.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+  return { roots, total: rows.length, capped: rows.length >= maxRows };
+}
+
+/**
+ * Slot hierarchy filtered to only users whose current_slab = level.
+ * Users who have upgraded past this tier are excluded.
+ */
+export async function getSlotHierarchyCurrentOnly(level: number, maxDepth = 12, maxRows = 2000) {
+  const res = await db.execute(sql`
+    WITH RECURSIVE tree AS (
+      SELECT u.id, u.serial_no, u.name, u.current_slab, 0 AS depth, NULL::int AS position, NULL::uuid AS parent
+      FROM ${users} u
+      WHERE u.current_slab = ${level}
+        AND u.id IN (SELECT DISTINCT owner_id FROM ${slots} WHERE slab_level = ${level})
+        AND NOT EXISTS (SELECT 1 FROM ${slots} s WHERE s.slab_level = ${level} AND s.occupant_id = u.id AND EXISTS (SELECT 1 FROM ${users} u2 WHERE u2.id = s.owner_id AND u2.current_slab = ${level}))
+      UNION ALL
+      SELECT u.id, u.serial_no, u.name, u.current_slab, t.depth + 1, s.position, t.id
+      FROM ${slots} s
+      JOIN ${users} u ON u.id = s.occupant_id
+      JOIN tree t ON s.owner_id = t.id
+      WHERE s.slab_level = ${level} AND s.occupant_id IS NOT NULL AND t.depth < ${maxDepth}
+        AND u.current_slab = ${level}
+    ),
+    ranked AS (
+      SELECT t.*, DENSE_RANK() OVER (ORDER BY min_seq) AS rank
+      FROM tree t
+      LEFT JOIN LATERAL (
+        SELECT min(s.queue_seq) AS min_seq FROM ${slots} s WHERE s.owner_id = t.id AND s.slab_level = ${level}
+      ) sq ON true
+    )
+    SELECT id, serial_no, name, current_slab, depth, position, parent, rank::int FROM ranked ORDER BY depth, position LIMIT ${maxRows}
+  `);
+
+  const rows = res.rows as {
+    id: string; serial_no: number; name: string; current_slab: number; depth: number; position: number | null; parent: string | null; rank: number;
+  }[];
+
+  const byId = new Map<string, MatrixNode>();
+  for (const r of rows) byId.set(r.id, { id: r.id, serialNo: r.serial_no, name: maskName(r.serial_no), slab: r.current_slab, rank: r.rank, position: r.position, depth: r.depth, children: [] });
+  const roots: MatrixNode[] = [];
+  for (const r of rows) {
+    const node = byId.get(r.id)!;
+    if (r.parent && byId.has(r.parent)) byId.get(r.parent)!.children.push(node);
+    else roots.push(node);
+  }
+  roots.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
   return { roots, total: rows.length, capped: rows.length >= maxRows };
 }
 
@@ -256,7 +399,7 @@ export async function getUserJourney(uid: string) {
     royalties,
   ] = await Promise.all([
     db
-      .select({ earned: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0),0)::int` })
+      .select({ earned: sql<number>`coalesce(sum(${transactions.points}) filter (where ${transactions.points} > 0 and ${transactions.type} != 'usdt_deposit'),0)::int` })
       .from(transactions)
       .where(eq(transactions.userId, uid)),
     db

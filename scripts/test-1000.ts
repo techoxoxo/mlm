@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { db, pool, schema } from "@/db";
 import { activate, decideChoice, chargeRegistration, post } from "@/lib/distribution";
-import { distributeRoyalty } from "@/lib/royalty";
+import { distributeRankRoyalty, distributeReserveRoyalty } from "@/lib/royalty";
 import { genReferralCode, hashPassword } from "@/lib/auth";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -184,8 +184,9 @@ async function main() {
     )`);
   const [poolRow] = await db.select().from(pools).where(eq(pools.id, 1));
   const royaltyPoolBefore = poolRow.royaltyPool;
-  const rr = await distributeRoyalty();
-  console.log(`  pool ${rr.poolBefore} → rank ${rr.rankDistributed} to ${rr.rankRecipients}, reserve +${rr.reserveAdded} paid ${rr.reserveDistributed} to ${rr.reserveRecipients}\n`);
+  const rr = await distributeRankRoyalty();
+  const rRes = await distributeReserveRoyalty();
+  console.log(`  pool ${rr.poolBefore} → rank ${rr.rankDistributed} to ${rr.rankRecipients}, reserve +${rr.reserveAdded} paid ${rRes.reserveDistributed} to ${rRes.reserveRecipients}\n`);
 
   // pool conservation: nothing created or lost
   check(rr.poolBefore === royaltyPoolBefore, "royalty run sees full pool");
@@ -199,8 +200,8 @@ async function main() {
     .select({ reserveSum: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
     .from(transactions)
     .where(sql`${transactions.type}='royalty_reserve_reward'`);
-  check(reserveSum === rr.reserveDistributed, "reserve ledger == reserve distributed");
-  check(rr.reserveRecipients > 0, "reserve reward reached backdated non-achievers");
+  check(reserveSum === rRes.reserveDistributed, "reserve ledger == reserve distributed");
+  check(rRes.reserveRecipients > 0, "reserve reward reached backdated non-achievers");
   check(rr.rankRecipients > 0 && rr.rankDistributed > 0, "rank band paid the qualifying influencer");
   const [{ infEarned }] = await db
     .select({ infEarned: sql<number>`coalesce(sum(${transactions.points}),0)::int` })

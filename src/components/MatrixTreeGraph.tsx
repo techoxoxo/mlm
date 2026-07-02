@@ -30,8 +30,13 @@ function Node({ node, level, isRoot, onOpen }: { node: MatrixNode; level: number
           )}
           <span className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--gold-bright)" }}>{memberCode(node.serialNo)}</span>
         </div>
-        {/* whole card opens the modal — the modal links to the full journey */}
-        <span style={{ fontSize: 11.5, color: "var(--text)", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.name}</span>
+        {/* tier + rank badge */}
+        <span style={{ fontSize: 10.5, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span className="pill" style={{ fontSize: 9, padding: "1px 6px", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", color: "#a78bfa" }}>T{node.slab || "?"}</span>
+          {node.rank != null && (
+            <span className="mono" style={{ fontSize: 10, color: "var(--faint)" }}>Rank #{node.rank}</span>
+          )}
+        </span>
         {hasKids && (
           <button
             onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}

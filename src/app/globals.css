@@ -36,9 +36,9 @@
   --danger: #ef4444;
   --success: #10b981;
 
-  --font-display: "Baloo 2", ui-rounded, ui-sans-serif, system-ui, sans-serif;
-  --font-num: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-num: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   --r-sm: 12px;
   --r-md: 16px;
@@ -74,36 +74,36 @@
 /* ------------------------------------------------------------------ app shell sidebar/header tokens */
 :root {
   --app-aside-bg-from: #ffffff;
-  --app-aside-bg-to: #f5f0ff;
-  --app-header-bg: rgba(255, 255, 255, 0.4);
+  --app-aside-bg-to: #f3ebff;
+  --app-header-bg: rgba(255, 255, 255, 0.5);
   --app-aside-text: var(--text);
   --app-aside-nav-text: var(--muted);
-  --portal-bg: linear-gradient(160deg, #f8f5ff 0%, #ede5ff 30%, #e4ecff 65%, #f2edff 100%);
+  --portal-bg: linear-gradient(160deg, #f7f3ff 0%, #ebddff 40%, #e0ebff 100%);
 }
 
 /* ------------------------------------------------------------------ dark theme */
 [data-theme="dark"] {
-  --bg: #0c0a08;
-  --bg-2: #13110d;
-  --surface: rgba(22, 20, 14, 0.9);
-  --surface-2: rgba(28, 25, 16, 0.95);
-  --surface-3: rgba(32, 28, 18, 0.98);
+  --bg: #06040a;
+  --bg-2: #0b0914;
+  --surface: rgba(14, 11, 26, 0.7);
+  --surface-2: rgba(20, 16, 35, 0.75);
+  --surface-3: rgba(26, 21, 45, 0.85);
 
-  --border: rgba(255, 255, 255, 0.07);
-  --border-2: rgba(248, 198, 23, 0.2);
-  --border-3: rgba(248, 198, 23, 0.42);
+  --border: rgba(255, 255, 255, 0.06);
+  --border-2: rgba(229, 193, 88, 0.18);
+  --border-3: rgba(139, 92, 246, 0.3);
 
-  --text: #f5f0e8;
-  --muted: #a89060;
-  --faint: #5a4a2a;
+  --text: #ffffff;
+  --muted: #cbd5e1;
+  --faint: #94a3b8;
 
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.18);
-  --shadow-md: 0 20px 40px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 24px 50px rgba(0, 0, 0, 0.55), 0 1px 4px rgba(0, 0, 0, 0.3);
 
-  --app-aside-bg-from: rgba(14, 10, 24, 0.97);
-  --app-aside-bg-to: rgba(8, 6, 16, 0.99);
-  --app-header-bg: rgba(8, 6, 18, 0.6);
-  --portal-bg: linear-gradient(160deg, #08061a 0%, #0c0a1e 40%, #060818 100%);
+  --app-aside-bg-from: rgba(10, 8, 20, 0.96);
+  --app-aside-bg-to: rgba(5, 4, 10, 0.98);
+  --app-header-bg: rgba(6, 4, 10, 0.6);
+  --portal-bg: radial-gradient(circle at 50% 0%, #150f30 0%, #06040a 80%);
 }
 
 * {
@@ -163,7 +163,7 @@ h4 {
   line-height: 1.12;
   margin: 0;
   color: var(--text);
-  background: linear-gradient(135deg, var(--text) 0%, #a89060 100%);
+  background: linear-gradient(135deg, var(--text) 30%, var(--gold-soft) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: none;
@@ -445,16 +445,19 @@ h4 {
 
 /* ------------------------------------------------------------------ dark theme component overrides */
 [data-theme="dark"] .card {
-  background: linear-gradient(160deg, rgba(22, 20, 14, 0.95) 0%, rgba(18, 16, 10, 0.98) 100%);
+  background: linear-gradient(160deg, rgba(16, 12, 30, 0.65) 0%, rgba(10, 8, 18, 0.85) 100%);
+  border-color: rgba(255, 255, 255, 0.07);
 }
 
 [data-theme="dark"] .card-feature {
-  background: linear-gradient(160deg, rgba(248, 198, 23, 0.07) 0%, rgba(22, 20, 14, 0.95) 100%);
+  background: linear-gradient(160deg, rgba(248, 198, 23, 0.06) 0%, rgba(16, 12, 30, 0.7) 100%);
+  border-color: rgba(248, 198, 23, 0.25);
+  box-shadow: 0 0 25px rgba(248, 198, 23, 0.04);
 }
 
 [data-theme="dark"] .input {
-  background: rgba(22, 20, 14, 0.85);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(10, 8, 18, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
   color: var(--text);
 }
 
@@ -463,13 +466,15 @@ h4 {
 }
 
 [data-theme="dark"] .input:focus {
-  background: rgba(28, 25, 16, 0.95);
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(248, 198, 23, 0.15);
+  background: rgba(14, 11, 26, 0.85);
+  border-color: var(--gold-soft);
+  box-shadow: 0 0 0 3px rgba(229, 193, 88, 0.18);
 }
 
 [data-theme="dark"] .surface {
-  background: var(--surface);
+  background: rgba(14, 11, 26, 0.7);
+  backdrop-filter: blur(20px);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 [data-theme="dark"] body::before {
@@ -868,4 +873,54 @@ h4 {
     radial-gradient(600px 400px at 12% 68%, rgba(245, 198, 23, 0.05), transparent 58%),
     radial-gradient(500px 350px at 85% 80%, rgba(59, 130, 246, 0.06), transparent 55%),
     radial-gradient(400px 300px at 50% 100%, rgba(90, 40, 200, 0.08), transparent 60%);
+}
+
+/* --------------------------------------------------------- skeleton / shimmer */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 50%, var(--skeleton-base) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--r-sm);
+}
+:root {
+  --skeleton-base: rgba(0, 0, 0, 0.06);
+  --skeleton-shine: rgba(0, 0, 0, 0.1);
+}
+[data-theme="dark"] {
+  --skeleton-base: rgba(255, 255, 255, 0.06);
+  --skeleton-shine: rgba(255, 255, 255, 0.1);
+}
+.skeleton-text { height: 14px; border-radius: 6px; }
+.skeleton-title { height: 22px; border-radius: 8px; }
+.skeleton-card {
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 22px;
+}
+.skeleton-btn {
+  height: 40px;
+  border-radius: 10px;
+  width: 140px;
+}
+.skeleton-avatar {
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+}
+.skeleton-table-row {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.skeleton-pill {
+  height: 24px;
+  border-radius: 99px;
+  width: 72px;
 }

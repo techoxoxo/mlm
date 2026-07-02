@@ -122,7 +122,7 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{t.userName}</span>
-                    <span className="pill pill-gold mono" style={{ fontSize: 11 }}>APX-{t.userSerial.toString().padStart(6, "0")}</span>
+                    <span className="pill pill-gold mono" style={{ fontSize: 11 }}>{`APX-${t.userSerial.toString().padStart(6, "0")}`}</span>
                   </div>
                   <div style={{ color: "var(--muted)", fontSize: 12.5, marginBottom: 6 }}>
                     <span>Request: <strong style={{ color: "#ffffff" }}>{t.amountPoints} points (${(t.amountPoints * 1).toFixed(2)} USDT)</strong></span>
@@ -204,7 +204,7 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
                   <td>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <span style={{ fontWeight: 600 }}>{t.userName}</span>
-                      <span style={{ fontSize: 11, color: "var(--faint)" }}>APX-{t.userSerial.toString().padStart(6, "0")}</span>
+                      <span style={{ fontSize: 11, color: "var(--faint)" }}>{`APX-${t.userSerial.toString().padStart(6, "0")}`}</span>
                     </div>
                   </td>
                   <td>
