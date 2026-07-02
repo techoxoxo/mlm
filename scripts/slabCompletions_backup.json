@@ -1,0 +1,162 @@
+[
+  {
+    "id": "4f676652-ce7d-48b7-baa2-ef398aeb81a0",
+    "userId": "6d7cb51e-1951-44a1-9226-4fb07a253ef0",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-01T17:49:33.941Z",
+    "decidedAt": "2026-07-01T17:50:24.571Z"
+  },
+  {
+    "id": "c93dd0f4-0d18-48c0-bb25-29e51b16e9e3",
+    "userId": "1f250777-94f8-4442-8510-82406258395a",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T05:23:33.582Z",
+    "decidedAt": "2026-07-02T05:35:12.771Z"
+  },
+  {
+    "id": "f6048858-b2f0-4154-a0e1-6dc72878cea3",
+    "userId": "5f21d7ca-5545-412f-bb33-fb77caef4b34",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T05:41:51.294Z",
+    "decidedAt": "2026-07-02T05:41:51.294Z"
+  },
+  {
+    "id": "1c7475b8-fae6-4672-ac6d-47747fc4dd84",
+    "userId": "b1a8d67d-4984-4528-bdee-6aa99c0423f0",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T05:53:37.509Z",
+    "decidedAt": "2026-07-02T05:53:37.509Z"
+  },
+  {
+    "id": "df82d4b7-2c65-4c29-a84d-1a28954f32eb",
+    "userId": "116f0886-892d-4adc-8911-7e5802b5ac0a",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T06:08:15.106Z",
+    "decidedAt": "2026-07-02T06:08:15.106Z"
+  },
+  {
+    "id": "1aab688b-170e-4f7b-87d9-7a85a6dab89c",
+    "userId": "6d7cb51e-1951-44a1-9226-4fb07a253ef0",
+    "slabLevel": 2,
+    "collected": 200,
+    "status": "upgraded",
+    "payout": 50,
+    "createdAt": "2026-07-02T06:08:15.106Z",
+    "decidedAt": "2026-07-02T06:08:15.106Z"
+  },
+  {
+    "id": "86f5adb8-e9a0-45ba-a55a-6a541dbebbe8",
+    "userId": "53024c27-a9dd-4d10-9290-8c2bce417459",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T06:14:44.999Z",
+    "decidedAt": "2026-07-02T06:14:44.999Z"
+  },
+  {
+    "id": "bcb02e21-c192-4049-a69e-425ba7c0ccbe",
+    "userId": "c1b68793-9f1e-44c6-824e-8f2a1cdd0bcf",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T06:24:53.713Z",
+    "decidedAt": "2026-07-02T06:24:53.713Z"
+  },
+  {
+    "id": "3b46bc3d-4563-41d4-bd5a-f71c0f571a99",
+    "userId": "d2c60216-4eb9-4226-b649-951003fef102",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T06:55:04.016Z",
+    "decidedAt": "2026-07-02T06:55:04.016Z"
+  },
+  {
+    "id": "cb21b925-bc53-4f63-9426-93f19d1dd4dc",
+    "userId": "e515ab52-463e-41c6-837a-e9748156ea11",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T07:33:07.579Z",
+    "decidedAt": "2026-07-02T07:33:07.579Z"
+  },
+  {
+    "id": "2956fe76-9c06-49f8-9867-cf5105db977c",
+    "userId": "1f250777-94f8-4442-8510-82406258395a",
+    "slabLevel": 2,
+    "collected": 200,
+    "status": "upgraded",
+    "payout": 50,
+    "createdAt": "2026-07-02T07:33:07.579Z",
+    "decidedAt": "2026-07-02T07:33:07.579Z"
+  },
+  {
+    "id": "e38faa8f-fa88-4f68-aab1-e60eee219fd7",
+    "userId": "5571cf96-05f1-4870-a3ae-9ff89f10e4bf",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T08:35:52.670Z",
+    "decidedAt": "2026-07-02T08:35:52.670Z"
+  },
+  {
+    "id": "21d92761-6b68-4dd2-b9e9-6f5971d1aba3",
+    "userId": "66f4cbd6-a464-45ef-816d-f73c858cb77b",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T09:23:21.354Z",
+    "decidedAt": "2026-07-02T09:23:21.354Z"
+  },
+  {
+    "id": "3e31ec43-fb7d-4c5a-8781-0a3d9ea81e9b",
+    "userId": "1d618743-5fa3-4f99-9ee5-85795df16355",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "upgraded",
+    "payout": 10,
+    "createdAt": "2026-07-02T10:50:11.383Z",
+    "decidedAt": "2026-07-02T10:50:11.383Z"
+  },
+  {
+    "id": "ea1d2800-309b-47be-964b-d923c063fac6",
+    "userId": "5f21d7ca-5545-412f-bb33-fb77caef4b34",
+    "slabLevel": 2,
+    "collected": 200,
+    "status": "upgraded",
+    "payout": 50,
+    "createdAt": "2026-07-02T10:50:11.383Z",
+    "decidedAt": "2026-07-02T10:50:11.383Z"
+  },
+  {
+    "id": "06195ebe-264f-4fd7-9002-aee0af75afe3",
+    "userId": "d4376a6c-5885-4762-9858-72851c65583d",
+    "slabLevel": 1,
+    "collected": 60,
+    "status": "pending",
+    "payout": null,
+    "createdAt": "2026-07-02T10:50:11.535Z",
+    "decidedAt": null
+  }
+]

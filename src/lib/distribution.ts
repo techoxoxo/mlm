@@ -163,13 +163,37 @@ export async function enterSlab(
 
   // 1) Claim the oldest open slot at this level — atomic via SKIP LOCKED
   //    (never blocks, so slots can't participate in a deadlock cycle).
-  const [openSlot] = await tx
-    .select()
-    .from(slots)
-    .where(and(eq(slots.slabLevel, level), eq(slots.status, "open")))
-    .orderBy(slots.queueSeq)
-    .limit(1)
-    .for("update", { skipLocked: true });
+  //    If we are entering Slab 1 and this member has a direct sponsor,
+  //    prioritize checking for any open slot owned by the sponsor in Slab 1 first.
+  let openSlot = null;
+  if (level === 1 && member.sponsorId) {
+    const [sponsorSlot] = await tx
+      .select()
+      .from(slots)
+      .where(
+        and(
+          eq(slots.slabLevel, level),
+          eq(slots.status, "open"),
+          eq(slots.ownerId, member.sponsorId)
+        )
+      )
+      .orderBy(slots.queueSeq)
+      .limit(1)
+      .for("update", { skipLocked: true });
+    if (sponsorSlot) {
+      openSlot = sponsorSlot;
+    }
+  }
+
+  if (!openSlot) {
+    [openSlot] = await tx
+      .select()
+      .from(slots)
+      .where(and(eq(slots.slabLevel, level), eq(slots.status, "open")))
+      .orderBy(slots.queueSeq)
+      .limit(1)
+      .for("update", { skipLocked: true });
+  }
 
   // 2) Lock every participant's user row in canonical (id) order BEFORE any
   //    balance write. Without this, two entries whose members are each
