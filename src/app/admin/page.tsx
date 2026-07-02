@@ -108,7 +108,7 @@ export default async function AdminOverview() {
   const stats = [
     { icon: Users, label: "Total players", value: totalUsers, color: "#8b5cf6" },
     { icon: Activity, label: "Active", value: active, color: "#10b981" },
-    { icon: Coins, label: "Points distributed", value: distributed.toLocaleString(), color: "#f5c453" },
+    // { icon: Coins, label: "Points distributed", value: distributed.toLocaleString(), color: "#f5c453" },
     { icon: LogOut, label: "Exited", value: exited, color: "#f97316" },
     { icon: Trophy, label: "Completed", value: completed, color: "#a78bfa" },
   ];
