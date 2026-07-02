@@ -356,3 +356,73 @@ export async function deleteRegisteredUserAction(userId: string) {
     return { ok: false, error: (err as Error).message };
   }
 }
+
+/**
+ * Manually activate a registered user without requiring a payment gateway transaction.
+ * Deducts the registration and slab 1 activation fees, sets status to "active",
+ * and places them in the global FIFO matrix.
+ */
+export async function manuallyActivateUserAction(userId: string) {
+  try {
+    await requireAdmin();
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      return { ok: false, error: "User not found" };
+    }
+    if (user.status !== "registered") {
+      return { ok: false, error: "User is already active" };
+    }
+
+    const payId = `manual_act_${crypto.randomUUID().slice(0, 8)}`;
+
+    await db.transaction(async (tx) => {
+      // 1. Create a successful mock/manual payment log
+      await tx.insert(schema.cryptoTransactions).values({
+        userId,
+        type: "deposit",
+        status: "completed",
+        amountUsdt: "50.000000",
+        amountPoints: 50,
+        network: "bep20",
+        gateway: "manual",
+        paymentId: payId,
+        note: "Manual Admin Activation",
+        updatedAt: new Date(),
+      });
+
+      // 2. Post the 50 USDT deposit credit to points balance
+      await post(tx, userId, "usdt_deposit", 50, {
+        note: `USDT Manual Activation Deposit (ID: ${payId})`,
+        idempotencyKey: `dep:${payId}`,
+      });
+
+      // 3. Charge registration fees (debits 20 points)
+      const { chargeRegistration, enterSlab } = await import("@/lib/distribution");
+      await chargeRegistration(tx, userId);
+
+      // 4. Activate into Slab 1 (debits 30 points)
+      await enterSlab(tx, userId, 1);
+    });
+
+    // 5. Notify the active user session of entered status
+    const { publishEvent } = await import("@/lib/events");
+    await publishEvent(userId, { type: "entered", level: 1 });
+
+    await logAudit({
+      action: "manual_activate_user",
+      targetType: "user",
+      targetId: userId,
+      before: { status: "registered" },
+      after: { status: "active" }
+    });
+
+    revalidatePath(`/admin/users/${userId}`);
+    revalidatePath("/admin/users");
+    revalidatePath("/admin/payments");
+    return { ok: true };
+  } catch (err) {
+    console.error("manuallyActivateUserAction failed:", err);
+    return { ok: false, error: (err as Error).message };
+  }
+}

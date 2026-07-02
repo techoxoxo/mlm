@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getUserJourney } from "@/lib/queries";
 import { memberCode } from "@/db/schema";
-import { toggleAutoUpgradeAction } from "@/app/actions/admin";
+import { toggleAutoUpgradeAction, manuallyActivateUserAction } from "@/app/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +63,28 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
               <h2 style={{ fontSize: 22 }}>{user.name}</h2>
               <span className="pill pill-gold mono">{memberCode(user.serialNo)}</span>
               <span className="pill" style={{ textTransform: "capitalize" }}>{user.status}</span>
+
+              {user.status === "registered" && (
+                <form action={async () => {
+                  "use server";
+                  await manuallyActivateUserAction(user.id);
+                }}>
+                  <button
+                    type="submit"
+                    className="pill"
+                    style={{
+                      background: "rgba(0, 230, 118, 0.08)",
+                      border: "1px solid rgba(0, 230, 118, 0.25)",
+                      color: "#00e676",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  >
+                    ⚡ Mark Active
+                  </button>
+                </form>
+              )}
               
               <form action={async () => {
                 "use server";
