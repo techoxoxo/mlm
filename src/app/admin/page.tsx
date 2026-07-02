@@ -17,21 +17,29 @@ const TIER_COLORS = [
 ];
 
 export default async function AdminOverview() {
-  const [[userAgg], [slotAgg], [txAgg], bySlab] = await Promise.all([
+  const [[userAgg], [txAgg], bySlab, activeBySlab] = await Promise.all([
     db
       .select({
         total: sql<number>`count(*) filter (where role = 'user')::int`,
         active: sql<number>`count(*) filter (where role = 'user' and status = 'active')::int`,
         exited: sql<number>`count(*) filter (where role = 'user' and status = 'exited')::int`,
         completed: sql<number>`count(*) filter (where role = 'user' and status = 'completed')::int`,
+        registered: sql<number>`count(*) filter (where role = 'user' and status = 'registered')::int`,
       })
       .from(users),
-    db.select({ filled: sql<number>`count(*) filter (where status = 'filled')::int` }).from(slots),
-    db.select({ distributed: sql<number>`coalesce(sum(points) filter (where points > 0),0)::int` }).from(transactions),
+    db.select({ 
+      distributed: sql<number>`coalesce(sum(points) filter (where points > 0 and type not in ('usdt_deposit')),0)::int` 
+    }).from(transactions),
     db
       .select({ slab: users.currentSlab, n: sql<number>`count(*)::int` })
       .from(users)
       .where(sql`role = 'user'`)
+      .groupBy(users.currentSlab)
+      .orderBy(users.currentSlab),
+    db
+      .select({ slab: users.currentSlab, n: sql<number>`count(*)::int` })
+      .from(users)
+      .where(sql`role = 'user' and status = 'active'`)
       .groupBy(users.currentSlab)
       .orderBy(users.currentSlab),
   ]);
@@ -40,16 +48,31 @@ export default async function AdminOverview() {
   const active = userAgg.active;
   const exited = userAgg.exited;
   const completed = userAgg.completed;
-  const filledSlots = slotAgg.filled;
+  const registered = userAgg.registered;
   const distributed = txAgg.distributed;
 
   const stats = [
     { icon: Users, label: "Total players", value: totalUsers, color: "#8b5cf6" },
     { icon: Activity, label: "Active", value: active, color: "#10b981" },
-    { icon: Layers, label: "Slots filled", value: filledSlots, color: "#3b82f6" },
     { icon: Coins, label: "Points distributed", value: distributed.toLocaleString(), color: "#f5c453" },
     { icon: LogOut, label: "Exited", value: exited, color: "#f97316" },
     { icon: Trophy, label: "Completed", value: completed, color: "#a78bfa" },
+  ];
+
+  // Build a complete breakdown list of players by current active slab
+  const slabTiers = [1, 2, 3, 4, 5];
+  const tierBreakdown = [
+    { label: "Registered (Unactivated)", count: registered, color: "var(--muted)", isRegistered: true },
+    ...slabTiers.map((lvl) => {
+      const match = activeBySlab.find((b) => b.slab === lvl);
+      const tierIdx = lvl - 1;
+      return {
+        label: `Tier ${lvl}`,
+        count: match ? match.n : 0,
+        color: TIER_COLORS[tierIdx] || "var(--faint)",
+        isRegistered: false,
+      };
+    })
   ];
 
   return (
@@ -151,30 +174,26 @@ export default async function AdminOverview() {
         ))}
       </div>
 
-      {/* <SimulatePanel /> */}
-
       {/* players by slab */}
       <div className="card" style={{ padding: 26 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <BarChart2 size={17} color="var(--gold)" />
-          <h3 style={{ fontSize: 17, margin: 0 }}>Players by tier</h3>
+          <h3 style={{ fontSize: 17, margin: 0 }}>Players by active tier</h3>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {bySlab.map((b, i) => {
-            const pct = totalUsers ? Math.round((b.n / totalUsers) * 100) : 0;
-            const tierIdx = (b.slab ?? 0) - 1;
-            const color = tierIdx >= 0 && tierIdx < TIER_COLORS.length ? TIER_COLORS[tierIdx] : "var(--faint)";
+          {tierBreakdown.map((b) => {
+            const pct = totalUsers ? Math.round((b.count / totalUsers) * 100) : 0;
             return (
-              <div key={b.slab} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div key={b.label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <span
                   style={{
-                    width: 90,
+                    width: 160,
                     fontSize: 12.5,
                     fontWeight: 600,
-                    color: tierIdx >= 0 ? color : "var(--muted)",
+                    color: b.color,
                   }}
                 >
-                  {b.slab === 0 ? "Registered" : `Tier ${b.slab}`}
+                  {b.label}
                 </span>
                 <div
                   style={{
@@ -190,10 +209,8 @@ export default async function AdminOverview() {
                       width: `${pct}%`,
                       height: "100%",
                       borderRadius: 99,
-                      background: tierIdx >= 0
-                        ? `linear-gradient(90deg, ${color}, ${color}99)`
-                        : "linear-gradient(90deg, var(--faint), transparent)",
-                      boxShadow: tierIdx >= 0 ? `0 0 6px ${color}55` : "none",
+                      background: `linear-gradient(90deg, ${b.color}, ${b.color}99)`,
+                      boxShadow: `0 0 6px ${b.color}55`,
                     }}
                   />
                 </div>
@@ -201,15 +218,13 @@ export default async function AdminOverview() {
                   className="mono"
                   style={{ width: 50, textAlign: "right", fontSize: 13, fontWeight: 700, color: "var(--text)" }}
                 >
-                  {b.n} <span style={{ fontSize: 11, color: "var(--faint)", fontWeight: 400 }}>({pct}%)</span>
+                  {b.count} <span style={{ fontSize: 11, color: "var(--faint)", fontWeight: 400 }}>({pct}%)</span>
                 </span>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* <ResetSystemButton /> */}
     </div>
   );
 }
