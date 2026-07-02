@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSession, hashPassword, genReferralCode } from "@/lib/auth";
-import { activate, decideChoice } from "@/lib/distribution";
+import { activate, decideChoice, post } from "@/lib/distribution";
 import { logAudit } from "@/lib/audit";
 
 const { settings, slabs, users } = schema;
@@ -387,7 +387,6 @@ export async function manuallyActivateUserAction(userId: string) {
         network: "bep20",
         gateway: "razcrypto",
         paymentId: payId,
-        note: "Manual Admin Activation",
         updatedAt: new Date(),
       });
 
