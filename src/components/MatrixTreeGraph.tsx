@@ -67,11 +67,15 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
+import { createPortal } from "react-dom";
+
 function NodeModal({ id, level, isAdmin = false, onClose }: { id: string; level: number; isAdmin?: boolean; onClose: () => void }) {
   const [data, setData] = useState<NodeSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     let live = true;
     setLoading(true);
     fetch(`/api/node?id=${id}&level=${level}`)
@@ -81,10 +85,12 @@ function NodeModal({ id, level, isAdmin = false, onClose }: { id: string; level:
     return () => { live = false; };
   }, [id, level]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       onClick={onClose}
-      style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
     >
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: "100%", maxWidth: 520, padding: 24, maxHeight: "85vh", overflowY: "auto", background: "#16151a", border: "1px solid var(--border)" }}>
         {loading || !data ? (
@@ -147,7 +153,8 @@ function NodeModal({ id, level, isAdmin = false, onClose }: { id: string; level:
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

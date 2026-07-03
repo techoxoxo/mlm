@@ -56,6 +56,7 @@ async function post(
     note?: string;
     idempotencyKey?: string;
     meta?: Record<string, unknown>;
+    createdAt?: Date;
   } = {},
 ) {
   // Lock the user row so balanceAfter is computed serially per user.
@@ -93,6 +94,7 @@ async function post(
     note: opts.note,
     idempotencyKey: opts.idempotencyKey,
     meta: opts.meta as never,
+    createdAt: opts.createdAt ?? new Date(),
   });
 
   return balanceAfter;
@@ -152,6 +154,7 @@ export async function enterSlab(
   tx: Tx,
   userId: string,
   level: number,
+  customCreatedAt?: Date,
 ): Promise<EntryResult> {
   const slab = await getSlab(tx, level);
   if (!slab.active) throw new Error(`Slab ${level} (${slab.name}) is not active`);
@@ -217,6 +220,7 @@ export async function enterSlab(
     slabLevel: level,
     note: `Enter ${slab.name} (slab ${level})`,
     idempotencyKey: `enter:${userId}:${level}:${Date.now()}`,
+    createdAt: customCreatedAt,
   });
 
   let uplineOwnerId: string | null = null;
@@ -234,11 +238,14 @@ export async function enterSlab(
     // Credit the slot owner with the fee, minus the house cut.
     const houseCut = Math.floor((slab.fee * cfg.companyPercent) / 100);
     const ownerCredit = slab.fee - houseCut;
+    const slotTime = customCreatedAt ? new Date(customCreatedAt.getTime() + 1000) : new Date(Date.now() + 1000);
+
     await post(tx, openSlot.ownerId, "slot_credit", ownerCredit, {
       counterpartyId: userId,
       slabLevel: level,
       note: `Slot ${openSlot.position} filled at slab ${level}`,
       idempotencyKey: `slot_credit:${openSlot.id}`,
+      createdAt: slotTime,
     });
     if (houseCut > 0) {
       await post(tx, openSlot.ownerId, "company_fee", -houseCut, {
@@ -246,6 +253,7 @@ export async function enterSlab(
         slabLevel: level,
         note: `House cut on slot ${openSlot.position} at slab ${level}`,
         idempotencyKey: `company_fee:${openSlot.id}`,
+        createdAt: slotTime,
       });
     }
 
@@ -275,6 +283,7 @@ export async function enterSlab(
       slabLevel: level,
       note: `Referral bonus for ${member.name}`,
       idempotencyKey: `ref_bonus:${userId}:${level}`,
+      createdAt: customCreatedAt,
     });
   }
 
@@ -354,17 +363,21 @@ async function markSlabComplete(tx: Tx, userId: string, level: number) {
 
     if (isAutoUpgrade) {
       const kept = Math.max(0, collected - nextSlab.fee);
+      const upgradeTime = new Date(Date.now() + 1000); // 1-second offset
+      const entryTime = new Date(Date.now() + 2000);   // 2-second offset
+
       await post(tx, userId, "upgrade_take", 0, {
         slabLevel: level,
         note: `Auto upgrade to ${nextSlab.name}: seed ${nextSlab.fee}, kept ${kept} of ${collected}`,
         meta: { kept, seed: nextSlab.fee, collected, auto: true },
+        createdAt: upgradeTime,
       });
       await tx
         .insert(slabCompletions)
         .values({ userId, slabLevel: level, collected, status: "upgraded", payout: kept, decidedAt: sql`now()` })
         .onConflictDoNothing();
 
-      const entry = await enterSlab(tx, userId, level + 1);
+      const entry = await enterSlab(tx, userId, level + 1, entryTime);
       // Trigger notifications asynchronously
       notifyEntry(userId, entry).catch(console.error);
     } else {
@@ -487,7 +500,7 @@ export async function activate(userId: string) {
  *   id_pin_fee (→ system) + royalty_fee (→ royalty pool).
  * The autopool portion (slab 1 fee) is charged separately by enterSlab.
  */
-export async function chargeRegistration(tx: Tx, userId: string) {
+export async function chargeRegistration(tx: Tx, userId: string, customCreatedAt?: Date) {
   const cfg = await getSettings(tx);
   const [member] = await tx
     .select({ sponsorId: users.sponsorId, name: users.name })
@@ -499,6 +512,7 @@ export async function chargeRegistration(tx: Tx, userId: string) {
     await post(tx, userId, "id_pin_fee", -cfg.idPinFee, {
       note: "ID & PIN fee",
       idempotencyKey: `id_pin:${userId}`,
+      createdAt: customCreatedAt,
     });
   }
   // …of which the sponsor reward is routed to the referrer (if any). With no
@@ -508,12 +522,14 @@ export async function chargeRegistration(tx: Tx, userId: string) {
       counterpartyId: userId,
       note: `Sponsor reward for ${member?.name ?? "referral"}`,
       idempotencyKey: `sponsor_reward:${userId}`,
+      createdAt: customCreatedAt,
     });
   }
   if (cfg.royaltyFee > 0) {
     await post(tx, userId, "royalty_fee", -cfg.royaltyFee, {
       note: "Royalty program contribution",
       idempotencyKey: `royalty_fee:${userId}`,
+      createdAt: customCreatedAt ? new Date(customCreatedAt.getTime() + 1000) : undefined,
     });
     // the contribution flows into the shared royalty pool
     await tx

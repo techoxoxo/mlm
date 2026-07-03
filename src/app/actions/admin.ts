@@ -412,18 +412,20 @@ export async function manuallyActivateUserAction(userId: string) {
         updatedAt: new Date(),
       });
 
+      const now = new Date();
       // 2. Post the 50 USDT deposit credit to points balance
       await post(tx, userId, "usdt_deposit", 50, {
         note: `USDT Manual Activation Deposit (ID: ${payId})`,
         idempotencyKey: `dep:${payId}`,
+        createdAt: now,
       });
 
       // 3. Charge registration fees (debits 20 points)
       const { chargeRegistration, enterSlab } = await import("@/lib/distribution");
-      await chargeRegistration(tx, userId);
+      await chargeRegistration(tx, userId, new Date(now.getTime() + 1000));
 
       // 4. Activate into Slab 1 (debits 30 points)
-      await enterSlab(tx, userId, 1);
+      await enterSlab(tx, userId, 1, new Date(now.getTime() + 3000));
     });
 
     // 5. Notify the active user session of entered status

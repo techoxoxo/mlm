@@ -115,18 +115,20 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
 
       if (user.status === "registered") {
         isActivation = true;
+        const now = new Date();
         // Credit the activation deposit
         await post(tx, userId, "usdt_deposit", amountPoints, {
           note: `USDT Activation Deposit (ID: ${paymentId})`,
           idempotencyKey: `dep:${paymentId}`,
+          createdAt: now,
         });
 
         // Run registration charges (debits 20 points)
         const { chargeRegistration, enterSlab } = await import("@/lib/distribution");
-        await chargeRegistration(tx, userId);
+        await chargeRegistration(tx, userId, new Date(now.getTime() + 1000));
 
         // Run first-time slab 1 activation (debits 30 points)
-        await enterSlab(tx, userId, 1);
+        await enterSlab(tx, userId, 1, new Date(now.getTime() + 3000));
       } else {
         await post(tx, userId, "usdt_deposit", amountPoints, {
           note: `USDT Deposit (ID: ${paymentId})`,

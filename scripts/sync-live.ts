@@ -15,7 +15,7 @@ async function run() {
   try {
     // 1. Sync the schema using drizzle-kit push
     console.log("\n1. Running Drizzle Kit schema sync...");
-    execSync(`DATABASE_URL="${LIVE_DATABASE_URL}" npx drizzle-kit push`, {
+    execSync(`DATABASE_URL="${LIVE_DATABASE_URL}" npx drizzle-kit push --force`, {
       stdio: "inherit",
     });
     console.log("✅ Live database schema synced successfully!");
