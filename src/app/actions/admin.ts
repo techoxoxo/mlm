@@ -449,3 +449,28 @@ export async function manuallyActivateUserAction(userId: string) {
     return { ok: false, error: (err as Error).message };
   }
 }
+
+export async function reverseExitAction(userId: string) {
+  try {
+    await requireAdmin();
+
+    const { reverseExit } = await import("@/lib/distribution");
+    await reverseExit(userId);
+
+    await logAudit({
+      action: "reverse_exit",
+      targetType: "user",
+      targetId: userId,
+      before: { status: "exited" },
+      after: { status: "active" },
+    });
+
+    revalidatePath(`/admin/users/${userId}`);
+    revalidatePath("/admin/users");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (err) {
+    console.error("reverseExitAction failed:", err);
+    return { ok: false, error: (err as Error).message };
+  }
+}

@@ -19,13 +19,13 @@ function useRun() {
   return { run, pending, error };
 }
 
-export function ActivateButton({ fee }: { fee: number }) {
+export function ActivateButton({ fee, label }: { fee: number; label?: string }) {
   const { run, pending, error } = useRun();
   return (
     <div>
       <button className="btn btn-primary" style={{ padding: "12px 22px" }} disabled={pending} onClick={() => run(activateAction)}>
         {pending ? <Loader2 size={16} className="spin" /> : <Rocket size={16} />}
-        Activate Slab 1 ({fee} pts)
+        {label ?? `Activate Slab 1 (${fee} pts)`}
       </button>
       {error && <p style={{ color: "var(--color-danger)", fontSize: 13, marginTop: 8 }}>{error}</p>}
     </div>

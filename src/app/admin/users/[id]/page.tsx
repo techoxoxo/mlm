@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getUserJourney } from "@/lib/queries";
 import { memberCode } from "@/db/schema";
-import { toggleAutoUpgradeAction, manuallyActivateUserAction } from "@/app/actions/admin";
+import { toggleAutoUpgradeAction, manuallyActivateUserAction, reverseExitAction } from "@/app/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +82,28 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
                     }}
                   >
                     ⚡ Mark Active
+                  </button>
+                </form>
+              )}
+
+              {(user.status === "exited" || user.status === "completed") && (
+                <form action={async () => {
+                  "use server";
+                  await reverseExitAction(user.id);
+                }}>
+                  <button
+                    type="submit"
+                    className="pill"
+                    style={{
+                      background: "rgba(239, 68, 68, 0.08)",
+                      border: "1px solid rgba(239, 68, 68, 0.25)",
+                      color: "#ef4444",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  >
+                    ↩️ Reverse Exit
                   </button>
                 </form>
               )}

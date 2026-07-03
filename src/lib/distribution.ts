@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, desc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { DB } from "@/db";
 import { publishEvent, type GameEvent } from "./events";
@@ -444,6 +444,7 @@ export async function decideChoice(userId: string, choice: "exit" | "upgrade") {
         .update(users)
         .set({
           status: isFinal ? "completed" : "exited",
+          currentSlab: 0,
           pendingChoiceSlab: null,
           exitedAt: sql`now()`,
         })
@@ -552,6 +553,70 @@ export async function collectedAtSlab(userId: string, level: number) {
       ),
     );
   return collected;
+}
+
+/** Reverse a user's exit decision to restore pending state. */
+export async function reverseExit(userId: string) {
+  return withTxRetry(() => db.transaction(async (tx) => {
+    const [user] = await tx.select().from(users).where(eq(users.id, userId)).for("update");
+    if (!user) throw new Error("User not found");
+    if (user.status !== "exited" && user.status !== "completed") {
+      throw new Error("User has not exited");
+    }
+
+    const [completion] = await tx
+      .select()
+      .from(slabCompletions)
+      .where(and(eq(slabCompletions.userId, userId), eq(slabCompletions.status, "exited")))
+      .orderBy(desc(slabCompletions.createdAt))
+      .limit(1)
+      .for("update");
+    if (!completion) throw new Error("No exited slab completion record found");
+
+    const level = completion.slabLevel;
+    const slab = await getSlab(tx, level);
+    const collected = completion.collected;
+    const [nextSlab] = await tx.select().from(slabs).where(eq(slabs.level, level + 1));
+    const isFinal = !nextSlab || !nextSlab.active;
+
+    const keepPct = isFinal ? 100 : slab.exitPercent;
+    const forfeit = Math.floor((collected * (100 - keepPct)) / 100);
+
+    // 1. Revert user balance and active state flags
+    await tx
+      .update(users)
+      .set({
+        status: "active",
+        currentSlab: level,
+        pendingChoiceSlab: level,
+        exitedAt: null,
+        pointsBalance: sql`${users.pointsBalance} + ${forfeit}`,
+      })
+      .where(eq(users.id, userId));
+
+    // 2. Set completion back to pending
+    await tx
+      .update(slabCompletions)
+      .set({
+        status: "pending",
+        payout: null,
+        decidedAt: null,
+      })
+      .where(eq(slabCompletions.id, completion.id));
+
+    // 3. Remove transaction entries for the exit
+    await tx
+      .delete(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.slabLevel, level),
+          sql`${transactions.type} in ('company_fee', 'exit_payout')`
+        )
+      );
+
+    return { ok: true };
+  }));
 }
 
 export { post, getSlab, getSettings, withTxRetry };

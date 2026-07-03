@@ -308,16 +308,32 @@ export default async function DashboardHome() {
             boxShadow: "0 0 0 1px rgba(248,198,23,0.12), 0 0 40px rgba(248,198,23,0.1)",
           }}
         >
-          <span className="kicker">
-            <Zap size={11} />
-            Get started
-          </span>
-          <h3 style={{ fontSize: 22, margin: "12px 0 10px" }}>Activate your account</h3>
-          <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 22px", maxWidth: 560, lineHeight: 1.65 }}>
-            Enter Tier 1 to open your first slots in the FIFO queue. As new players activate, they fill your
-            slots and your balance starts to grow.
-          </p>
-          <ActivateButton fee={data.allSlabs[0]?.fee ?? 30} />
+          {user.status === "exited" || user.status === "completed" ? (
+            <>
+              <span className="kicker">
+                <Zap size={11} />
+                Start a new cycle
+              </span>
+              <h3 style={{ fontSize: 22, margin: "12px 0 10px" }}>Re-enter the game</h3>
+              <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 22px", maxWidth: 560, lineHeight: 1.65 }}>
+                You have successfully completed a slab and exited. You can re-activate Slab 1 to start a new cycle and open new slots in the queue.
+              </p>
+              <ActivateButton fee={data.allSlabs[0]?.fee ?? 30} label={`Re-enter Slab 1 (${data.allSlabs[0]?.fee ?? 30} pts)`} />
+            </>
+          ) : (
+            <>
+              <span className="kicker">
+                <Zap size={11} />
+                Get started
+              </span>
+              <h3 style={{ fontSize: 22, margin: "12px 0 10px" }}>Activate your account</h3>
+              <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 22px", maxWidth: 560, lineHeight: 1.65 }}>
+                Enter Tier 1 to open your first slots in the FIFO queue. As new players activate, they fill your
+                slots and your balance starts to grow.
+              </p>
+              <ActivateButton fee={data.allSlabs[0]?.fee ?? 30} />
+            </>
+          )}
         </div>
       )}
 
