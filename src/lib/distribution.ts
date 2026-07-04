@@ -166,10 +166,10 @@ export async function enterSlab(
 
   // 1) Claim the oldest open slot at this level — atomic via SKIP LOCKED
   //    (never blocks, so slots can't participate in a deadlock cycle).
-  //    If we are entering Slab 1 and this member has a direct sponsor,
-  //    prioritize checking for any open slot owned by the sponsor in Slab 1 first.
+  //    If this member has a direct sponsor, prioritize checking for any open slot
+  //    owned by the sponsor in the current Slab first (across all tiers).
   let openSlot = null;
-  if (level === 1 && member.sponsorId) {
+  if (member.sponsorId) {
     const [sponsorSlot] = await tx
       .select()
       .from(slots)
