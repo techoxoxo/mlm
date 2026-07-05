@@ -158,6 +158,8 @@ export function DecisionPanel({
                       <Loader2 size={12} className="spin" />
                     ) : otpCooldown > 0 ? (
                       `${otpCooldown}s`
+                    ) : otpSent ? (
+                      "Resend"
                     ) : (
                       "Send"
                     )}

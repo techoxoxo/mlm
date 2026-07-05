@@ -10,6 +10,7 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
   
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
   const [emailInput, setEmailInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
@@ -47,6 +48,16 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
       const res = await sendOtpAction(emailInput);
       if (res.ok) {
         setOtpSent(true);
+        setOtpCooldown(60);
+        const timer = setInterval(() => {
+          setOtpCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
       } else {
         setClientError(res.error || "Failed to send verification code.");
       }
@@ -219,6 +230,26 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
               required 
               style={{ textAlign: "center", fontSize: 20, letterSpacing: 6, fontWeight: 700 }}
             />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+              <span style={{ fontSize: 12, color: "#94a3b8" }}>Didn't receive the code?</span>
+              <button
+                type="button"
+                disabled={sendingOtp || otpCooldown > 0}
+                onClick={handleSendOtp}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: otpCooldown > 0 ? "#64748b" : "#8b5cf6",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: otpCooldown > 0 ? "not-allowed" : "pointer",
+                  padding: 0,
+                  textDecoration: otpCooldown > 0 ? "none" : "underline",
+                }}
+              >
+                {sendingOtp ? "Sending..." : otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend Code"}
+              </button>
+            </div>
           </div>
         </div>
       )}
