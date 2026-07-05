@@ -52,6 +52,63 @@ export function DecisionPanel({
   // upgrade keeps everything beyond the next level's entry fee (the "seed")
   const upgradeKeep = Math.max(0, collected - (nextFee ?? 0));
 
+  // OTP Exit States
+  const [showOtpField, setShowOtpField] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
+  const handleSendOtp = async () => {
+    setOtpError(null);
+    setOtpLoading(true);
+    try {
+      const { sendUserOtpAction } = await import("@/app/actions/auth");
+      const res = await sendUserOtpAction();
+      if (!res.ok) {
+        setOtpError(res.error || "Failed to send verification code.");
+      } else {
+        setOtpSent(true);
+        setOtpCooldown(60);
+        const timer = setInterval(() => {
+          setOtpCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } catch (err) {
+      setOtpError("Failed to trigger verification code.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleExitClick = () => {
+    if (!showOtpField) {
+      setShowOtpField(true);
+      handleSendOtp();
+    } else {
+      setOtpError(null);
+      const trimmedOtp = otp.trim();
+      if (!trimmedOtp) {
+        setOtpError("Please enter verification code");
+        return;
+      }
+      run(async () => {
+        const res = await decideAction("exit", trimmedOtp);
+        if (res && "error" in res && res.error) {
+          setOtpError(res.error);
+          return { error: res.error };
+        }
+      });
+    }
+  };
+
   return (
     <div className="card" style={{ padding: 22, borderColor: "var(--color-brand)" }}>
       <div className="chip" style={{ color: "var(--color-accent)", borderColor: "var(--color-accent)" }}>
@@ -63,23 +120,65 @@ export function DecisionPanel({
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: isFinal ? "1fr" : "1fr 1fr", gap: 14 }}>
-        <div className="card" style={{ padding: 16, background: "var(--color-surface-2)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
-            <LogOut size={16} color="var(--color-brand-2)" /> {isFinal ? "Full payout" : "Exit now"}
+        <div className="card" style={{ padding: 16, background: "var(--color-surface-2)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
+              <LogOut size={16} color="var(--color-brand-2)" /> {isFinal ? "Full payout" : "Exit now"}
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 800, margin: "10px 0 2px" }}>
+              {isFinal ? collected : exitPayout} pts
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
+              {isFinal ? "Keep 100% and finish" : `Keep ${exitPercent}% and leave the game`}
+            </div>
+
+            {showOtpField && (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ display: "block", fontSize: 11.5, color: "var(--color-muted)" }}>
+                  Email Verification Code
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Enter OTP"
+                    className="input"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    style={{ flex: 1, padding: "6px 10px", fontSize: 13, minWidth: 0 }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={otpLoading || otpCooldown > 0}
+                    onClick={handleSendOtp}
+                    style={{ minWidth: 70, padding: "0 10px", fontSize: 12, height: "34px" }}
+                  >
+                    {otpLoading ? (
+                      <Loader2 size={12} className="spin" />
+                    ) : otpCooldown > 0 ? (
+                      `${otpCooldown}s`
+                    ) : (
+                      "Send"
+                    )}
+                  </button>
+                </div>
+                {otpError && (
+                  <p style={{ color: "var(--color-danger)", fontSize: 11.5, margin: "2px 0 0" }}>
+                    {otpError}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, margin: "10px 0 2px" }}>
-            {isFinal ? collected : exitPayout} pts
-          </div>
-          <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
-            {isFinal ? "Keep 100% and finish" : `Keep ${exitPercent}% and leave the game`}
-          </div>
+
           <button
-            className="btn btn-ghost"
+            className={showOtpField ? "btn btn-primary" : "btn btn-ghost"}
             style={{ width: "100%", marginTop: 12 }}
             disabled={pending}
-            onClick={() => run(() => decideAction("exit"))}
+            onClick={handleExitClick}
           >
-            {pending ? <Loader2 size={15} className="spin" /> : null} {isFinal ? "Cash out" : "Take exit"}
+            {pending ? <Loader2 size={15} className="spin" /> : null} {showOtpField ? "Confirm Exit" : isFinal ? "Cash out" : "Take exit"}
           </button>
         </div>
 

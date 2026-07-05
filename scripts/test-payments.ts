@@ -237,7 +237,8 @@ async function main() {
   console.log("\n5. Testing Withdrawal Flow...");
   
   console.log("  a) Testing insufficient points error validation...");
-  const badWithdrawal = await requestWithdrawalAction(200, sampleWallet);
+  await connection.set(`otp:${user.email.toLowerCase()}`, "123456", "EX", 30);
+  const badWithdrawal = await requestWithdrawalAction(200, sampleWallet, "123456");
   if (badWithdrawal.ok) {
     throw new Error("FAIL: Withdrawal request should have failed due to insufficient points balance");
   }
@@ -254,7 +255,8 @@ async function main() {
 
   console.log("  c) Initiating valid withdrawal server action...");
   // Withdrawal: 50 points ($50 base). Net payout: 50 * 0.98 - 2 = 47 USDT
-  const payoutRes = await requestWithdrawalAction(50, sampleWallet);
+  await connection.set(`otp:${user.email.toLowerCase()}`, "123456", "EX", 30);
+  const payoutRes = await requestWithdrawalAction(50, sampleWallet, "123456");
   if (!payoutRes.ok || !payoutRes.data) {
     throw new Error(`FAIL: Withdrawal request failed: ${payoutRes.error}`);
   }

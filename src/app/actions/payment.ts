@@ -124,16 +124,30 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
  * Request a withdrawal, converting virtual points to USDT BEP-20.
  * amountPoints is the amount of points the user wants to cash out (minimum 200 points = $20 base value).
  */
-export async function requestWithdrawalAction(amountPoints: number, walletAddress: string): Promise<ActionState<{ cryptoTxId: string; status: string; amountUsdt: number }>> {
+export async function requestWithdrawalAction(amountPoints: number, walletAddress: string, otp: string): Promise<ActionState<{ cryptoTxId: string; status: string; amountUsdt: number }>> {
   try {
     const session = await requireUser();
     const userId = session.uid;
 
     // Block unactivated users from withdrawing
-    const [caller] = await db.select({ status: users.status }).from(users).where(eq(users.id, userId));
+    const [caller] = await db.select({ status: users.status, email: users.email }).from(users).where(eq(users.id, userId));
     if (caller?.status === "registered") {
       return { ok: false, error: "Account not activated. Please complete activation payment first." };
     }
+
+    const trimmedOtp = String(otp || "").trim();
+    if (!trimmedOtp) {
+      return { ok: false, error: "Verification code is required" };
+    }
+
+    const { connection } = await import("@/lib/redis");
+    const savedOtp = await connection.get(`otp:${caller.email.toLowerCase()}`);
+    if (!savedOtp || savedOtp !== trimmedOtp) {
+      return { ok: false, error: "Invalid or expired verification code" };
+    }
+
+    // Purge the OTP to prevent reuse
+    await connection.del(`otp:${caller.email.toLowerCase()}`);
 
     const trimmedAddress = walletAddress.trim();
     if (!trimmedAddress.startsWith("0x") || trimmedAddress.length !== 42) {

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowDownRight, Wallet, AlertTriangle } from "lucide-react";
 import { requestWithdrawalAction } from "@/app/actions/payment";
+import { sendUserOtpAction } from "@/app/actions/auth";
 
 export function WalletCard({
   pointsBalance,
@@ -27,6 +28,39 @@ export function WalletCard({
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
 
+  // OTP states
+  const [otp, setOtp] = useState<string>("");
+  const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [otpLoading, setOtpLoading] = useState<boolean>(false);
+  const [otpCooldown, setOtpCooldown] = useState<number>(0);
+
+  const handleSendOtp = async () => {
+    setWithdrawError(null);
+    setOtpLoading(true);
+    try {
+      const res = await sendUserOtpAction();
+      if (!res.ok) {
+        setWithdrawError(res.error || "Failed to send verification code.");
+      } else {
+        setOtpSent(true);
+        setOtpCooldown(60);
+        const timer = setInterval(() => {
+          setOtpCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } catch (err) {
+      setWithdrawError("Failed to trigger verification code.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   // Withdrawal Form Submit Handler
   const handleWithdrawalSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -34,7 +68,7 @@ export function WalletCard({
     setWithdrawSuccess(null);
 
     startWithdrawTransition(async () => {
-      const res = await requestWithdrawalAction(withdrawPoints, withdrawAddress);
+      const res = await requestWithdrawalAction(withdrawPoints, withdrawAddress, otp);
       if (!res.ok || !res.data) {
         setWithdrawError(res.error || "Failed to process withdrawal request.");
       } else {
@@ -43,6 +77,8 @@ export function WalletCard({
         );
         setWithdrawAddress("");
         setWithdrawPoints(10);
+        setOtp("");
+        setOtpSent(false);
         router.refresh();
       }
     });
@@ -107,6 +143,46 @@ export function WalletCard({
                 required
               />
             </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--color-muted)", marginBottom: 6 }}>
+                Verification Code
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Enter 6-digit OTP"
+                  className="input"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  style={{ flex: 1 }}
+                  required
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={otpLoading || otpCooldown > 0}
+                  onClick={handleSendOtp}
+                  style={{ minWidth: 100, padding: "0 12px", height: "42px" }}
+                >
+                  {otpLoading ? (
+                    <Loader2 size={14} className="spin" />
+                  ) : otpCooldown > 0 ? (
+                    `${otpCooldown}s`
+                  ) : otpSent ? (
+                    "Resend"
+                  ) : (
+                    "Send OTP"
+                  )}
+                </button>
+              </div>
+              <span style={{ display: "block", fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>
+                We will email a 6-digit code to verify this transaction.
+              </span>
+            </div>
+            <div></div>
           </div>
 
           {/* Math breakdown */}
