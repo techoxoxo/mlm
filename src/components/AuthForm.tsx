@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { loginAction, registerAction, sendOtpAction, type ActionState } from "@/app/actions/auth";
 
@@ -143,7 +144,14 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
           />
         </div>
         <div>
-          <label className="label">Password</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <label className="label" style={{ marginBottom: 0 }}>Password</label>
+            {mode === "login" && (
+              <Link href="/forgot-password" style={{ fontSize: 12.5, color: "#8b5cf6", fontWeight: 600, textDecoration: "none" }}>
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <div style={{ position: "relative" }}>
             <input
               name="password"

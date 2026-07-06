@@ -17,6 +17,7 @@ const items: NavItem[] = [
   { href: "/dashboard/transactions", label: "Transactions", icon: "receipt" },
   { href: "/dashboard/support", label: "Support", icon: "zap" },
   { href: "/dashboard/guide", label: "Operating Guide", icon: "guide" },
+  { href: "/dashboard/security", label: "Security", icon: "settings" },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
