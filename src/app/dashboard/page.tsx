@@ -657,7 +657,7 @@ export default async function DashboardHome() {
         </div>
 
         {/* leaderboard */}
-        <div className="card" style={{ padding: 26 }}>
+        {/* <div className="card" style={{ padding: 26 }}>
           <h3 style={{ fontSize: 17, marginBottom: 18 }}>Top players</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {data.leaderboard.map((p, i) => {
@@ -696,7 +696,7 @@ export default async function DashboardHome() {
               );
             })}
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* ── recent activity ─────────────────────────── */}
