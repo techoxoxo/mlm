@@ -28,6 +28,7 @@ export async function getDashboard(uid: string) {
     matrixEarnedRows,
     referralEarnedRows,
     royaltyEarnedRows,
+    restTiersEarnedRows,
   ] =
     await Promise.all([
       db.select().from(slabs).orderBy(slabs.level),
@@ -104,6 +105,16 @@ export async function getDashboard(uid: string) {
         .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
         .from(transactions)
         .where(and(eq(transactions.userId, uid), sql`${transactions.type} in ('royalty_payout', 'royalty_reserve_reward')`)),
+      db
+        .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, uid),
+            sql`${transactions.points} > 0`,
+            sql`${transactions.slabLevel} is not null and ${transactions.slabLevel} not in (1, 5)`
+          )
+        ),
     ]);
 
   const currentSlab = allSlabs.find((s) => s.level === user.currentSlab) ?? null;
@@ -147,6 +158,11 @@ export async function getDashboard(uid: string) {
   const matrixEarned = matrixEarnedRows[0]?.total ?? 0;
   const referralEarned = referralEarnedRows[0]?.total ?? 0;
   const royaltyEarned = royaltyEarnedRows[0]?.total ?? 0;
+  const restTiersEarned = restTiersEarnedRows[0]?.total ?? 0;
+
+  const withdrawableRest = Math.floor(restTiersEarned * 0.30);
+  const lockedPoints = restTiersEarned - withdrawableRest;
+  const withdrawablePoints = Math.max(0, user.pointsBalance - lockedPoints);
 
   return {
     queuePosition,
@@ -163,6 +179,8 @@ export async function getDashboard(uid: string) {
     totalEarned: earned,
     earningsByType,
     leaderboard: leaderboard.map((l) => ({ ...l, name: maskName(l.serialNo) })),
+    withdrawablePoints,
+    lockedPoints,
     financials: {
       spent,
       withdrawn,
@@ -478,4 +496,65 @@ export async function getDownlineTree(uid: string, maxDepth = 6, maxRows = 500):
     else if (r.sponsor_id && byId.has(r.sponsor_id)) byId.get(r.sponsor_id)!.children.push(node);
   }
   return root;
+}
+
+export async function getUserWithdrawableDetails(userId: string) {
+  const [user] = await db
+    .select({ pointsBalance: users.pointsBalance })
+    .from(users)
+    .where(eq(users.id, userId));
+  if (!user) return { pointsBalance: 0, lockedPoints: 0, withdrawablePoints: 0 };
+
+  const [earnedRow] = await db
+    .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        sql`${transactions.points} > 0`,
+        sql`${transactions.slabLevel} is not null and ${transactions.slabLevel} not in (1, 5)`
+      )
+    );
+
+  const restTiersEarned = earnedRow?.total ?? 0;
+  const withdrawableRest = Math.floor(restTiersEarned * 0.30);
+  const lockedPoints = restTiersEarned - withdrawableRest;
+  const withdrawablePoints = Math.max(0, user.pointsBalance - lockedPoints);
+
+  return {
+    pointsBalance: user.pointsBalance,
+    lockedPoints,
+    withdrawablePoints,
+  };
+}
+
+export async function getUserWithdrawableDetailsTx(tx: any, userId: string) {
+  const [user] = await tx
+    .select({ pointsBalance: users.pointsBalance })
+    .from(users)
+    .where(eq(users.id, userId))
+    .for("update");
+  if (!user) throw new Error("User not found");
+
+  const [earnedRow] = await tx
+    .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        sql`${transactions.points} > 0`,
+        sql`${transactions.slabLevel} is not null and ${transactions.slabLevel} not in (1, 5)`
+      )
+    );
+
+  const restTiersEarned = earnedRow?.total ?? 0;
+  const withdrawableRest = Math.floor(restTiersEarned * 0.30);
+  const lockedPoints = restTiersEarned - withdrawableRest;
+  const withdrawablePoints = Math.max(0, user.pointsBalance - lockedPoints);
+
+  return {
+    pointsBalance: user.pointsBalance,
+    lockedPoints,
+    withdrawablePoints,
+  };
 }

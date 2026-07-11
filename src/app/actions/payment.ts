@@ -11,6 +11,7 @@ import { enqueuePaymentPayout } from "@/lib/queue";
 import { publishEvent } from "@/lib/events";
 import { logAudit } from "@/lib/audit";
 import { clientIp } from "@/lib/ratelimit";
+import { getUserWithdrawableDetailsTx } from "@/lib/queries";
 
 const { cryptoTransactions, users } = schema;
 
@@ -175,22 +176,16 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
     const ip = await safeClientIp();
 
     const result = await db.transaction(async (tx) => {
-      // 1) Lock user and check balance
-      const [user] = await tx
-        .select({ balance: users.pointsBalance })
-        .from(users)
-        .where(eq(users.id, userId))
-        .for("update");
-
-      if (!user) throw new Error("User not found");
-      if (user.balance < amountPoints) {
-        throw new Error("Insufficient points balance");
+      // 1) Lock user and check withdrawable balance
+      const withdrawableDetails = await getUserWithdrawableDetailsTx(tx, userId);
+      if (withdrawableDetails.withdrawablePoints < amountPoints) {
+        throw new Error(`Insufficient withdrawable balance. You can only withdraw up to ${withdrawableDetails.withdrawablePoints} points.`);
       }
 
       // 2) Debit user points in lockstep
       await tx
         .update(users)
-        .set({ pointsBalance: user.balance - amountPoints })
+        .set({ pointsBalance: withdrawableDetails.pointsBalance - amountPoints })
         .where(eq(users.id, userId));
 
       // 3) Create database record with hashed wallet from the start

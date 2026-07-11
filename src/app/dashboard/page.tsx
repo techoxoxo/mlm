@@ -134,7 +134,7 @@ export default async function DashboardHome() {
   const data = await getDashboard(session.uid);
   if (!data) redirect("/logout");
 
-  const { user, currentSlab, nextSlab, mySlots, filled, collected, pending } = data;
+  const { user, currentSlab, nextSlab, mySlots, filled, collected, pending, withdrawablePoints } = data;
   const pct = currentSlab ? Math.round((filled / currentSlab.slots) * 100) : 0;
   const royalty = await getRoyaltyOverview(session.uid);
   const nextTier = royalty.tiers.find((t) => t.minDirects > (royalty.me?.directs ?? 0));
@@ -290,8 +290,8 @@ export default async function DashboardHome() {
           {/* Card 4: Withdrawable Balance */}
           <div style={{ background: "rgba(248,198,23,0.01)", border: "1px solid rgba(248,198,23,0.2)", borderRadius: 12, padding: "18px 20px", boxShadow: "0 0 15px rgba(248,198,23,0.02)" }}>
             <div style={{ fontSize: 11, color: "var(--gold-bright)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.04em" }}>Withdrawable Balance</div>
-            <div className="mono" style={{ fontSize: 24, fontWeight: 700, margin: "8px 0 4px", color: "var(--gold-bright)" }}>{user.pointsBalance.toLocaleString()} <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 400 }}>pts</span></div>
-            <div style={{ fontSize: 12, color: "var(--faint)" }}>≈ ${(user.pointsBalance * 1).toFixed(2)} USDT available to withdraw</div>
+            <div className="mono" style={{ fontSize: 24, fontWeight: 700, margin: "8px 0 4px", color: "var(--gold-bright)" }}>{withdrawablePoints.toLocaleString()} <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 400 }}>pts</span></div>
+            <div style={{ fontSize: 12, color: "var(--faint)" }}>≈ ${(withdrawablePoints * 1).toFixed(2)} USDT available to withdraw</div>
           </div>
         </div>
       </div>

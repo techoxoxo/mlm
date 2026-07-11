@@ -8,9 +8,11 @@ import { sendUserOtpAction } from "@/app/actions/auth";
 
 export function WalletCard({
   pointsBalance,
+  withdrawablePoints,
   activeDeposit: _activeDeposit,
 }: {
   pointsBalance: number;
+  withdrawablePoints: number;
   activeDeposit?: {
     id: string;
     amountUsdt: string;
@@ -90,17 +92,36 @@ export function WalletCard({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Balance Hero Card */}
-      <div className="card" style={{ padding: 24, background: "radial-gradient(420px 200px at 90% -10%, rgba(248,198,23,0.1), transparent), var(--color-surface)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ display: "inline-flex", width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 10, background: "rgba(248,198,23,0.08)" }}>
-            <Wallet size={18} color="var(--color-brand)" />
-          </span>
-          <div>
-            <span style={{ fontSize: 13, color: "var(--color-muted)" }}>USDT Convertible Balance</span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span className="mono" style={{ fontSize: 32, fontWeight: 700 }}>{pointsBalance.toLocaleString()}</span>
-              <span style={{ fontSize: 13, color: "var(--color-muted)", fontWeight: 500 }}>points</span>
+      {/* Balance Hero Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+        {/* Total Balance Card */}
+        <div className="card" style={{ padding: 24, background: "var(--color-surface)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ display: "inline-flex", width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+              <Wallet size={18} color="var(--color-muted)" />
+            </span>
+            <div>
+              <span style={{ fontSize: 13, color: "var(--color-muted)" }}>USDT Convertible Balance</span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span className="mono" style={{ fontSize: 32, fontWeight: 700 }}>{pointsBalance.toLocaleString()}</span>
+                <span style={{ fontSize: 13, color: "var(--color-muted)", fontWeight: 500 }}>points</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Withdrawable Balance Card */}
+        <div className="card" style={{ padding: 24, background: "radial-gradient(420px 200px at 90% -10%, rgba(248,198,23,0.1), transparent), var(--color-surface)", border: "1px solid rgba(248,198,23,0.2)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ display: "inline-flex", width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 10, background: "rgba(248,198,23,0.08)" }}>
+              <Wallet size={18} color="var(--color-brand)" />
+            </span>
+            <div>
+              <span style={{ fontSize: 13, color: "var(--color-brand)" }}>Withdrawable Balance</span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span className="mono" style={{ fontSize: 32, fontWeight: 700 }}>{withdrawablePoints.toLocaleString()}</span>
+                <span style={{ fontSize: 13, color: "var(--color-brand)", fontWeight: 500 }}>points</span>
+              </div>
             </div>
           </div>
         </div>
@@ -121,7 +142,7 @@ export function WalletCard({
               <input
                 type="number"
                 min={10}
-                max={pointsBalance}
+                max={withdrawablePoints}
                 className="input"
                 value={withdrawPoints}
                 onChange={(e) => setWithdrawPoints(Math.max(0, parseInt(e.target.value) || 0))}
@@ -224,10 +245,10 @@ export function WalletCard({
             type="submit" 
             className="btn btn-primary" 
             style={{ width: "100%", padding: "12px 0" }} 
-            disabled={withdrawPending || pointsBalance < withdrawPoints || pointsBalance < 10 || estimatedPayout <= 0}
+            disabled={withdrawPending || withdrawablePoints < withdrawPoints || withdrawablePoints < 10 || estimatedPayout <= 0}
           >
             {withdrawPending ? <Loader2 size={16} className="spin" style={{ marginRight: 6 }} /> : null}
-            {pointsBalance < withdrawPoints ? "Insufficient Balance" : "Withdraw USDT"}
+            {withdrawablePoints < withdrawPoints ? "Insufficient Withdrawable Balance" : "Withdraw USDT"}
           </button>
         </form>
       </div>

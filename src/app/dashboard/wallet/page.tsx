@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { WalletCard } from "@/components/WalletCard";
 import { WalletTransactionsTable } from "@/components/WalletTransactionsTable";
+import { getUserWithdrawableDetails } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +12,9 @@ export default async function WalletPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Query fresh user points balance
-  const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, session.uid),
-  });
-  if (!user) redirect("/logout");
+  // Query fresh user points balance and withdrawable details
+  const withdrawableDetails = await getUserWithdrawableDetails(session.uid);
+  if (!withdrawableDetails) redirect("/logout");
 
   // Fetch recent crypto transactions
   const txs = await db
@@ -30,7 +29,7 @@ export default async function WalletPage() {
     (t) => t.type === "deposit" && t.status === "pending"
   );
 
-  const usdtValue = (user.pointsBalance * 1).toFixed(2);
+  const usdtValue = (withdrawableDetails.pointsBalance * 1).toFixed(2);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -73,7 +72,8 @@ export default async function WalletPage() {
 
       {/* Interactive Actions Panel */}
       <WalletCard
-        pointsBalance={user.pointsBalance}
+        pointsBalance={withdrawableDetails.pointsBalance}
+        withdrawablePoints={withdrawableDetails.withdrawablePoints}
         activeDeposit={activeDeposit}
       />
 
