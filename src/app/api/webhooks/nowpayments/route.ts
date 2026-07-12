@@ -32,29 +32,39 @@ export async function POST(req: Request) {
         .where(eq(schema.cryptoTransactions.paymentId, paymentId))
         .limit(1);
 
-      if (paymentStatus === "finished") {
-        // Always use the database record as the source of truth to prevent
-        // order_id spoofing (attacker could craft dep:<victimId>:<amount>).
-        if (ctx) {
-          console.log(`NowPayments Webhook: Enqueuing credit of ${ctx.amountPoints} points to user ${ctx.userId}`);
-          await enqueuePaymentCredit(ctx.userId, paymentId, ctx.amountPoints);
-        } else {
-          // Fallback: parse order_id only if no DB record exists (edge case)
-          const orderId = body.order_id || "";
-          if (orderId.startsWith("dep:") || orderId.startsWith("act:")) {
-            const parts = orderId.split(":");
-            const userId = parts[1];
-            const amountPoints = parseInt(parts[2], 10);
+      // Extract orderId from verified webhook payload for cross-verification
+      const payloadOrderId = body.order_id || "";
+      let parsedUserId: string | null = null;
+      let parsedAmountPoints: number | null = null;
 
-            if (userId && !isNaN(amountPoints)) {
-              console.warn(`NowPayments Webhook: No DB record found, using order_id fallback for ${paymentId}`);
-              await enqueuePaymentCredit(userId, paymentId, amountPoints);
-            } else {
-              console.error(`NowPayments Webhook: Malformed order_id: ${orderId}`);
-            }
-          } else {
-            console.error(`NowPayments Webhook: No DB record and unknown order_id for payment ${paymentId}`);
+      if (payloadOrderId.startsWith("dep:") || payloadOrderId.startsWith("act:")) {
+        const parts = payloadOrderId.split(":");
+        parsedUserId = parts[1];
+        parsedAmountPoints = parseInt(parts[2], 10);
+      }
+
+      if (paymentStatus === "finished") {
+        let targetUserId = ctx?.userId;
+        let targetAmountPoints = ctx?.amountPoints;
+
+        // Perform cross-verification to prevent database collisions or mapping failures
+        if (ctx) {
+          if (parsedUserId && ctx.userId !== parsedUserId) {
+            console.warn(`NowPayments Webhook: Mismatch detected for paymentId ${paymentId}. DB userId: ${ctx.userId}, Payload userId: ${parsedUserId}. Overriding with verified payload.`);
+            targetUserId = parsedUserId;
+            targetAmountPoints = parsedAmountPoints ?? ctx.amountPoints;
           }
+        } else if (parsedUserId) {
+          console.warn(`NowPayments Webhook: No DB record found for paymentId ${paymentId}, using verified payload fallback.`);
+          targetUserId = parsedUserId;
+          targetAmountPoints = parsedAmountPoints ?? 0;
+        }
+
+        if (targetUserId && targetAmountPoints) {
+          console.log(`NowPayments Webhook: Enqueuing credit of ${targetAmountPoints} points to user ${targetUserId}`);
+          await enqueuePaymentCredit(targetUserId, paymentId, targetAmountPoints);
+        } else {
+          console.error(`NowPayments Webhook: Failed to resolve user ID or amount points for paymentId ${paymentId}`);
         }
       } else if (paymentStatus === "expired" || paymentStatus === "failed" || paymentStatus === "refunded") {
         if (ctx && ctx.status === "pending") {

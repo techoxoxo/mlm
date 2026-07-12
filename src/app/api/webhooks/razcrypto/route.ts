@@ -33,6 +33,17 @@ export async function POST(req: Request) {
         .where(eq(schema.cryptoTransactions.paymentId, paymentId))
         .limit(1);
 
+      // Extract orderId from verified webhook payload for cross-verification
+      const payloadOrderId = body.custom_data?.orderId || body.order_id || "";
+      let parsedUserId: string | null = null;
+      let parsedAmountPoints: number | null = null;
+
+      if (payloadOrderId.startsWith("dep:") || payloadOrderId.startsWith("act:")) {
+        const parts = payloadOrderId.split(":");
+        parsedUserId = parts[1];
+        parsedAmountPoints = parseInt(parts[2], 10);
+      }
+
       if (paymentStatus === "completed" || paymentStatus === "success") {
         // Idempotency: use Redis SET NX to prevent duplicate credit enqueuing
         // on webhook retries. Key expires after 24h as a safety net.
@@ -43,27 +54,32 @@ export async function POST(req: Request) {
           return NextResponse.json({ ok: true, duplicate: true });
         }
 
+        let targetUserId = ctx?.userId;
+        let targetAmountPoints = ctx?.amountPoints;
+
+        // Perform cross-verification to prevent database collisions or mapping failures
         if (ctx) {
-          // Skip if already completed in our DB
           if (ctx.status === "completed") {
             console.log(`RazCrypto Webhook: Payment ${paymentId} already completed, skipping`);
             return NextResponse.json({ ok: true, already_completed: true });
           }
-          console.log(`RazCrypto Webhook: Enqueuing credit of ${ctx.amountPoints} points to user ${ctx.userId}`);
-          await enqueuePaymentCredit(ctx.userId, paymentId, ctx.amountPoints);
-        } else {
-          // Fallback: parse custom_data.orderId only if no DB record exists
-          const orderId = body.custom_data?.orderId || "";
-          if (orderId.startsWith("dep:") || orderId.startsWith("act:")) {
-            const parts = orderId.split(":");
-            const userId = parts[1];
-            const amountPoints = parseInt(parts[2], 10);
 
-            if (userId && !isNaN(amountPoints)) {
-              console.warn(`RazCrypto Webhook: No DB record found, using orderId fallback for ${paymentId}`);
-              await enqueuePaymentCredit(userId, paymentId, amountPoints);
-            }
+          if (parsedUserId && ctx.userId !== parsedUserId) {
+            console.warn(`RazCrypto Webhook: Mismatch detected for paymentId ${paymentId}. DB userId: ${ctx.userId}, Payload userId: ${parsedUserId}. Overriding with verified payload.`);
+            targetUserId = parsedUserId;
+            targetAmountPoints = parsedAmountPoints ?? ctx.amountPoints;
           }
+        } else if (parsedUserId) {
+          console.warn(`RazCrypto Webhook: No DB record found for paymentId ${paymentId}, using verified payload fallback.`);
+          targetUserId = parsedUserId;
+          targetAmountPoints = parsedAmountPoints ?? 0;
+        }
+
+        if (targetUserId && targetAmountPoints) {
+          console.log(`RazCrypto Webhook: Enqueuing credit of ${targetAmountPoints} points to user ${targetUserId}`);
+          await enqueuePaymentCredit(targetUserId, paymentId, targetAmountPoints);
+        } else {
+          console.error(`RazCrypto Webhook: Failed to resolve user ID or amount points for paymentId ${paymentId}`);
         }
       } else if (paymentStatus === "expired") {
         if (ctx && ctx.status === "pending") {

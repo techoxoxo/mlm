@@ -81,8 +81,8 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
     // amountPoints = amountUsdt * 1 * 0.98
     const amountPoints = Math.floor(amountUsdt * 1 * 0.98);
 
-    // orderId formatted for webhook parser: dep:${userId}:${amountPoints}
-    const orderId = `dep:${userId}:${amountPoints}`;
+    // orderId formatted for webhook parser: dep:${userId}:${amountPoints}:${timestamp}
+    const orderId = `dep:${userId}:${amountPoints}:${Date.now()}`;
 
     // Create payment in RazCrypto
     const payment = await createInvoice(orderId, amountUsdt, {
@@ -302,7 +302,7 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
     const totalUsdt = idPinFee + royaltyFee + activationFee;
 
     const amountPoints = totalUsdt;
-    const orderId = `act:${userId}:${amountPoints}`;
+    const orderId = `act:${userId}:${amountPoints}:${Date.now()}`;
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const invoice = await createInvoice(orderId, totalUsdt, {

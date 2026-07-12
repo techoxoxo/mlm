@@ -86,6 +86,7 @@ export async function createInvoice(
       currency: "USDT",
       callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/razcrypto`,
       return_json: "true",
+      order_id: orderId,
       custom_data: { orderId }
     }),
   });
