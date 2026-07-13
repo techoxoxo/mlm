@@ -924,3 +924,9 @@ h4 {
   border-radius: 99px;
   width: 72px;
 }
+
+/* Fix header links wrapping and alignment */
+.lp-nav-link {
+  white-space: nowrap !important;
+}
+
