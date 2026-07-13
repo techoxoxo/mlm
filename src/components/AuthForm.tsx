@@ -19,6 +19,7 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [refInput, setRefInput] = useState(refCode || "");
+  const [consentChecked, setConsentChecked] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
 
   const handleSendOtp = async () => {
@@ -41,6 +42,10 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
     }
     if (mode === "register" && !isFirstUser && !refInput.trim()) {
       setClientError("Referral code is required. You cannot register without a valid referral code.");
+      return;
+    }
+    if (mode === "register" && !consentChecked) {
+      setClientError("You must agree to the Terms of Service, Privacy Policy, and Refund Policy to register.");
       return;
     }
 
@@ -210,6 +215,20 @@ export function AuthForm({ mode, refCode, next, isFirstUser = false }: { mode: "
               placeholder="ABCD1234" 
               required={!otpSent && !isFirstUser}
             />
+          </div>
+        )}
+        {mode === "register" && (
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 10 }}>
+            <input 
+              type="checkbox" 
+              id="consent" 
+              checked={consentChecked}
+              onChange={(e) => setConsentChecked(e.target.checked)}
+              style={{ accentColor: "#8b5cf6", marginTop: 4, cursor: "pointer" }}
+            />
+            <label htmlFor="consent" style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.4, cursor: "pointer" }}>
+              I agree to the <Link href="/terms" target="_blank" style={{ color: "#a855f7", textDecoration: "underline" }}>Terms of Service</Link>, <Link href="/privacy" target="_blank" style={{ color: "#a855f7", textDecoration: "underline" }}>Privacy Policy</Link>, and <Link href="/refund" target="_blank" style={{ color: "#a855f7", textDecoration: "underline" }}>Refund Policy</Link>, and understand all activations are strictly non-refundable.
+            </label>
           </div>
         )}
       </div>

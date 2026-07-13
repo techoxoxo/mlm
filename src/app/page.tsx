@@ -1333,7 +1333,7 @@ export default async function Landing() {
           {[
             { head: "Navigate", links: [["How it works", "#how"], ["The 2-Pool", "#ladder"], ["Earnings", "#earn"], ["FAQ", "#faq"], ["About", "#benefits"]] },
             { head: "Account", links: [["Log in", "/login"], ["Create account", "/register"], ["My dashboard", "/dashboard"], ["My referrals", "/dashboard"], ["Support", "/login"]] },
-            { head: "Resources", links: [["Privacy Policy", "#"], ["Terms of Service", "#"], ["Refund Policy", "#"], ["Contact Us", "#"]] },
+            { head: "Resources", links: [["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Refund Policy", "/refund"], ["Disclaimer", "/disclaimer"]] },
           ].map((col) => (
             <div key={col.head}>
               <div className="lp-footer-head">{col.head}</div>
