@@ -183,10 +183,9 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
       }
 
       // 2) Debit user points in lockstep
-      await tx
-        .update(users)
-        .set({ pointsBalance: withdrawableDetails.pointsBalance - amountPoints })
-        .where(eq(users.id, userId));
+      await post(tx, userId, "usdt_withdrawal", -amountPoints, {
+        note: `Withdrawal request of ${amountPoints} points`,
+      });
 
       // 3) Create database record with hashed wallet from the start
       const [ctx] = await tx
