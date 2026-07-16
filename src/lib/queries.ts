@@ -12,6 +12,9 @@ export async function getDashboard(uid: string) {
   const user = await db.query.users.findFirst({ where: eq(users.id, uid) });
   if (!user) return null;
 
+  const activeSlabLevel = user.pendingChoiceSlab ?? user.currentSlab;
+  const isActiveMidTier = activeSlabLevel != null && activeSlabLevel > 1 && activeSlabLevel < 5;
+
   // everything below only depends on `user` — run it all in parallel
   const [
     allSlabs,
@@ -105,16 +108,18 @@ export async function getDashboard(uid: string) {
         .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
         .from(transactions)
         .where(and(eq(transactions.userId, uid), sql`${transactions.type} in ('royalty_payout', 'royalty_reserve_reward')`)),
-      db
-        .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.userId, uid),
-            sql`${transactions.points} > 0`,
-            sql`${transactions.slabLevel} is not null and ${transactions.slabLevel} not in (1, 5)`
-          )
-        ),
+      isActiveMidTier
+        ? db
+            .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+            .from(transactions)
+            .where(
+              and(
+                eq(transactions.userId, uid),
+                sql`${transactions.points} > 0`,
+                eq(transactions.slabLevel, activeSlabLevel)
+              )
+            )
+        : Promise.resolve([{ total: 0 }]),
     ]);
 
   const currentSlab = allSlabs.find((s) => s.level === user.currentSlab) ?? null;
@@ -500,23 +505,33 @@ export async function getDownlineTree(uid: string, maxDepth = 6, maxRows = 500):
 
 export async function getUserWithdrawableDetails(userId: string) {
   const [user] = await db
-    .select({ pointsBalance: users.pointsBalance })
+    .select({
+      pointsBalance: users.pointsBalance,
+      currentSlab: users.currentSlab,
+      pendingChoiceSlab: users.pendingChoiceSlab
+    })
     .from(users)
     .where(eq(users.id, userId));
   if (!user) return { pointsBalance: 0, lockedPoints: 0, withdrawablePoints: 0 };
 
-  const [earnedRow] = await db
-    .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.userId, userId),
-        sql`${transactions.points} > 0`,
-        sql`${transactions.slabLevel} is not null and ${transactions.slabLevel} not in (1, 5)`
-      )
-    );
+  const activeSlabLevel = user.pendingChoiceSlab ?? user.currentSlab;
+  const isActiveMidTier = activeSlabLevel != null && activeSlabLevel > 1 && activeSlabLevel < 5;
 
-  const restTiersEarned = earnedRow?.total ?? 0;
+  let restTiersEarned = 0;
+  if (isActiveMidTier) {
+    const [earnedRow] = await db
+      .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          sql`${transactions.points} > 0`,
+          eq(transactions.slabLevel, activeSlabLevel)
+        )
+      );
+    restTiersEarned = earnedRow?.total ?? 0;
+  }
+
   const withdrawableRest = Math.floor(restTiersEarned * 0.30);
   const lockedPoints = restTiersEarned - withdrawableRest;
   const withdrawablePoints = Math.max(0, user.pointsBalance - lockedPoints);
@@ -530,24 +545,34 @@ export async function getUserWithdrawableDetails(userId: string) {
 
 export async function getUserWithdrawableDetailsTx(tx: any, userId: string) {
   const [user] = await tx
-    .select({ pointsBalance: users.pointsBalance })
+    .select({
+      pointsBalance: users.pointsBalance,
+      currentSlab: users.currentSlab,
+      pendingChoiceSlab: users.pendingChoiceSlab
+    })
     .from(users)
     .where(eq(users.id, userId))
     .for("update");
   if (!user) throw new Error("User not found");
 
-  const [earnedRow] = await tx
-    .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.userId, userId),
-        sql`${transactions.points} > 0`,
-        sql`${transactions.slabLevel} is not null and ${transactions.slabLevel} not in (1, 5)`
-      )
-    );
+  const activeSlabLevel = user.pendingChoiceSlab ?? user.currentSlab;
+  const isActiveMidTier = activeSlabLevel != null && activeSlabLevel > 1 && activeSlabLevel < 5;
 
-  const restTiersEarned = earnedRow?.total ?? 0;
+  let restTiersEarned = 0;
+  if (isActiveMidTier) {
+    const [earnedRow] = await tx
+      .select({ total: sql<number>`coalesce(sum(${transactions.points}),0)::int` })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          sql`${transactions.points} > 0`,
+          eq(transactions.slabLevel, activeSlabLevel)
+        )
+      );
+    restTiersEarned = earnedRow?.total ?? 0;
+  }
+
   const withdrawableRest = Math.floor(restTiersEarned * 0.30);
   const lockedPoints = restTiersEarned - withdrawableRest;
   const withdrawablePoints = Math.max(0, user.pointsBalance - lockedPoints);
