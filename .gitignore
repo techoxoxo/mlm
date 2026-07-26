@@ -9,3 +9,12 @@ dist
 # build artifacts
 tsconfig.tsbuildinfo
 .omc
+.claude
+.code-review-graph
+
+# db dumps / backups - never commit prod data
+db_backup/
+*.dump
+*.sql.gz
+public/mlm_prod_*
+public/mlm_backup_*
