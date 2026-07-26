@@ -5,7 +5,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get(COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
-
+ 
   const isAdminArea = pathname.startsWith("/admin");
   const isUserArea = pathname.startsWith("/dashboard");
   const isAuthPage = pathname === "/login" || pathname === "/register";
