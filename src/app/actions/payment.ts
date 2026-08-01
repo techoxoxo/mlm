@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, gt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSession } from "@/lib/auth";
 import { post } from "@/lib/distribution";
@@ -59,6 +59,41 @@ async function safeClientIp(): Promise<string | null> {
 }
 
 /**
+ * Generates a unique USDT amount with a tiny fraction to prevent payment gateway collisions.
+ * The fraction is between 0.000001 and 0.009999.
+ */
+async function generateUniqueAmount(baseAmount: number): Promise<number> {
+  let uniqueAmount = baseAmount;
+  let attempts = 0;
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  
+  while (attempts < 100) {
+    const fraction = (Math.floor(Math.random() * 9999) + 1) / 1000000; // 0.000001 to 0.009999
+    const candidate = parseFloat((baseAmount + fraction).toFixed(6));
+    const [existing] = await db
+      .select()
+      .from(cryptoTransactions)
+      .where(
+        and(
+          eq(cryptoTransactions.type, "deposit"),
+          eq(cryptoTransactions.amountUsdt, candidate.toFixed(6)),
+          or(
+            eq(cryptoTransactions.status, "pending"),
+            gt(cryptoTransactions.createdAt, oneHourAgo)
+          )
+        )
+      )
+      .limit(1);
+    if (!existing) {
+      uniqueAmount = candidate;
+      break;
+    }
+    attempts++;
+  }
+  return uniqueAmount;
+}
+
+/**
  * Initiate a points purchase using NowPayments USDT (BEP-20).
  * amountUsdt is the amount of USDT the user wants to spend (minimum 10 USDT).
  */
@@ -81,11 +116,14 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
     // amountPoints = amountUsdt * 1 * 0.98
     const amountPoints = Math.floor(amountUsdt * 1 * 0.98);
 
+    // Generate unique amount to prevent collisions
+    const uniqueAmountUsdt = await generateUniqueAmount(amountUsdt);
+
     // orderId formatted for webhook parser: dep:${userId}:${amountPoints}:${timestamp}
     const orderId = `dep:${userId}:${amountPoints}:${Date.now()}`;
 
-    // Create payment in RazCrypto
-    const payment = await createInvoice(orderId, amountUsdt, {
+    // Create payment in RazCrypto using the unique amount
+    const payment = await createInvoice(orderId, uniqueAmountUsdt, {
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
       cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=cancelled`,
     });
@@ -97,7 +135,7 @@ export async function initiateDepositAction(amountUsdt: number): Promise<ActionS
       userId,
       type: "deposit",
       status: "pending",
-      amountUsdt: amountUsdt.toFixed(6),
+      amountUsdt: uniqueAmountUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
       gateway: "razcrypto",
@@ -301,10 +339,14 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
     const totalUsdt = idPinFee + royaltyFee + activationFee;
 
     const amountPoints = totalUsdt;
+
+    // Generate unique amount to prevent collisions
+    const uniqueAmountUsdt = await generateUniqueAmount(totalUsdt);
+
     const orderId = `act:${userId}:${amountPoints}:${Date.now()}`;
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const invoice = await createInvoice(orderId, totalUsdt, {
+    const invoice = await createInvoice(orderId, uniqueAmountUsdt, {
       successUrl: `${appUrl}/dashboard?payment=success`,
       cancelUrl: `${appUrl}/dashboard?payment=cancelled`,
     });
@@ -315,7 +357,7 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
       userId,
       type: "deposit",
       status: "pending",
-      amountUsdt: totalUsdt.toFixed(6),
+      amountUsdt: uniqueAmountUsdt.toFixed(6),
       amountPoints,
       network: "bep20",
       gateway: "razcrypto",
@@ -329,7 +371,7 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
       data: {
         invoiceUrl: invoice.checkout_page,
         invoiceId: invoice.payment_id,
-        amountUsdt: totalUsdt,
+        amountUsdt: uniqueAmountUsdt,
         amountPoints,
       },
     };
