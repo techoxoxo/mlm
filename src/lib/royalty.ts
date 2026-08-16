@@ -23,7 +23,12 @@ export type RoyaltyResult = {
  * Rank rewards: the pool is split into per-band sub-pools (band % of the pool),
  * each shared equally among the users whose HIGHEST qualifying band it is.
  * "Directs" = users you personally referred (sponsor_id = you), independent of
- * autopool placement. A configurable % (default 5) is held back as a reserve.
+ * autopool placement. Additionally, a sponsor must have onboarded (referred)
+ * at least 1 member with active status within the last 15 days to qualify
+ * for rank royalty this run — this 15-day activity check does NOT apply to
+ * reserve rewards below,
+ * which use their own 6-month inactivity window. A configurable % (default 5)
+ * is held back as a reserve.
  *
  * Reserve rewards: the accumulated reserve is shared among players who have
  * existed for >= reserveInactivityMonths without clearing a stage and who
@@ -65,11 +70,21 @@ export async function distributeRankRoyalty(): Promise<RankRoyaltyResult> {
         .where(sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active'`)
         .groupBy(users.sponsorId);
 
+      const recentOnboardRows = await tx
+        .select({ sponsor: users.sponsorId })
+        .from(users)
+        .where(
+          sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active' and ${users.createdAt} >= now() - interval '15 days'`
+        )
+        .groupBy(users.sponsorId);
+      const recentOnboardSponsors = new Set(recentOnboardRows.map((r) => r.sponsor as string));
+
       const bandMembers = new Map<number, string[]>();
       for (const r of directRows) {
+        if (!r.sponsor || !recentOnboardSponsors.has(r.sponsor)) continue;
         let band: (typeof tiers)[number] | null = null;
         for (const t of tiers) if (r.n >= t.minDirects) band = t;
-        if (band && r.sponsor) {
+        if (band) {
           const arr = bandMembers.get(band.minDirects) ?? [];
           arr.push(r.sponsor);
           bandMembers.set(band.minDirects, arr);
@@ -265,9 +280,20 @@ export async function getRoyaltyEligibleUsers() {
     .from(users)
     .where(and(eq(users.role, "user"), eq(users.status, "active")));
 
-  // Get active referrals count for all active users
+  const recentOnboardRows = await db
+    .select({ sponsor: users.sponsorId })
+    .from(users)
+    .where(
+      sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active' and ${users.createdAt} >= now() - interval '15 days'`
+    )
+    .groupBy(users.sponsorId);
+  const recentOnboardSponsors = new Set(recentOnboardRows.map((r) => r.sponsor as string));
+
+  // Get active referrals count for all active users who onboarded someone in the last 15 days
   const membersWithDirects = await Promise.all(
-    activeUsers.map(async (u) => {
+    activeUsers
+      .filter((u) => recentOnboardSponsors.has(u.id))
+      .map(async (u) => {
       const [{ directsCount }] = await db
         .select({ directsCount: sql<number>`count(*)::int` })
         .from(users)
