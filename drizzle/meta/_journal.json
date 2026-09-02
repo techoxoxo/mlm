@@ -78,6 +78,13 @@
       "when": 1788293390252,
       "tag": "0010_kind_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788334814281,
+      "tag": "0011_big_cammi",
+      "breakpoints": true
     }
   ]
 }

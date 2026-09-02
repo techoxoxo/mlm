@@ -244,7 +244,8 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
       <Card title="ROI plan" sub="Independent of the tier/matrix system above.">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 18 }}>
           <Stat label="Invested" value={`$${user.roiInvested.toLocaleString()}`} />
-          <Stat label="Earned" value={`$${Number(user.roiEarned).toFixed(2)}`} accent />
+          <Stat label="USDT earned" value={`$${Number(user.roiEarned).toFixed(2)}`} accent />
+          <Stat label="Token earned" value={Number(user.roiTokenEarned).toFixed(2)} accent />
           <Stat label={`Cap (${roiSettings.capMultiplier}×)`} value={`$${roiCap.toLocaleString()}`} />
           <Stat label="Directs' investment" value={`$${user.roiDirectTotal.toLocaleString()}`} />
           <Stat label="Rate" value={user.roiBoosted ? "Boosted" : "Base"} accent={user.roiBoosted} />
@@ -317,7 +318,8 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
                 <tr>
                   <th>Member</th>
                   <th style={{ textAlign: "right" }}>Invested</th>
-                  <th style={{ textAlign: "right" }}>Earned</th>
+                  <th style={{ textAlign: "right" }}>USDT earned</th>
+                  <th style={{ textAlign: "right" }}>Token earned</th>
                   <th style={{ textAlign: "right" }}>Cap</th>
                   <th>Rate</th>
                 </tr>
@@ -331,6 +333,7 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
                     </td>
                     <td className="mono" style={{ textAlign: "right" }}>${d.invested.toLocaleString()}</td>
                     <td className="mono" style={{ textAlign: "right", color: "#10b981" }}>${d.earned.toFixed(2)}</td>
+                    <td className="mono" style={{ textAlign: "right", color: "#f0b429" }}>{d.tokenEarned.toFixed(2)}</td>
                     <td className="mono" style={{ textAlign: "right", color: "var(--faint)" }}>${d.cap.toLocaleString()}</td>
                     <td>
                       {d.invested === 0 ? (

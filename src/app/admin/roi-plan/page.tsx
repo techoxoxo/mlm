@@ -65,12 +65,27 @@ export default async function RoiPlanAdmin() {
         </div>
       </div>
 
+      <div className="card" style={{ padding: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+        <div>
+          <h3 style={{ fontSize: 16, margin: "0 0 4px" }}>Invest for someone without payment</h3>
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: 0, maxWidth: 480 }}>
+            Go to <b>Admin → Users</b>, find the member (searchable), open their profile — the &quot;ROI plan&quot;
+            card there has a <b>&quot;📈 Approve &amp; Invest&quot;</b> button that credits a completed manual deposit
+            and invests it, exactly like a real investment (pays sponsor direct income, updates boost status).
+          </p>
+        </div>
+        <Link href="/admin/users" className="btn btn-ghost" style={{ padding: "10px 18px", whiteSpace: "nowrap" }}>
+          Go to Users →
+        </Link>
+      </div>
+
       <div className="card" style={{ padding: 24 }}>
         <h3 style={{ fontSize: 16, marginBottom: 6 }}>Run daily distribution</h3>
         <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 16px", maxWidth: 620 }}>
-          Pays today&apos;s daily ROI on every active investment, plus the 20-level income it triggers up each
-          sponsor chain. Runs automatically once a day (cron); use this only to trigger it manually (e.g. for testing
-          — safe to re-run the same day, duplicate payouts are blocked).
+          Pays daily ROI on every active investment, plus the 20-level income it triggers up each sponsor chain.
+          Runs automatically once a day (cron) — this button is only for manual/testing use. Safe to run any time:
+          it catches up on any day that was ever missed (per investment), and re-running the same day pays nothing
+          twice.
         </p>
         <RoiRunButton />
       </div>
@@ -209,7 +224,8 @@ export default async function RoiPlanAdmin() {
                   <th>Account</th>
                   <th>Sponsor</th>
                   <th style={{ textAlign: "right" }}>Invested</th>
-                  <th style={{ textAlign: "right" }}>Earned</th>
+                  <th style={{ textAlign: "right" }}>USDT earned</th>
+                  <th style={{ textAlign: "right" }}>Token earned</th>
                   <th style={{ textAlign: "right" }}>Cap</th>
                   <th style={{ textAlign: "right" }}>Directs&apos; invested</th>
                   <th>Rate</th>
@@ -244,6 +260,7 @@ export default async function RoiPlanAdmin() {
                     </td>
                     <td className="mono" style={{ textAlign: "right" }}>${inv.invested.toLocaleString()}</td>
                     <td className="mono" style={{ textAlign: "right", color: "#10b981" }}>${inv.earned.toFixed(2)}</td>
+                    <td className="mono" style={{ textAlign: "right", color: "#f0b429" }}>{inv.tokenEarned.toFixed(2)}</td>
                     <td className="mono" style={{ textAlign: "right", color: "var(--faint)" }}>${inv.cap.toLocaleString()}</td>
                     <td className="mono" style={{ textAlign: "right" }}>${inv.directTotal.toLocaleString()}</td>
                     <td>

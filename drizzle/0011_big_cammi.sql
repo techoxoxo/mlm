@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "roi_token_earned" numeric(18, 6) DEFAULT '0' NOT NULL;

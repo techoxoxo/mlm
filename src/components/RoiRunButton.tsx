@@ -17,7 +17,7 @@ export function RoiRunButton() {
       if (!r.ok) setMsg(r.error);
       else
         setMsg(
-          `✓ ${r.res.investmentsProcessed} investments checked · ${r.res.dailyRecipients} daily payouts ($${r.res.dailyPaid.toFixed(2)}) · ${r.res.levelPayouts} level payouts ($${r.res.levelPaid.toFixed(2)})`,
+          `✓ ${r.res.investmentsProcessed} investments, ${r.res.daysProcessed} investment-days checked (catches up on any missed days) · ${r.res.dailyRecipients} daily payouts ($${r.res.dailyPaid.toFixed(2)}) · ${r.res.levelPayouts} level payouts ($${r.res.levelPaid.toFixed(2)})`,
         );
       router.refresh();
     });

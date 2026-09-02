@@ -13,12 +13,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { EarningsCalculator } from "@/components/EarningsCalculator";
 import { LiveMatrixSimulator } from "@/components/LiveMatrixSimulator";
 import { RoyaltyExplorer } from "@/components/RoyaltyExplorer";
+import { RoiPlanExplorer } from "@/components/RoiPlanExplorer";
 
 export const dynamic = "force-dynamic";
 
 const getLandingData = unstable_cache(
   async () => {
-    const [slabRows, ticker, statsRow, settingsRow, royaltyTiers] = await Promise.all([
+    const [slabRows, ticker, statsRow, settingsRow, royaltyTiers, roiSettingsRow, roiLevelTiers] = await Promise.all([
       db.select().from(schema.slabs).orderBy(asc(schema.slabs.level)),
       db
         .select({ serialNo: schema.users.serialNo, points: schema.transactions.points, slab: schema.transactions.slabLevel })
@@ -40,8 +41,18 @@ const getLandingData = unstable_cache(
         .where(sql`${schema.users.role} = 'user'`),
       db.select().from(schema.settings).where(eq(schema.settings.id, 1)),
       db.select().from(schema.royaltyTiers).orderBy(asc(schema.royaltyTiers.minDirects)),
+      db.select().from(schema.roiSettings).where(eq(schema.roiSettings.id, 1)),
+      db.select().from(schema.roiLevelTiers).orderBy(asc(schema.roiLevelTiers.level)),
     ]);
-    return { slabRows, ticker, stats: statsRow[0], settings: settingsRow[0], royaltyTiers };
+    return {
+      slabRows,
+      ticker,
+      stats: statsRow[0],
+      settings: settingsRow[0],
+      royaltyTiers,
+      roiSettings: roiSettingsRow[0],
+      roiLevelTiers,
+    };
   },
   ["landing-data"],
   { revalidate: 30 },
@@ -255,7 +266,7 @@ const TRUST_BADGES = [
 const SLOT_ICONS = ["🟢", "🔵", "🟤", "⚪", "🟡", "💎", "🔷", "💠"];
 
 export default async function Landing() {
-  const [{ slabRows, ticker, stats, settings: cfg, royaltyTiers }, session] = await Promise.all([
+  const [{ slabRows, ticker, stats, settings: cfg, royaltyTiers, roiSettings, roiLevelTiers }, session] = await Promise.all([
     getLandingData(), getSession(),
   ]);
 
@@ -822,6 +833,12 @@ export default async function Landing() {
         <div style={{ marginTop: 48 }}>
           <RoyaltyExplorer />
         </div>
+
+        {roiSettings && (
+          <div style={{ marginTop: 48 }}>
+            <RoiPlanExplorer settings={roiSettings} tiers={roiLevelTiers} />
+          </div>
+        )}
       </section>
 
       {/* ─── NEXT 2 POOLS ─── */}

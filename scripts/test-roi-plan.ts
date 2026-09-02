@@ -132,10 +132,11 @@ async function main() {
 
     const expectedDirectIncome = (2000 * settings.directIncomePercent) / 100;
     const sponsorOverview = await getRoiOverview(chain[chain.length - 2].id);
+    const sponsorCombined = (sponsorOverview.me?.earned ?? -1) + (sponsorOverview.me?.tokenEarned ?? 0);
     record(
-      "direct income paid correctly",
-      Math.abs((sponsorOverview.me?.earned ?? -1) - expectedDirectIncome) < 1e-6,
-      `expected ${expectedDirectIncome}, sponsor.roiEarned=${sponsorOverview.me?.earned}`,
+      "direct income paid correctly (combined USDT+Token, split 50/50)",
+      Math.abs(sponsorCombined - expectedDirectIncome) < 1e-6,
+      `expected ${expectedDirectIncome}, sponsor combined=${sponsorCombined} (usdt=${sponsorOverview.me?.earned}, token=${sponsorOverview.me?.tokenEarned})`,
     );
 
     // ---------------------------------------------------------------- Test 4: daily distribution + level income math
@@ -185,12 +186,22 @@ async function main() {
     const expectedLevel1Income = (l1DailyCredit * Number(l1Tier.percent)) / 100;
     // sponsor's own daily ROI on their own $2000 also accrues in this same run
     const sponsorOwnDaily = (2000 * Number(settings.baseDailyRoiPercent)) / 100;
-    const expectedSponsorDelta = sponsorOwnDaily + expectedLevel1Income;
-    const actualSponsorDelta = (afterL1.me?.earned ?? 0) - (beforeL1.me?.earned ?? 0);
+    const expectedSponsorDelta = sponsorOwnDaily + expectedLevel1Income; // combined, before the 50/50 split
+    const beforeCombined = (beforeL1.me?.earned ?? 0) + (beforeL1.me?.tokenEarned ?? 0);
+    const afterCombined = (afterL1.me?.earned ?? 0) + (afterL1.me?.tokenEarned ?? 0);
+    const actualSponsorDelta = afterCombined - beforeCombined;
     record(
-      "exact level-1 income math in an isolated 2-hop chain",
+      "exact level-1 income math in an isolated 2-hop chain (combined USDT+Token)",
       close(actualSponsorDelta, expectedSponsorDelta),
       `expected own-daily(${sponsorOwnDaily}) + level1-income(${expectedLevel1Income}) = ${expectedSponsorDelta}, got delta ${actualSponsorDelta}`,
+    );
+
+    const usdtDelta = (afterL1.me?.earned ?? 0) - (beforeL1.me?.earned ?? 0);
+    const tokenDelta = (afterL1.me?.tokenEarned ?? 0) - (beforeL1.me?.tokenEarned ?? 0);
+    record(
+      "every income event splits exactly 50/50 USDT/Token",
+      close(usdtDelta, actualSponsorDelta / 2) && close(tokenDelta, actualSponsorDelta / 2) && close(usdtDelta, tokenDelta),
+      `usdtDelta=${usdtDelta}, tokenDelta=${tokenDelta} (expected equal halves of ${actualSponsorDelta})`,
     );
 
     // ---------------------------------------------------------------- Test 5: re-running distribution same day (claimed safe/idempotent in the admin UI copy)
@@ -212,10 +223,11 @@ async function main() {
     const smallRun = await runRoiDailyDistribution();
     const smallOverview = await getRoiOverview(smallInvestor.id);
     const smallDailyExpected = (100 * Number(settings.baseDailyRoiPercent)) / 100;
+    const smallCombined = (smallOverview.me?.earned ?? -1) + (smallOverview.me?.tokenEarned ?? 0);
     record(
-      "$100 investment accrues nonzero decimal daily ROI",
-      close(smallOverview.me?.earned ?? -1, smallDailyExpected) && smallDailyExpected > 0,
-      `expected ${smallDailyExpected}, got ${smallOverview.me?.earned} (previously this floored to exactly 0, forever)`,
+      "$100 investment accrues nonzero decimal daily ROI (combined USDT+Token)",
+      close(smallCombined, smallDailyExpected) && smallDailyExpected > 0,
+      `expected ${smallDailyExpected}, got ${smallCombined} (previously this floored to exactly 0, forever)`,
     );
 
     // ---------------------------------------------------------------- Test 10: a direct's pre-join investment must not count toward the sponsor's boost
@@ -279,8 +291,11 @@ async function main() {
       record("exited account cannot invest", true, (e as Error).message);
     }
 
-    // An active investor whose account is later deactivated should stop earning,
-    // and resume earning once reactivated — nothing lost, nothing double-paid.
+    // An active investor whose account is deactivated BEFORE their first
+    // distribution run should earn nothing for that day, and that day must
+    // stay permanently $0 (not backdated) even after reactivating later —
+    // days are evaluated once; the day-granular catch-up logic never revisits
+    // a day it has already marked, active or not.
     const pauseUser = await makeUser("PauseUser", chain[0].id);
     createdUserIds.push(pauseUser.id);
     await credit(pauseUser.id, 1000);
@@ -296,11 +311,52 @@ async function main() {
 
     await db.update(users).set({ status: "active" }).where(eq(users.id, pauseUser.id));
     await runRoiDailyDistribution();
-    const resumedOverview = await getRoiOverview(pauseUser.id);
+    const resumedSameDayOverview = await getRoiOverview(pauseUser.id);
     record(
-      "daily ROI resumes once account is reactivated",
-      (resumedOverview.me?.earned ?? 0) > 0,
-      `earned=${resumedOverview.me?.earned} (expected > 0)`,
+      "reactivating later the SAME day does not retroactively pay for that already-evaluated day",
+      (resumedSameDayOverview.me?.earned ?? -1) === 0,
+      `earned=${resumedSameDayOverview.me?.earned} (expected 0 — today was already marked $0 while inactive)`,
+    );
+
+    // ---------------------------------------------------------------- Test 12: catch-up backfill for genuinely missed days
+    log("Test 12: a distribution gap (worker downtime, forgotten manual trigger, etc.) must be backfilled, not lost");
+    const catchupUser = await makeUser("CatchupUser", chain[0].id);
+    createdUserIds.push(catchupUser.id);
+    await credit(catchupUser.id, 1000);
+    const catchupInv = await investInRoiPlan(catchupUser.id, 100);
+    // Simulate "the last real run was 3 days ago" by planting a synthetic
+    // evaluated-marker 3 days back, leaving the 3 days since then (and today)
+    // unprocessed — exactly what a 3-day worker outage would look like.
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setUTCDate(threeDaysAgo.getUTCDate() - 3);
+    const threeDaysAgoKey = threeDaysAgo.toISOString().slice(0, 10);
+    await db.insert(schema.roiTransactions).values({
+      userId: catchupUser.id,
+      type: "daily_payout",
+      points: "0",
+      investmentId: catchupInv.investmentId,
+      note: "synthetic marker for test",
+      idempotencyKey: `roi_daily:${catchupInv.investmentId}:${threeDaysAgoKey}`,
+    });
+
+    const catchupRun = await runRoiDailyDistribution();
+    const catchupOverview = await getRoiOverview(catchupUser.id);
+    const perDayExpected = (100 * Number(settings.baseDailyRoiPercent)) / 100;
+    const expectedTotal = perDayExpected * 3; // the 3 missed days: (3 days ago)+1 .. today, inclusive = 3 days
+    const catchupCombined = (catchupOverview.me?.earned ?? -1) + (catchupOverview.me?.tokenEarned ?? 0);
+    record(
+      "missed days are fully backfilled in one catch-up run (combined USDT+Token)",
+      close(catchupCombined, expectedTotal),
+      `expected ${perDayExpected} × 3 days = ${expectedTotal}, got ${catchupCombined} (run processed ${catchupRun.daysProcessed} investment-days total across all test investments)`,
+    );
+
+    const catchupRerun = await runRoiDailyDistribution();
+    const catchupOverviewAfterRerun = await getRoiOverview(catchupUser.id);
+    const catchupCombinedAfterRerun = (catchupOverviewAfterRerun.me?.earned ?? -1) + (catchupOverviewAfterRerun.me?.tokenEarned ?? 0);
+    record(
+      "re-running after catch-up pays nothing further the same day",
+      close(catchupCombinedAfterRerun, expectedTotal),
+      `combined unchanged at ${catchupCombinedAfterRerun}, rerun result=${JSON.stringify(catchupRerun)}`,
     );
 
     // ---------------------------------------------------------------- Test 7: cumulative boost threshold across separate directs

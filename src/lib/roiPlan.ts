@@ -42,20 +42,29 @@ export async function getRoiLevelTiers(tx: Tx | DB = db) {
   return tx.select().from(roiLevelTiers).orderBy(asc(roiLevelTiers.level));
 }
 
-/** Remaining headroom a user can still earn from this plan before hitting their cap. */
-function headroom(u: { roiInvested: number; roiEarned: string | number }, capMultiplier: number): number {
-  return Math.max(0, u.roiInvested * capMultiplier - Number(u.roiEarned));
+/**
+ * Remaining headroom a user can still earn from this plan before hitting
+ * their cap — combined across both currencies, since the cap is on total
+ * earnings (USDT + Token), not either half alone.
+ */
+function headroom(
+  u: { roiInvested: number; roiEarned: string | number; roiTokenEarned: string | number },
+  capMultiplier: number,
+): number {
+  return Math.max(0, u.roiInvested * capMultiplier - Number(u.roiEarned) - Number(u.roiTokenEarned));
 }
 
 /**
- * Records an exact-decimal earning event and settles whatever whole-dollar
- * portion it newly crosses into the user's real spendable wallet.
+ * Records an exact-decimal earning event, splits it 50/50 USDT/Token (per
+ * the plan's design — every direct/daily/level income stream pays half in
+ * each), and settles whatever whole-dollar portion the USDT half newly
+ * crosses into the user's real spendable wallet. The Token half accrues as a
+ * tracked balance only — no withdrawal flow exists for it yet.
  *
- * The roi_transactions insert is the source of truth and the idempotency
- * boundary — it always happens, even for a $0.003 accrual, which is what
- * lets daily distribution detect "already processed today" reliably (a
- * settlement into the wallet won't necessarily fire every day, since most
- * days won't cross a whole dollar on their own).
+ * The roi_transactions insert records the FULL pre-split amount and is the
+ * source of truth and idempotency boundary — it always happens, even for a
+ * $0.003 accrual, which is what lets daily distribution detect "already
+ * processed today" reliably.
  */
 async function accrueAndSettle(
   tx: Tx,
@@ -72,7 +81,7 @@ async function accrueAndSettle(
   },
 ): Promise<void> {
   const [u] = await tx
-    .select({ roiEarned: users.roiEarned, roiWalletCredited: users.roiWalletCredited })
+    .select({ roiEarned: users.roiEarned, roiTokenEarned: users.roiTokenEarned, roiWalletCredited: users.roiWalletCredited })
     .from(users)
     .where(eq(users.id, userId))
     .for("update");
@@ -89,19 +98,27 @@ async function accrueAndSettle(
     idempotencyKey: opts.idempotencyKey,
   });
 
-  const newEarned = Number(u.roiEarned) + amount;
+  const usdtHalf = amount / 2;
+  const tokenHalf = amount - usdtHalf; // avoids losing a fraction of a cent to rounding vs amount/2 twice
+
+  const newEarned = Number(u.roiEarned) + usdtHalf;
+  const newTokenEarned = Number(u.roiTokenEarned) + tokenHalf;
   const newWhole = Math.floor(newEarned);
   const toSettle = Math.max(0, newWhole - u.roiWalletCredited);
 
   await tx
     .update(users)
-    .set({ roiEarned: newEarned.toFixed(6), roiWalletCredited: u.roiWalletCredited + toSettle })
+    .set({
+      roiEarned: newEarned.toFixed(6),
+      roiTokenEarned: newTokenEarned.toFixed(6),
+      roiWalletCredited: u.roiWalletCredited + toSettle,
+    })
     .where(eq(users.id, userId));
 
   if (toSettle > 0) {
     await post(tx, userId, settleType, toSettle, {
       counterpartyId: opts.counterpartyId,
-      note: `${opts.note} — settled to wallet`,
+      note: `${opts.note} — settled to wallet (USDT half; matching Token half tracked separately)`,
     });
   }
 }
@@ -227,23 +244,55 @@ async function getUplineChain(tx: Tx, userId: string, maxLevels: number): Promis
 
 export type DailyRoiResult = {
   investmentsProcessed: number;
+  daysProcessed: number;
   dailyPaid: number;
   levelPaid: number;
   dailyRecipients: number;
   levelPayouts: number;
 };
 
+function toDateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function nextDateKey(dateKey: string): string {
+  const d = new Date(`${dateKey}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return toDateKey(d);
+}
+
+/** Every calendar day from `startKey` through `endKey`, inclusive, in order. */
+function enumerateDateKeys(startKey: string, endKey: string): string[] {
+  const keys: string[] = [];
+  let k = startKey;
+  while (k <= endKey) {
+    keys.push(k);
+    k = nextDateKey(k);
+  }
+  return keys;
+}
+
 /**
- * Run one day's ROI + level-income distribution across every active
- * investment. Meant to fire once a day. Idempotent per calendar day via the
- * roi_transactions idempotency keys, so re-running the same day is a no-op
- * for anything already processed.
+ * Run ROI + level-income distribution, catching up on any calendar day that
+ * hasn't been processed yet for each investment — not just "today". Meant to
+ * fire once a day via cron, but is safe (and self-healing) to run after a gap
+ * of any length: a missed run (worker downtime, a Redis blip, a forgotten
+ * manual trigger) never permanently loses an investor's earnings, since each
+ * investment tracks its own last-processed day independently and this simply
+ * backfills every day since then, in order, up through today.
+ *
+ * The one thing that's deliberately NOT backfilled: days where an account
+ * wasn't active. Those are recorded as a $0 evaluated day (so they're never
+ * retried once the gap-filling logic runs again), which is what keeps this
+ * consistent with the separate "must be active to earn" rule — reactivating
+ * an account resumes earning going forward, it doesn't retroactively grant
+ * everything missed while inactive.
  */
 export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
-  const dateKey = new Date().toISOString().slice(0, 10);
+  const todayKey = toDateKey(new Date());
   const cfg = await getRoiSettings();
   if (!cfg.enabled) {
-    return { investmentsProcessed: 0, dailyPaid: 0, levelPaid: 0, dailyRecipients: 0, levelPayouts: 0 };
+    return { investmentsProcessed: 0, daysProcessed: 0, dailyPaid: 0, levelPaid: 0, dailyRecipients: 0, levelPayouts: 0 };
   }
   const tiers = await getRoiLevelTiers();
 
@@ -253,98 +302,119 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
     .where(eq(roiInvestments.active, true))
     .orderBy(asc(roiInvestments.createdAt));
 
-  // Investments already processed today (a prior run today, or a retry after
-  // a partial failure) — skip them up front. accrueAndSettle always inserts
-  // a roi_transactions row regardless of whether it crossed a whole dollar,
-  // so this check is reliable even on days with only fractional accrual.
-  const dayStart = new Date(`${dateKey}T00:00:00.000Z`);
-  const dayEnd = new Date(`${dateKey}T23:59:59.999Z`);
-  const alreadyPaidToday = await db
+  // Last calendar day each investment was evaluated (paid or correctly
+  // skipped) — the idempotencyKey format is roi_daily:{investmentId}:{date}.
+  const lastEvaluatedRows = await db
     .select({ idempotencyKey: roiTransactions.idempotencyKey })
     .from(roiTransactions)
-    .where(
-      and(
-        eq(roiTransactions.type, "daily_payout"),
-        sql`${roiTransactions.createdAt} between ${dayStart} and ${dayEnd}`,
-      ),
-    );
-  const paidInvestmentIds = new Set(
-    alreadyPaidToday
-      .map((r) => r.idempotencyKey?.split(":")[1])
-      .filter((id): id is string => Boolean(id)),
-  );
+    .where(eq(roiTransactions.type, "daily_payout"));
+  const lastEvaluatedByInvestment = new Map<string, string>();
+  for (const row of lastEvaluatedRows) {
+    const parts = row.idempotencyKey?.split(":");
+    if (!parts || parts.length !== 3) continue;
+    const [, invId, dateKey] = parts;
+    const current = lastEvaluatedByInvestment.get(invId);
+    if (!current || dateKey > current) lastEvaluatedByInvestment.set(invId, dateKey);
+  }
 
   let dailyPaid = 0;
   let levelPaid = 0;
   let dailyRecipients = 0;
   let levelPayouts = 0;
+  let daysProcessed = 0;
   const notifyIds = new Set<string>();
 
   for (const inv of investments) {
-    if (paidInvestmentIds.has(inv.id)) continue;
-    const paid = await withTxRetry(() =>
-      db.transaction(async (tx) => {
-        const [owner] = await tx.select().from(users).where(eq(users.id, inv.userId)).for("update");
-        if (!owner) return null;
-        // Ongoing check, not just at invest time — if admin has since exited/
-        // deactivated this account, their investment stops earning (and
-        // paying level income upward) until reactivated. Nothing is lost:
-        // no roi_transactions row is written for a skipped day, so this is
-        // re-evaluated fresh on every future run rather than falling behind
-        // permanently.
-        if (owner.status !== "active") return null;
+    const lastEvaluated = lastEvaluatedByInvestment.get(inv.id);
+    const startKey = lastEvaluated ? nextDateKey(lastEvaluated) : toDateKey(inv.createdAt);
+    if (startKey > todayKey) continue;
 
-        const rate = Number(owner.roiBoosted ? cfg.boostedDailyRoiPercent : cfg.baseDailyRoiPercent);
-        const wanted = (inv.amount * rate) / 100;
-        const room = headroom(owner, cfg.capMultiplier);
-        const credit = Math.min(wanted, room);
-        if (credit <= 0) return null;
+    for (const dateKey of enumerateDateKeys(startKey, todayKey)) {
+      daysProcessed++;
+      const paid = await withTxRetry(() =>
+        db.transaction(async (tx) => {
+          const [owner] = await tx.select().from(users).where(eq(users.id, inv.userId)).for("update");
+          if (!owner) return null;
 
-        await accrueAndSettle(tx, owner.id, credit, "daily_payout", "roi_daily_payout", {
-          investmentId: inv.id,
-          note: `ROI daily payout (${rate}% of ${inv.amount})`,
-          idempotencyKey: `roi_daily:${inv.id}:${dateKey}`,
-        });
+          // Ongoing check, evaluated per-day — if the account wasn't active on
+          // this specific day, record a $0 evaluated marker (so catch-up
+          // never retries it) but pay nothing for it, now or later.
+          if (owner.status !== "active") {
+            await tx.insert(roiTransactions).values({
+              userId: owner.id,
+              type: "daily_payout",
+              points: "0",
+              investmentId: inv.id,
+              note: `ROI daily payout skipped — account not active on ${dateKey}`,
+              idempotencyKey: `roi_daily:${inv.id}:${dateKey}`,
+            });
+            return null;
+          }
 
-        // Level income: a share of THIS credit paid up to 20 levels of sponsors.
-        const upline = await getUplineChain(tx, owner.id, tiers.length);
-        const levelResults: { userId: string; amount: number }[] = [];
-        for (let i = 0; i < upline.length; i++) {
-          const level = i + 1;
-          const tier = tiers.find((t) => t.level === level);
-          if (!tier) continue;
+          const rate = Number(owner.roiBoosted ? cfg.boostedDailyRoiPercent : cfg.baseDailyRoiPercent);
+          const wanted = (inv.amount * rate) / 100;
+          const room = headroom(owner, cfg.capMultiplier);
+          const credit = Math.min(wanted, room);
+          if (credit <= 0) {
+            // Cap reached — same idea: mark this day evaluated so we don't
+            // loop over an exhausted investment's history forever.
+            await tx.insert(roiTransactions).values({
+              userId: owner.id,
+              type: "daily_payout",
+              points: "0",
+              investmentId: inv.id,
+              note: `ROI daily payout — cap reached on ${dateKey}`,
+              idempotencyKey: `roi_daily:${inv.id}:${dateKey}`,
+            });
+            return null;
+          }
 
-          const [up] = await tx.select().from(users).where(eq(users.id, upline[i])).for("update");
-          if (!up || up.status !== "active") continue;
-
-          const levelWanted = (credit * Number(tier.percent)) / 100;
-          const levelRoom = headroom(up, cfg.capMultiplier);
-          const levelCredit = Math.min(levelWanted, levelRoom);
-          if (levelCredit <= 0) continue;
-
-          await accrueAndSettle(tx, up.id, levelCredit, "level_income", "roi_level_income", {
-            counterpartyId: owner.id,
+          await accrueAndSettle(tx, owner.id, credit, "daily_payout", "roi_daily_payout", {
             investmentId: inv.id,
-            level,
-            note: `ROI level ${level} income (${tier.percent}% of downline's daily ROI)`,
-            idempotencyKey: `roi_level:${inv.id}:${level}:${dateKey}`,
+            note: `ROI daily payout (${rate}% of ${inv.amount}) for ${dateKey}`,
+            idempotencyKey: `roi_daily:${inv.id}:${dateKey}`,
           });
 
-          levelResults.push({ userId: up.id, amount: levelCredit });
-        }
+          // Level income: a share of THIS day's credit paid up to 20 levels of sponsors.
+          const upline = await getUplineChain(tx, owner.id, tiers.length);
+          const levelResults: { userId: string; amount: number }[] = [];
+          for (let i = 0; i < upline.length; i++) {
+            const level = i + 1;
+            const tier = tiers.find((t) => t.level === level);
+            if (!tier) continue;
 
-        return { ownerId: owner.id, credit, levelResults };
-      }),
-    );
+            const [up] = await tx.select().from(users).where(eq(users.id, upline[i])).for("update");
+            if (!up || up.status !== "active") continue;
 
-    if (!paid) continue;
-    dailyPaid += paid.credit;
-    dailyRecipients++;
-    notifyIds.add(paid.ownerId);
-    for (const l of paid.levelResults) {
-      levelPaid += l.amount;
-      levelPayouts++;
-      notifyIds.add(l.userId);
+            const levelWanted = (credit * Number(tier.percent)) / 100;
+            const levelRoom = headroom(up, cfg.capMultiplier);
+            const levelCredit = Math.min(levelWanted, levelRoom);
+            if (levelCredit <= 0) continue;
+
+            await accrueAndSettle(tx, up.id, levelCredit, "level_income", "roi_level_income", {
+              counterpartyId: owner.id,
+              investmentId: inv.id,
+              level,
+              note: `ROI level ${level} income (${tier.percent}% of downline's daily ROI) for ${dateKey}`,
+              idempotencyKey: `roi_level:${inv.id}:${level}:${dateKey}`,
+            });
+
+            levelResults.push({ userId: up.id, amount: levelCredit });
+          }
+
+          return { ownerId: owner.id, credit, levelResults };
+        }),
+      );
+
+      if (!paid) continue;
+      dailyPaid += paid.credit;
+      dailyRecipients++;
+      notifyIds.add(paid.ownerId);
+      for (const l of paid.levelResults) {
+        levelPaid += l.amount;
+        levelPayouts++;
+        notifyIds.add(l.userId);
+      }
     }
   }
 
@@ -354,6 +424,7 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
 
   return {
     investmentsProcessed: investments.length,
+    daysProcessed,
     dailyPaid,
     levelPaid,
     dailyRecipients,
@@ -367,6 +438,7 @@ export type RoiOverview = {
   me?: {
     invested: number;
     earned: number;
+    tokenEarned: number;
     walletCredited: number;
     cap: number;
     remaining: number;
@@ -390,13 +462,15 @@ export async function getRoiOverview(uid?: string): Promise<RoiOverview> {
       .orderBy(asc(roiInvestments.createdAt));
     if (user) {
       const earned = Number(user.roiEarned);
+      const tokenEarned = Number(user.roiTokenEarned);
       const cap = user.roiInvested * settings.capMultiplier;
       me = {
         invested: user.roiInvested,
         earned,
+        tokenEarned,
         walletCredited: user.roiWalletCredited,
         cap,
-        remaining: Math.max(0, cap - earned),
+        remaining: Math.max(0, cap - earned - tokenEarned),
         boosted: user.roiBoosted,
         directTotal: user.roiDirectTotal,
         dailyRatePercent: Number(user.roiBoosted ? settings.boostedDailyRoiPercent : settings.baseDailyRoiPercent),
@@ -415,6 +489,7 @@ export type RoiInvestorRow = {
   status: string;
   invested: number;
   earned: number;
+  tokenEarned: number;
   cap: number;
   boosted: boolean;
   directTotal: number;
@@ -436,6 +511,7 @@ export async function getRoiInvestorsOverview(): Promise<RoiInvestorRow[]> {
       status: users.status,
       invested: users.roiInvested,
       earned: users.roiEarned,
+      tokenEarned: users.roiTokenEarned,
       boosted: users.roiBoosted,
       directTotal: users.roiDirectTotal,
       sponsorId: sponsor.id,
@@ -447,7 +523,7 @@ export async function getRoiInvestorsOverview(): Promise<RoiInvestorRow[]> {
     .where(sql`${users.roiInvested} > 0`)
     .orderBy(sql`${users.roiInvested} desc`);
 
-  return rows.map((r) => ({ ...r, earned: Number(r.earned), cap: r.invested * settings.capMultiplier }));
+  return rows.map((r) => ({ ...r, earned: Number(r.earned), tokenEarned: Number(r.tokenEarned), cap: r.invested * settings.capMultiplier }));
 }
 
 /** A user's direct referrals with their own ROI plan standing — "which directs, and their performance". */
@@ -460,6 +536,7 @@ export async function getRoiDirectsPerformance(uid: string) {
       serialNo: users.serialNo,
       invested: users.roiInvested,
       earned: users.roiEarned,
+      tokenEarned: users.roiTokenEarned,
       boosted: users.roiBoosted,
       createdAt: users.createdAt,
     })
@@ -467,7 +544,7 @@ export async function getRoiDirectsPerformance(uid: string) {
     .where(eq(users.sponsorId, uid))
     .orderBy(sql`${users.roiInvested} desc`);
 
-  return rows.map((r) => ({ ...r, earned: Number(r.earned), cap: r.invested * settings.capMultiplier }));
+  return rows.map((r) => ({ ...r, earned: Number(r.earned), tokenEarned: Number(r.tokenEarned), cap: r.invested * settings.capMultiplier }));
 }
 
 export type RoiActivityRow = { id: string; type: string; points: number; createdAt: Date };

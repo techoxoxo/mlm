@@ -36,7 +36,7 @@ export function RoiInvestForm({
           ok: true,
           text:
             res.directPaid > 0
-              ? `✓ Invested ${amount}. Your sponsor was paid ${res.directPaid.toFixed(2)} direct income.`
+              ? `✓ Invested ${amount}. Your sponsor was paid ${res.directPaid.toFixed(2)} direct income (split 50/50 USDT/Token).`
               : `✓ Invested ${amount}.`,
         });
       router.refresh();

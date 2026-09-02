@@ -201,6 +201,12 @@ export const users = pgTable(
     // pointsBalance via post() — the fractional remainder (roiEarned - this)
     // stays parked here until it crosses another whole dollar.
     roiWalletCredited: integer("roi_wallet_credited").notNull().default(0),
+    // every direct/daily/level income event splits 50/50 — this half accrues
+    // here as Token (tracked/displayed only, no withdrawal yet, so no
+    // wallet-settlement counterpart like roiWalletCredited). Counts toward
+    // the same cap as roiEarned — the cap is on combined earnings, not just
+    // the USDT half.
+    roiTokenEarned: numeric("roi_token_earned", { precision: 18, scale: 6 }).notNull().default("0"),
     // cumulative investment total of this user's DIRECT referrals in the ROI
     // plan — crossing roiSettings.boostThresholdUsdt permanently unlocks the
     // boosted daily rate (roiBoosted stays true even if directs later change).
