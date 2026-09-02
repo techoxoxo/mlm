@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getUserJourney } from "@/lib/queries";
 import { memberCode } from "@/db/schema";
-import { toggleAutoUpgradeAction, manuallyActivateUserAction, reverseExitAction } from "@/app/actions/admin";
+import { toggleAutoUpgradeAction, manuallyActivateUserAction, reverseExitAction, manuallyInvestRoiPlanAction } from "@/app/actions/admin";
+import { getRoiSettings, getRoiDirectsPerformance } from "@/lib/roiPlan";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,12 @@ const TYPE_LABEL: Record<string, string> = {
   royalty_payout: "Royalty rank",
   royalty_reserve_reward: "Royalty reserve",
   adjustment: "Adjustment",
+  usdt_deposit: "USDT deposit",
+  usdt_withdrawal: "USDT withdrawal",
+  roi_investment: "ROI investment",
+  roi_direct_income: "ROI direct income",
+  roi_daily_payout: "ROI daily payout",
+  roi_level_income: "ROI level income",
 };
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
@@ -48,6 +55,14 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
   const { user, sponsor, totalEarned, directs, ownedSlots, completions, ledger, royalties } = data;
 
   const filled = ownedSlots.filter((s) => s.status === "filled").length;
+
+  const roiSettings = await getRoiSettings();
+  const roiCap = user.roiInvested * roiSettings.capMultiplier;
+  const roiInvestOptions = Array.from(
+    { length: Math.floor((roiSettings.maxInvest - roiSettings.minInvest) / roiSettings.investStep) + 1 },
+    (_, i) => roiSettings.minInvest + i * roiSettings.investStep,
+  );
+  const roiDirects = await getRoiDirectsPerformance(user.id);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -224,6 +239,115 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
           </table>
         </Card>
       )}
+
+      {/* ROI plan */}
+      <Card title="ROI plan" sub="Independent of the tier/matrix system above.">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 18 }}>
+          <Stat label="Invested" value={`$${user.roiInvested.toLocaleString()}`} />
+          <Stat label="Earned" value={`$${Number(user.roiEarned).toFixed(2)}`} accent />
+          <Stat label={`Cap (${roiSettings.capMultiplier}×)`} value={`$${roiCap.toLocaleString()}`} />
+          <Stat label="Directs' investment" value={`$${user.roiDirectTotal.toLocaleString()}`} />
+          <Stat label="Rate" value={user.roiBoosted ? "Boosted" : "Base"} accent={user.roiBoosted} />
+        </div>
+
+        {user.status !== "active" && (
+          <p
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "#ef4444",
+              fontSize: 12.5,
+              margin: "0 0 14px",
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.2)",
+            }}
+          >
+            ⚠️ Account status is <b style={{ textTransform: "capitalize" }}>{user.status}</b>, not active — investing
+            and all earning (direct/daily/level income) are paused for this user until their account is active again.
+          </p>
+        )}
+        <form
+          action={async (form: FormData) => {
+            "use server";
+            const amount = Number(form.get("amount"));
+            await manuallyInvestRoiPlanAction(user.id, amount);
+          }}
+          style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+        >
+          <label style={{ fontSize: 12, color: "var(--muted)" }}>Manually fund + invest:</label>
+          <select name="amount" className="input" defaultValue={roiSettings.minInvest} style={{ width: 120 }}>
+            {roiInvestOptions.map((a) => (
+              <option key={a} value={a}>${a}</option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="pill"
+            disabled={user.status !== "active"}
+            style={{
+              background: "rgba(111,195,247,0.08)",
+              border: "1px solid rgba(111,195,247,0.25)",
+              color: "#6fc3f7",
+              cursor: user.status === "active" ? "pointer" : "not-allowed",
+              opacity: user.status === "active" ? 1 : 0.5,
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            📈 Approve & Invest
+          </button>
+        </form>
+        <p style={{ color: "var(--faint)", fontSize: 12, margin: "8px 0 0" }}>
+          Credits a completed manual deposit for the chosen amount, then invests it — pays the sponsor&apos;s direct
+          income and updates their boost status exactly like a real investment would.
+        </p>
+
+        <div style={{ marginTop: 22 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 10px", color: "var(--muted)" }}>
+            Directs&apos; ROI plan performance ({roiDirects.length})
+          </h4>
+          {roiDirects.length === 0 ? (
+            <p style={{ color: "var(--faint)", fontSize: 13 }}>No direct referrals.</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th style={{ textAlign: "right" }}>Invested</th>
+                  <th style={{ textAlign: "right" }}>Earned</th>
+                  <th style={{ textAlign: "right" }}>Cap</th>
+                  <th>Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roiDirects.map((d) => (
+                  <tr key={d.id}>
+                    <td>
+                      <Link href={`/admin/users/${d.id}`} style={{ color: "var(--gold-bright)" }}>{d.name}</Link>
+                      <span className="mono" style={{ fontSize: 11, color: "var(--faint)", marginLeft: 8 }}>{memberCode(d.serialNo)}</span>
+                    </td>
+                    <td className="mono" style={{ textAlign: "right" }}>${d.invested.toLocaleString()}</td>
+                    <td className="mono" style={{ textAlign: "right", color: "#10b981" }}>${d.earned.toFixed(2)}</td>
+                    <td className="mono" style={{ textAlign: "right", color: "var(--faint)" }}>${d.cap.toLocaleString()}</td>
+                    <td>
+                      {d.invested === 0 ? (
+                        <span style={{ color: "var(--faint)", fontSize: 12 }}>—</span>
+                      ) : d.boosted ? (
+                        <span className="pill" style={{ background: "rgba(111,195,247,0.1)", color: "#6fc3f7", border: "1px solid rgba(111,195,247,0.25)" }}>Boosted</span>
+                      ) : (
+                        <span className="pill">Base</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Card>
 
       {/* full ledger */}
       <Card title="Full ledger" sub={`Complete transaction journey (latest ${ledger.length}).`}>

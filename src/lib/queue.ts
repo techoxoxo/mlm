@@ -84,7 +84,14 @@ export async function ensureRoyaltySchedule() {
 export const PAYMENT_CREDIT_QUEUE = "payment-credits";
 export const PAYMENT_PAYOUT_QUEUE = "payment-payouts";
 
-export type PaymentCreditJob = { userId: string; paymentId: string; amountPoints: number };
+export type PaymentCreditJob = {
+  userId: string;
+  paymentId: string;
+  amountPoints: number;
+  // when set, the credit worker also invests the credited amount into the
+  // ROI plan (atomically, inside the same transaction as the credit)
+  purpose?: "roi_invest";
+};
 export type PaymentPayoutJob = { cryptoTxId: string };
 
 declare global {
@@ -123,10 +130,15 @@ if (process.env.NODE_ENV !== "production") {
   global.__mlmPaymentPayoutQueue = paymentPayoutQueue;
 }
 
-export function enqueuePaymentCredit(userId: string, paymentId: string, amountPoints: number) {
+export function enqueuePaymentCredit(
+  userId: string,
+  paymentId: string,
+  amountPoints: number,
+  purpose?: PaymentCreditJob["purpose"],
+) {
   return paymentCreditQueue.add(
     "credit_deposit",
-    { userId, paymentId, amountPoints },
+    { userId, paymentId, amountPoints, purpose },
     { jobId: `credit_${paymentId}` }
   );
 }
@@ -160,6 +172,29 @@ if (process.env.NODE_ENV !== "production") global.__mlmReconciliationQueue = rec
 /** Register the nightly reconciliation cron. Called by the worker on startup. */
 export async function ensureReconciliationSchedule() {
   await reconciliationQueue.add("reconcile", {}, { repeat: { pattern: RECONCILIATION_CRON }, jobId: "reconciliation-nightly" });
+}
+
+/* ------------------------------------------------------------------ ROI plan schedule */
+
+export const ROI_QUEUE = "roi-plan";
+export const ROI_CRON = process.env.ROI_CRON ?? "10 0 * * *"; // daily at 00:10 server time
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __mlmRoiQueue: Queue | undefined;
+}
+
+export const roiQueue =
+  global.__mlmRoiQueue ??
+  new Queue(ROI_QUEUE, {
+    connection,
+    defaultJobOptions: { attempts: 3, backoff: { type: "exponential", delay: 2000 }, removeOnComplete: 50, removeOnFail: 50 },
+  });
+if (process.env.NODE_ENV !== "production") global.__mlmRoiQueue = roiQueue;
+
+/** Register (idempotently) the recurring ROI plan distribution. Called by the worker. */
+export async function ensureRoiSchedule() {
+  await roiQueue.add("distribute", {}, { repeat: { pattern: ROI_CRON }, jobId: "roi-recurring" });
 }
 
 export { queueEvents };

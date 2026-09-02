@@ -40,6 +40,10 @@ export const txType = pgEnum("tx_type", [
   "adjustment", // manual admin adjustment
   "usdt_deposit", // purchase points via NowPayments USDT
   "usdt_withdrawal", // convert points back to USDT payout
+  "roi_investment", // moved from wallet balance into an ROI plan investment
+  "roi_direct_income", // 10% paid to sponsor when a direct invests in the ROI plan
+  "roi_daily_payout", // daily ROI credit on an active investment
+  "roi_level_income", // "ROI of ROI" — share of a downline's daily ROI, 20 levels deep
 ]);
 export const choiceStatus = pgEnum("choice_status", [
   "pending",
@@ -181,6 +185,28 @@ export const users = pgTable(
 
     // automatic admin-driven slab upgrading
     autoUpgrade: boolean("auto_upgrade").notNull().default(false),
+
+    // ROI plan bookkeeping — independent of the slab/autopool/royalty system above.
+    // roiInvested is the lifetime sum of this user's active ROI-plan investments;
+    // every payout from that plan (direct/daily/level income) is capped at
+    // roiInvested * roiSettings.capMultiplier, tracked via roiEarned.
+    roiInvested: integer("roi_invested").notNull().default(0),
+    // full-precision lifetime earnings (direct + daily + level income combined),
+    // used for cap math — daily/level rates on modest investments round to
+    // literal $0/day as whole dollars, so this must stay fractional or the
+    // plan pays nothing. See roiWalletCredited for the whole-dollar portion
+    // that's actually been moved into the spendable points wallet.
+    roiEarned: numeric("roi_earned", { precision: 18, scale: 6 }).notNull().default("0"),
+    // how many whole dollars of roiEarned have already been settled into
+    // pointsBalance via post() — the fractional remainder (roiEarned - this)
+    // stays parked here until it crosses another whole dollar.
+    roiWalletCredited: integer("roi_wallet_credited").notNull().default(0),
+    // cumulative investment total of this user's DIRECT referrals in the ROI
+    // plan — crossing roiSettings.boostThresholdUsdt permanently unlocks the
+    // boosted daily rate (roiBoosted stays true even if directs later change).
+    roiDirectTotal: integer("roi_direct_total").notNull().default(0),
+    roiBoosted: boolean("roi_boosted").notNull().default(false),
+    roiBoostedAt: timestamp("roi_boosted_at", { withTimezone: true }),
   },
   (t) => ({
     emailIdx: uniqueIndex("users_email_idx").on(t.email),
@@ -360,6 +386,84 @@ export const reconciliationRuns = pgTable("reconciliation_runs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ------------------------------------------------------------------ ROI plan (independent of the slab/autopool/royalty system) */
+
+export const roiSettings = pgTable("roi_settings", {
+  id: integer("id").primaryKey().default(1),
+  // master switch — while off, the dashboard shows "coming soon" and no
+  // investment (manual, direct-payment, or otherwise) is accepted
+  enabled: boolean("enabled").notNull().default(false),
+  minInvest: integer("min_invest").notNull().default(100),
+  maxInvest: integer("max_invest").notNull().default(2000),
+  investStep: integer("invest_step").notNull().default(100),
+  // daily rate before/after the direct-investment boost, e.g. '0.300' = 0.3%/day
+  baseDailyRoiPercent: numeric("base_daily_roi_percent", { precision: 5, scale: 3 }).notNull().default("0.300"),
+  boostedDailyRoiPercent: numeric("boosted_daily_roi_percent", { precision: 5, scale: 3 }).notNull().default("0.500"),
+  directIncomePercent: integer("direct_income_percent").notNull().default(10),
+  // cumulative direct-referral investment (USDT) needed to permanently unlock the boosted rate
+  boostThresholdUsdt: integer("boost_threshold_usdt").notNull().default(2500),
+  // every income stream (direct + daily ROI + level income) stops once a
+  // user's total ROI-plan earnings reach investment * capMultiplier
+  capMultiplier: integer("cap_multiplier").notNull().default(3),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// "ROI of ROI" — a share of a downline's daily ROI payout, 20 levels deep.
+export const roiLevelTiers = pgTable("roi_level_tiers", {
+  level: integer("level").primaryKey(), // 1..20
+  percent: numeric("percent", { precision: 5, scale: 3 }).notNull(),
+});
+
+export const roiInvestments = pgTable(
+  "roi_investments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    amount: integer("amount").notNull(), // 100-2000 USDT, multiples of 100
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("roi_investments_user_idx").on(t.userId),
+  }),
+);
+
+export const roiInvestmentsRelations = relations(roiInvestments, ({ one }) => ({
+  user: one(users, { fields: [roiInvestments.userId], references: [users.id] }),
+}));
+
+export const roiTxType = pgEnum("roi_tx_type", ["direct_income", "daily_payout", "level_income"]);
+
+/**
+ * Full-precision, append-only decimal ledger for ROI plan earnings — separate
+ * from the shared integer `transactions` table (used elsewhere in the app),
+ * because daily/level percentages on modest investments are routinely worth
+ * less than $1 and would round to $0 forever under integer-only accounting.
+ * A row here is always inserted for every accrual event (even a $0.03 one),
+ * which is also what makes daily distribution idempotent per calendar day —
+ * see roiWalletCredited on `users` for how whole dollars get settled into the
+ * real withdrawable balance.
+ */
+export const roiTransactions = pgTable(
+  "roi_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    type: roiTxType("type").notNull(),
+    points: numeric("points", { precision: 18, scale: 6 }).notNull(),
+    counterpartyId: uuid("counterparty_id"),
+    investmentId: uuid("investment_id"),
+    level: integer("level"),
+    note: text("note"),
+    idempotencyKey: text("idempotency_key"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("roi_transactions_user_idx").on(t.userId, t.createdAt),
+    idemIdx: uniqueIndex("roi_tx_idem_idx").on(t.idempotencyKey),
+  }),
+);
+
 /* ------------------------------------------------------------------ support tickets */
 
 export const supportTickets = pgTable("support_tickets", {
@@ -415,6 +519,10 @@ export type AuditLog = typeof auditLog.$inferSelect;
 export type ReconciliationRun = typeof reconciliationRuns.$inferSelect;
 export type SupportTicket = typeof supportTickets.$inferSelect;
 export type SupportMessage = typeof supportMessages.$inferSelect;
+export type RoiSettings = typeof roiSettings.$inferSelect;
+export type RoiLevelTier = typeof roiLevelTiers.$inferSelect;
+export type RoiInvestment = typeof roiInvestments.$inferSelect;
+export type RoiTransaction = typeof roiTransactions.$inferSelect;
 
 export const sqlNow = sql`now()`;
 

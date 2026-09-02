@@ -1,0 +1,1 @@
+ALTER TABLE "roi_settings" ADD COLUMN "enabled" boolean DEFAULT false NOT NULL;

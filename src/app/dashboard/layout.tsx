@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { ActivationPaymentScreen } from "@/components/ActivationPaymentScreen";
+import { MockPaymentGate } from "@/components/MockPaymentGate";
 
 const items: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: "dashboard" },
@@ -14,6 +15,7 @@ const items: NavItem[] = [
   { href: "/dashboard/referral", label: "Referrals", icon: "users" },
   { href: "/dashboard/matrix", label: "My matrix", icon: "tree" },
   { href: "/dashboard/royalty", label: "Royalty", icon: "gift" },
+  { href: "/dashboard/roi-plan", label: "ROI Plan", icon: "growth" },
   { href: "/dashboard/transactions", label: "Transactions", icon: "receipt" },
   { href: "/dashboard/support", label: "Support", icon: "zap" },
   { href: "/dashboard/guide", label: "Operating Guide", icon: "guide" },
@@ -36,14 +38,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <AppShell
-      items={items}
-      title={`Welcome back, ${user.name.split(" ")[0]}`}
-      subtitle="Here's how your matrix is growing"
-      badge={<span className="pill pill-green tnum">{user.pointsBalance.toLocaleString()} pts</span>}
-    >
-      <LiveRefresh />
-      {children}
-    </AppShell>
+    <MockPaymentGate>
+      <AppShell
+        items={items}
+        title={`Welcome back, ${user.name.split(" ")[0]}`}
+        subtitle="Here's how your matrix is growing"
+        badge={<span className="pill pill-green tnum">{user.pointsBalance.toLocaleString()} pts</span>}
+      >
+        <LiveRefresh />
+        {children}
+      </AppShell>
+    </MockPaymentGate>
   );
 }

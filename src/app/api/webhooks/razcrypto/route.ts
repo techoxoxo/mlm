@@ -38,7 +38,8 @@ export async function POST(req: Request) {
       let parsedUserId: string | null = null;
       let parsedAmountPoints: number | null = null;
 
-      if (payloadOrderId.startsWith("dep:") || payloadOrderId.startsWith("act:")) {
+      const isRoiInvest = payloadOrderId.startsWith("roi:");
+      if (payloadOrderId.startsWith("dep:") || payloadOrderId.startsWith("act:") || isRoiInvest) {
         const parts = payloadOrderId.split(":");
         parsedUserId = parts[1];
         parsedAmountPoints = parseInt(parts[2], 10);
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
 
         if (targetUserId && targetAmountPoints) {
           console.log(`RazCrypto Webhook: Enqueuing credit of ${targetAmountPoints} points to user ${targetUserId}`);
-          await enqueuePaymentCredit(targetUserId, paymentId, targetAmountPoints);
+          await enqueuePaymentCredit(targetUserId, paymentId, targetAmountPoints, isRoiInvest ? "roi_invest" : undefined);
         } else {
           console.error(`RazCrypto Webhook: Failed to resolve user ID or amount points for paymentId ${paymentId}`);
         }

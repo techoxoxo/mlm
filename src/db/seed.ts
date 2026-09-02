@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { db, pool as pgPool } from "./index";
-import { settings, slabs, users, pools, royaltyTiers } from "./schema";
+import { settings, slabs, users, pools, royaltyTiers, roiSettings, roiLevelTiers } from "./schema";
 import { hashPassword, genReferralCode } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 
@@ -22,6 +22,11 @@ const ROYALTY_TIERS = [
   { minDirects: 200, percent: 30, label: "Diamond rank" },
 ];
 
+// "ROI of ROI" — level 1..20 share of a downline's daily ROI payout.
+const ROI_LEVEL_TIERS = [
+  5, 3, 2, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.3, 7,
+].map((percent, i) => ({ level: i + 1, percent: percent.toFixed(3) }));
+
 async function main() {
   console.log("Seeding settings…");
   await db
@@ -41,6 +46,20 @@ async function main() {
       .insert(royaltyTiers)
       .values(t)
       .onConflictDoUpdate({ target: royaltyTiers.minDirects, set: { percent: t.percent, label: t.label } });
+  }
+
+  console.log("Seeding ROI plan settings…");
+  await db
+    .insert(roiSettings)
+    .values({ id: 1 })
+    .onConflictDoNothing();
+
+  console.log("Seeding ROI level tiers…");
+  for (const t of ROI_LEVEL_TIERS) {
+    await db
+      .insert(roiLevelTiers)
+      .values(t)
+      .onConflictDoUpdate({ target: roiLevelTiers.level, set: { percent: t.percent } });
   }
 
   console.log("Seeding slabs…");

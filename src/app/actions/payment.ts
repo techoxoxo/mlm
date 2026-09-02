@@ -381,6 +381,83 @@ export async function initiateActivationDepositAction(): Promise<ActionState<{ i
   }
 }
 
+/**
+ * Initiate a direct USDT payment for an ROI plan investment — for when the
+ * user's wallet balance doesn't cover it. Uses the same unique-amount +
+ * payment_id/orderId cross-verification safeguards as every other deposit
+ * here, so a concurrent payment from someone else can never land in this
+ * user's session/balance. On completion, the webhook credits the deposit and
+ * invests it atomically (see investInRoiPlanTx) — never just a wallet top-up.
+ */
+export async function initiateRoiInvestDepositAction(
+  amount: number,
+): Promise<ActionState<{ invoiceUrl: string; invoiceId: string; amountUsdt: number; amount: number }>> {
+  try {
+    const session = await requireUser();
+    const userId = session.uid;
+
+    const [caller] = await db.select({ status: users.status }).from(users).where(eq(users.id, userId));
+    if (caller?.status === "registered") {
+      return { ok: false, error: "Account not activated. Please complete activation payment first." };
+    }
+    if (caller?.status !== "active") {
+      return { ok: false, error: "Your account is not active, so you can't invest in the ROI plan" };
+    }
+
+    const { getRoiSettings } = await import("@/lib/roiPlan");
+    const cfg = await getRoiSettings();
+    if (!cfg.enabled) {
+      return { ok: false, error: "The ROI plan isn't open yet" };
+    }
+    if (!Number.isInteger(amount) || amount < cfg.minInvest || amount > cfg.maxInvest || amount % cfg.investStep !== 0) {
+      return {
+        ok: false,
+        error: `Amount must be between ${cfg.minInvest} and ${cfg.maxInvest}, in multiples of ${cfg.investStep}`,
+      };
+    }
+
+    const uniqueAmountUsdt = await generateUniqueAmount(amount);
+
+    // orderId prefix "roi:" tells the webhook to invest the credited amount
+    // (not just credit the wallet) — see razcrypto webhook route.
+    const orderId = `roi:${userId}:${amount}:${Date.now()}`;
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const invoice = await createInvoice(orderId, uniqueAmountUsdt, {
+      successUrl: `${appUrl}/dashboard/roi-plan?payment=success`,
+      cancelUrl: `${appUrl}/dashboard/roi-plan?payment=cancelled`,
+    });
+
+    const ip = await safeClientIp();
+
+    await db.insert(cryptoTransactions).values({
+      userId,
+      type: "deposit",
+      status: "pending",
+      amountUsdt: uniqueAmountUsdt.toFixed(6),
+      amountPoints: amount,
+      network: "bep20",
+      gateway: "razcrypto",
+      paymentId: invoice.payment_id,
+      ipAddress: ip,
+      updatedAt: new Date(),
+    });
+
+    return {
+      ok: true,
+      data: {
+        invoiceUrl: invoice.checkout_page,
+        invoiceId: invoice.payment_id,
+        amountUsdt: uniqueAmountUsdt,
+        amount,
+      },
+    };
+  } catch (error) {
+    console.error("initiateRoiInvestDepositAction failed:", error);
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
 export async function checkPaymentStatusAction(
   paymentId: string
 ): Promise<ActionState<{ status: string; actuallyPaid: number }>> {

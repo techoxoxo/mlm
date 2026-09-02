@@ -15,6 +15,7 @@ import {
   BookOpen,
   Wallet,
   Zap,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,6 +33,7 @@ const ICONS: Record<string, LucideIcon> = {
   guide: BookOpen,
   wallet: Wallet,
   zap: Zap,
+  growth: TrendingUp,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };

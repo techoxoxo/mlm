@@ -7,13 +7,17 @@ import {
   PAYMENT_CREDIT_QUEUE,
   PAYMENT_PAYOUT_QUEUE,
   RECONCILIATION_QUEUE,
+  ROI_QUEUE,
   PaymentCreditJob,
   PaymentPayoutJob,
   ensureReconciliationSchedule,
+  ensureRoiSchedule,
   RECONCILIATION_CRON,
+  ROI_CRON,
 } from "@/lib/queue";
 import { activate, decideChoice, post } from "@/lib/distribution";
 import { reconcileBalances } from "@/lib/reconciliation";
+import { runRoiDailyDistribution, investInRoiPlanTx, type InvestResult } from "@/lib/roiPlan";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { decrypt, hashWallet } from "@/lib/crypto";
@@ -52,11 +56,15 @@ ensureReconciliationSchedule()
   .then(() => console.log(`Reconciliation schedule registered (cron "${RECONCILIATION_CRON}").`))
   .catch((e) => console.error("Failed to register reconciliation schedule:", e.message));
 
+ensureRoiSchedule()
+  .then(() => console.log(`ROI plan schedule registered (cron "${ROI_CRON}").`))
+  .catch((e) => console.error("Failed to register ROI plan schedule:", e.message));
+
 // Payment Credit Worker
 const paymentCreditWorker = new Worker<PaymentCreditJob>(
   PAYMENT_CREDIT_QUEUE,
   async (job) => {
-    const { userId, paymentId, amountPoints } = job.data;
+    const { userId, paymentId, amountPoints, purpose } = job.data;
 
     // Re-verify payment status with RazCrypto before crediting
     try {
@@ -72,7 +80,7 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
 
     let isActivation = false;
 
-    await db.transaction(async (tx) => {
+    const roiResult = await db.transaction(async (tx): Promise<InvestResult | null> => {
       const [ctx] = await tx
         .select()
         .from(schema.cryptoTransactions)
@@ -80,7 +88,7 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
         .for("update");
 
       if (ctx && ctx.status === "completed") {
-        return;
+        return null;
       }
 
       const [user] = await tx
@@ -129,17 +137,29 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
 
         // Run first-time slab 1 activation (debits 30 points)
         await enterSlab(tx, userId, 1, new Date(now.getTime() + 3000));
-      } else {
-        await post(tx, userId, "usdt_deposit", amountPoints, {
-          note: `USDT Deposit (ID: ${paymentId})`,
-          idempotencyKey: `dep:${paymentId}`,
-        });
+        return null;
       }
+
+      await post(tx, userId, "usdt_deposit", amountPoints, {
+        note: purpose === "roi_invest" ? `USDT Deposit for ROI investment (ID: ${paymentId})` : `USDT Deposit (ID: ${paymentId})`,
+        idempotencyKey: `dep:${paymentId}`,
+      });
+
+      // Same guarded transaction as the credit above — a webhook/job retry
+      // hits the ctx.status === "completed" early-return before ever
+      // reaching here, so this can't double-invest.
+      if (purpose === "roi_invest") {
+        return investInRoiPlanTx(tx, userId, amountPoints);
+      }
+      return null;
     });
 
     // Notify user of successful payment and activation
     if (isActivation) {
       await publishEvent(userId, { type: "entered", level: 1 });
+    }
+    if (roiResult && roiResult.directPaid > 0 && roiResult.sponsorId) {
+      await publishEvent(roiResult.sponsorId, { type: "royalty_payout" });
     }
     await publishEvent(userId, { type: "payment_update", status: "completed" });
   },
@@ -271,7 +291,21 @@ const reconciliationWorker = new Worker(
 );
 reconciliationWorker.on("failed", (job, err) => console.error(`✗ reconciliation ${job?.id}: ${err.message}`));
 
-console.log("Distribution, Payment, and Reconciliation workers started. Waiting for jobs…");
+// ROI Plan Worker (daily cron)
+const roiWorker = new Worker(
+  ROI_QUEUE,
+  async () => {
+    const res = await runRoiDailyDistribution();
+    console.log(
+      `✓ roi-plan: ${res.investmentsProcessed} investments, ${res.dailyRecipients} daily paid (${res.dailyPaid}), ${res.levelPayouts} level payouts (${res.levelPaid})`,
+    );
+    return res;
+  },
+  { connection, concurrency: 1 },
+);
+roiWorker.on("failed", (job, err) => console.error(`✗ roi-plan ${job?.id}: ${err.message}`));
+
+console.log("Distribution, Payment, Reconciliation, and ROI Plan workers started. Waiting for jobs…");
 
 const shutdown = async () => {
   console.log("Shutting down workers…");
@@ -280,6 +314,7 @@ const shutdown = async () => {
     paymentCreditWorker.close(),
     paymentPayoutWorker.close(),
     reconciliationWorker.close(),
+    roiWorker.close(),
   ]);
   process.exit(0);
 };

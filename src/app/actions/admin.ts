@@ -450,6 +450,179 @@ export async function manuallyActivateUserAction(userId: string) {
   }
 }
 
+/**
+ * Manually fund + invest a user into the ROI plan without requiring a
+ * payment gateway transaction — same pattern as manuallyActivateUserAction:
+ * credits a mock completed USDT deposit for the exact amount, then invests
+ * it (which pays the sponsor's direct income and applies the boost/cap logic
+ * exactly as a real investment would).
+ */
+export async function manuallyInvestRoiPlanAction(userId: string, amount: number) {
+  try {
+    await requireAdmin();
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return { ok: false, error: "User not found" };
+
+    const { getRoiSettings, investInRoiPlan } = await import("@/lib/roiPlan");
+    const cfg = await getRoiSettings();
+    if (amount < cfg.minInvest || amount > cfg.maxInvest || amount % cfg.investStep !== 0) {
+      return {
+        ok: false,
+        error: `Amount must be between ${cfg.minInvest} and ${cfg.maxInvest}, in multiples of ${cfg.investStep}`,
+      };
+    }
+
+    const payId = `manual_roi_${crypto.randomUUID().slice(0, 8)}`;
+
+    await db.transaction(async (tx) => {
+      await tx.insert(schema.cryptoTransactions).values({
+        userId,
+        type: "deposit",
+        status: "completed",
+        amountUsdt: amount.toFixed(6),
+        amountPoints: amount,
+        network: "bep20",
+        gateway: "razcrypto",
+        paymentId: payId,
+        updatedAt: new Date(),
+      });
+
+      await post(tx, userId, "usdt_deposit", amount, {
+        note: `Manual ROI plan funding (ID: ${payId})`,
+        idempotencyKey: `dep:${payId}`,
+      });
+    });
+
+    const res = await investInRoiPlan(userId, amount);
+
+    await logAudit({
+      action: "manual_roi_investment",
+      targetType: "user",
+      targetId: userId,
+      after: { amount, investmentId: res.investmentId, directPaid: res.directPaid },
+    });
+
+    revalidatePath(`/admin/users/${userId}`);
+    revalidatePath("/admin/roi-plan");
+    revalidatePath("/admin/payments");
+    return { ok: true as const, res };
+  } catch (err) {
+    console.error("manuallyInvestRoiPlanAction failed:", err);
+    return { ok: false as const, error: (err as Error).message };
+  }
+}
+
+/**
+ * One-click on/off switch for the whole ROI plan — while off, the dashboard
+ * shows "coming soon" and every investment path (manual, form, direct
+ * payment) is blocked at the engine level, not just hidden in the UI.
+ */
+export async function toggleRoiPlanEnabledAction() {
+  await requireAdmin();
+  const [cur] = await db.select().from(schema.roiSettings).where(eq(schema.roiSettings.id, 1));
+  const enabled = !cur.enabled;
+
+  await db.update(schema.roiSettings).set({ enabled, updatedAt: new Date() }).where(eq(schema.roiSettings.id, 1));
+
+  await logAudit({
+    action: "toggle_roi_plan_enabled",
+    targetType: "roi_settings",
+    targetId: "1",
+    before: { enabled: cur.enabled },
+    after: { enabled },
+  });
+
+  revalidatePath("/admin/roi-plan");
+  revalidatePath("/dashboard/roi-plan");
+  return { enabled };
+}
+
+export async function updateRoiSettingsAction(form: FormData) {
+  await requireAdmin();
+  const [cur] = await db.select().from(schema.roiSettings).where(eq(schema.roiSettings.id, 1));
+
+  const minInvest = int(form, "minInvest", 1, 1_000_000, cur.minInvest);
+  const maxInvest = int(form, "maxInvest", minInvest, 1_000_000, cur.maxInvest);
+  const investStep = int(form, "investStep", 1, maxInvest, cur.investStep);
+
+  const numField = (key: string, fallback: string) => {
+    const raw = form.get(key);
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 && n <= 100 ? n.toFixed(3) : fallback;
+  };
+
+  const newValues = {
+    minInvest,
+    maxInvest,
+    investStep,
+    baseDailyRoiPercent: numField("baseDailyRoiPercent", cur.baseDailyRoiPercent),
+    boostedDailyRoiPercent: numField("boostedDailyRoiPercent", cur.boostedDailyRoiPercent),
+    directIncomePercent: int(form, "directIncomePercent", 0, 100, cur.directIncomePercent),
+    boostThresholdUsdt: int(form, "boostThresholdUsdt", 0, 10_000_000, cur.boostThresholdUsdt),
+    capMultiplier: int(form, "capMultiplier", 1, 100, cur.capMultiplier),
+  };
+
+  await db
+    .update(schema.roiSettings)
+    .set({ ...newValues, updatedAt: new Date() })
+    .where(eq(schema.roiSettings.id, 1));
+
+  await logAudit({
+    action: "update_roi_settings",
+    targetType: "roi_settings",
+    targetId: "1",
+    before: cur,
+    after: newValues,
+  });
+
+  revalidatePath("/admin/roi-plan");
+}
+
+export async function updateRoiLevelTierAction(form: FormData) {
+  await requireAdmin();
+  const level = Number(form.get("level"));
+  if (!Number.isInteger(level)) return;
+
+  const [cur] = await db.select().from(schema.roiLevelTiers).where(eq(schema.roiLevelTiers.level, level));
+  const raw = Number(form.get("percent"));
+  const percent = Number.isFinite(raw) && raw >= 0 && raw <= 100 ? raw.toFixed(3) : (cur?.percent ?? "0.000");
+
+  await db
+    .update(schema.roiLevelTiers)
+    .set({ percent })
+    .where(eq(schema.roiLevelTiers.level, level));
+
+  await logAudit({
+    action: "update_roi_level_tier",
+    targetType: "roi_level_tier",
+    targetId: String(level),
+    before: cur ? { percent: cur.percent } : null,
+    after: { percent },
+  });
+
+  revalidatePath("/admin/roi-plan");
+}
+
+export async function runRoiDistributionAction() {
+  await requireAdmin();
+  const { runRoiDailyDistribution } = await import("@/lib/roiPlan");
+  try {
+    const res = await runRoiDailyDistribution();
+
+    await logAudit({
+      action: "run_roi_distribution",
+      targetType: "roi_plan",
+      after: res,
+    });
+
+    revalidatePath("/admin/roi-plan");
+    return { ok: true as const, res };
+  } catch (e) {
+    return { ok: false as const, error: (e as Error).message };
+  }
+}
+
 export async function reverseExitAction(userId: string) {
   try {
     await requireAdmin();
