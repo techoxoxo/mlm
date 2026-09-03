@@ -133,8 +133,21 @@ export type InvestResult = { investmentId: string; amount: number; directPaid: n
  * That guard is what makes a webhook retry safe — running this twice in two
  * separate transactions would double-invest, since nothing here is keyed to
  * a specific payment.
+ *
+ * `source` controls whether the "can't reinvest already-earned money" rule
+ * applies (see the wallet-eligibility check below): "wallet" is a user
+ * spending their existing balance and IS subject to it; "external" is money
+ * that just arrived this same transaction — a direct USDT payment, or an
+ * admin's manual funding — and is exempt, since by definition it isn't money
+ * this plan already paid out.
  */
-export async function investInRoiPlanTx(tx: Tx, userId: string, amount: number): Promise<InvestResult> {
+export async function investInRoiPlanTx(
+  tx: Tx,
+  userId: string,
+  amount: number,
+  opts: { source?: "wallet" | "external" } = {},
+): Promise<InvestResult> {
+  const source = opts.source ?? "wallet";
   const cfg = await getRoiSettings(tx);
   if (!cfg.enabled) {
     throw new Error("The ROI plan isn't open yet");
@@ -153,6 +166,23 @@ export async function investInRoiPlanTx(tx: Tx, userId: string, amount: number):
         ? "Complete your account activation before investing in the ROI plan"
         : "Your account is not active, so you can't invest in the ROI plan",
     );
+  }
+
+  if (source === "wallet") {
+    // Money this plan has already paid into the wallet can't fund a new
+    // investment in it — only pre-existing/other-source balance can. This is
+    // a conservative check (it doesn't trace which specific dollars are
+    // which, since the wallet is one fungible balance): it simply reserves
+    // an amount equal to lifetime ROI-plan wallet settlements as off-limits.
+    // If some of that's already been spent elsewhere, pointsBalance is
+    // already lower and this comes out the same either way.
+    const investableFromWallet = Math.max(0, user.pointsBalance - user.roiWalletCredited);
+    if (amount > investableFromWallet) {
+      throw new Error(
+        `You can invest up to $${investableFromWallet} from your wallet balance — money already earned from ` +
+          `this plan can't be reinvested from your wallet. Pay the rest directly via USDT instead.`,
+      );
+    }
   }
 
   // Debit from the existing points wallet — this plan reuses the same
@@ -219,14 +249,66 @@ export async function investInRoiPlanTx(tx: Tx, userId: string, amount: number):
  * balance (already USDT-equivalent — see usdt_deposit), opens a new
  * investment, and immediately pays the sponsor's direct income.
  */
-export async function investInRoiPlan(userId: string, amount: number): Promise<InvestResult> {
-  const result = await withTxRetry(() => db.transaction((tx) => investInRoiPlanTx(tx, userId, amount)));
+export async function investInRoiPlan(
+  userId: string,
+  amount: number,
+  opts: { source?: "wallet" | "external" } = {},
+): Promise<InvestResult> {
+  const result = await withTxRetry(() => db.transaction((tx) => investInRoiPlanTx(tx, userId, amount, opts)));
 
   if (result.directPaid > 0 && result.sponsorId) {
     await publishEvent(result.sponsorId, { type: "royalty_payout" }).catch(() => {});
   }
 
   return result;
+}
+
+export type ReverseInvestmentResult = { investmentId: string; userId: string; amount: number };
+
+/**
+ * Reverses a single investment: refunds its principal to the user's
+ * withdrawable wallet and marks it inactive (it immediately stops earning
+ * — daily distribution already filters on `active`), reducing their
+ * roiInvested (and therefore their cap) by that amount.
+ *
+ * Deliberately scoped to just the principal. It does NOT claw back:
+ *  - earnings this user already accrued from this investment (roiEarned /
+ *    roiTokenEarned), some of which may already be withdrawn, or
+ *  - direct/level income this investment already paid out to their sponsor
+ *    or upline.
+ * Unwinding money that's already moved into other people's accounts is a
+ * much bigger, riskier operation than "undo this investment" — if that's
+ * ever actually needed, it should be a separate, explicit, per-recipient
+ * decision, not something bundled silently into a reversal.
+ */
+export async function reverseRoiInvestment(investmentId: string): Promise<ReverseInvestmentResult> {
+  return withTxRetry(() =>
+    db.transaction(async (tx) => {
+      const [inv] = await tx.select().from(roiInvestments).where(eq(roiInvestments.id, investmentId)).for("update");
+      if (!inv) throw new Error("Investment not found");
+      if (!inv.active) throw new Error("This investment has already been reversed");
+
+      const [user] = await tx.select().from(users).where(eq(users.id, inv.userId)).for("update");
+      if (!user) throw new Error("User not found");
+
+      await tx
+        .update(roiInvestments)
+        .set({ active: false })
+        .where(eq(roiInvestments.id, investmentId));
+
+      await tx
+        .update(users)
+        .set({ roiInvested: sql`greatest(0, ${users.roiInvested} - ${inv.amount})` })
+        .where(eq(users.id, user.id));
+
+      await post(tx, user.id, "adjustment", inv.amount, {
+        note: `ROI plan investment reversed by admin (investment ${investmentId})`,
+        idempotencyKey: `roi_reverse:${investmentId}`,
+      });
+
+      return { investmentId, userId: user.id, amount: inv.amount };
+    }),
+  );
 }
 
 /** Walk up the sponsor chain, immediate sponsor first, up to `maxLevels` deep. */
@@ -445,7 +527,7 @@ export type RoiOverview = {
     boosted: boolean;
     directTotal: number;
     dailyRatePercent: number;
-    investments: { id: string; amount: number; createdAt: Date }[];
+    investments: { id: string; amount: number; active: boolean; createdAt: Date }[];
   };
 };
 

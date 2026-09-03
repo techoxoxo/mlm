@@ -35,6 +35,9 @@ export default async function RoiPlanPage() {
   const cap = me?.cap ?? 0;
   const capProgress = cap > 0 ? Math.min(100, Math.round((combinedEarned / cap) * 100)) : 0;
   const directRemaining = Math.max(0, settings.boostThresholdUsdt - (me?.directTotal ?? 0));
+  // Money this plan has already paid into the wallet can't fund a new
+  // investment from the wallet — only the rest of the balance can.
+  const investableFromWallet = Math.max(0, pointsBalance - (me?.walletCredited ?? 0));
 
   // Feature is off and this user has no history with it — full coming-soon takeover.
   if (!settings.enabled && invested === 0) {
@@ -312,6 +315,7 @@ export default async function RoiPlanPage() {
             maxInvest={settings.maxInvest}
             investStep={settings.investStep}
             balance={pointsBalance}
+            investableFromWallet={investableFromWallet}
           />
         ) : (
           <p style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--faint)", fontSize: 13, margin: 0 }}>

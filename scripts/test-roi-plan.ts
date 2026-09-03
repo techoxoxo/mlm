@@ -8,6 +8,7 @@ import {
   runRoiDailyDistribution,
   getRoiOverview,
   getRoiSettings,
+  reverseRoiInvestment,
 } from "@/lib/roiPlan";
 
 const { users } = schema;
@@ -403,6 +404,118 @@ async function main() {
       "cap/remaining math correct near limit",
       overviewNearCap.me?.remaining === 2 && overviewNearCap.me?.cap === capLimit,
       `cap=${overviewNearCap.me?.cap}, earned=${overviewNearCap.me?.earned}, remaining=${overviewNearCap.me?.remaining}`,
+    );
+
+    // ---------------------------------------------------------------- Test 13: reversing an investment
+    log("Test 13: reversing an investment refunds the principal and stops it earning, without touching prior payouts");
+    const reverseUser = await makeUser("ReverseUser", chain[0].id);
+    createdUserIds.push(reverseUser.id);
+    await credit(reverseUser.id, 1000);
+    const balanceBeforeInvest = (await db.select({ pointsBalance: users.pointsBalance }).from(users).where(eq(users.id, reverseUser.id)))[0].pointsBalance;
+    const reverseInv = await investInRoiPlan(reverseUser.id, 300);
+    const balanceAfterInvest = (await db.select({ pointsBalance: users.pointsBalance }).from(users).where(eq(users.id, reverseUser.id)))[0].pointsBalance;
+    record(
+      "investing debits the wallet by the investment amount",
+      balanceAfterInvest === balanceBeforeInvest - 300,
+      `before=${balanceBeforeInvest}, after=${balanceAfterInvest}`,
+    );
+
+    // Let it earn something first, to prove reversal doesn't touch prior accrual.
+    await runRoiDailyDistribution();
+    const overviewBeforeReverse = await getRoiOverview(reverseUser.id);
+    const earnedBeforeReverse = (overviewBeforeReverse.me?.earned ?? 0) + (overviewBeforeReverse.me?.tokenEarned ?? 0);
+
+    const reverseRes = await reverseRoiInvestment(reverseInv.investmentId);
+    const overviewAfterReverse = await getRoiOverview(reverseUser.id);
+    const earnedAfterReverse = (overviewAfterReverse.me?.earned ?? 0) + (overviewAfterReverse.me?.tokenEarned ?? 0);
+    const balanceAfterReverse = (await db.select({ pointsBalance: users.pointsBalance }).from(users).where(eq(users.id, reverseUser.id)))[0].pointsBalance;
+
+    record(
+      "reversal refunds the exact principal to the wallet",
+      balanceAfterReverse === balanceAfterInvest + 300,
+      `expected ${balanceAfterInvest + 300}, got ${balanceAfterReverse}`,
+    );
+    record(
+      "reversal reduces roiInvested by the investment amount",
+      overviewAfterReverse.me?.invested === 0,
+      `roiInvested=${overviewAfterReverse.me?.invested} (expected 0 — this was the user's only investment)`,
+    );
+    record(
+      "reversal does NOT touch already-accrued earnings",
+      close(earnedAfterReverse, earnedBeforeReverse),
+      `earned before=${earnedBeforeReverse}, after=${earnedAfterReverse} (should be unchanged)`,
+    );
+    record(
+      "reversed investment shows as inactive",
+      overviewAfterReverse.me?.investments.find((i) => i.id === reverseInv.investmentId)?.active === false,
+      `active=${overviewAfterReverse.me?.investments.find((i) => i.id === reverseInv.investmentId)?.active}`,
+    );
+
+    try {
+      await reverseRoiInvestment(reverseInv.investmentId);
+      record("reversing an already-reversed investment is rejected", false, "did not throw");
+    } catch (e) {
+      record("reversing an already-reversed investment is rejected", true, (e as Error).message);
+    }
+
+    // Reversed investment must not earn anything on the next distribution run.
+    const runAfterReverse = await runRoiDailyDistribution();
+    const overviewFinal = await getRoiOverview(reverseUser.id);
+    const earnedFinal = (overviewFinal.me?.earned ?? 0) + (overviewFinal.me?.tokenEarned ?? 0);
+    record(
+      "reversed investment earns nothing in subsequent distribution runs",
+      close(earnedFinal, earnedAfterReverse),
+      `earned unchanged at ${earnedFinal}, run touched ${runAfterReverse.dailyRecipients} recipients`,
+    );
+
+    // ---------------------------------------------------------------- Test 14: can't reinvest already-earned money from the wallet
+    log("Test 14: wallet-funded investments can't dip into money this plan already paid out");
+    const noReinvestUser = await makeUser("NoReinvestUser", chain[0].id);
+    createdUserIds.push(noReinvestUser.id);
+    await credit(noReinvestUser.id, 1000);
+    await investInRoiPlan(noReinvestUser.id, 100); // pointsBalance=900, roiInvested=100, roiWalletCredited=0
+
+    // Simulate a large chunk of the wallet balance having come from this
+    // plan's own settlements, without touching pointsBalance itself — this
+    // isolates the check from needing real multi-day accrual.
+    await db.update(users).set({ roiWalletCredited: 800 }).where(eq(users.id, noReinvestUser.id));
+    // investableFromWallet = pointsBalance(900) - roiWalletCredited(800) = 100
+
+    try {
+      await investInRoiPlan(noReinvestUser.id, 200); // exceeds the 100 investable-from-wallet
+      record("wallet-funded investment exceeding investable amount is rejected", false, "did not throw");
+    } catch (e) {
+      const msg = (e as Error).message;
+      record(
+        "wallet-funded investment exceeding investable amount is rejected",
+        msg.includes("already earned") || msg.includes("reinvest"),
+        msg,
+      );
+    }
+
+    await investInRoiPlan(noReinvestUser.id, 100); // exactly at the investable boundary — should succeed
+    const afterBoundaryInvest = await getRoiOverview(noReinvestUser.id);
+    record(
+      "wallet-funded investment exactly at the investable boundary succeeds",
+      afterBoundaryInvest.me?.invested === 200,
+      `roiInvested=${afterBoundaryInvest.me?.invested} (expected 200 = 100 initial + 100 just invested)`,
+    );
+
+    await credit(noReinvestUser.id, 500); // fresh, non-ROI money — pointsBalance now 800+500=1300 (wait: after the 100 invest, balance was 800; +500 credit = 1300)
+    try {
+      await investInRoiPlan(noReinvestUser.id, 600); // still exceeds investable (1300-800=500 < 600) via default wallet source
+      record("wallet-funded investment still respects the limit after topping up balance", false, "did not throw");
+    } catch (e) {
+      record("wallet-funded investment still respects the limit after topping up balance", true, (e as Error).message);
+    }
+
+    const beforeExternal = await getRoiOverview(noReinvestUser.id);
+    await investInRoiPlan(noReinvestUser.id, 600, { source: "external" }); // bypasses the check — simulates a direct/admin-funded investment
+    const afterExternal = await getRoiOverview(noReinvestUser.id);
+    record(
+      "source:'external' bypasses the wallet-eligibility restriction",
+      (afterExternal.me?.invested ?? 0) === (beforeExternal.me?.invested ?? 0) + 600,
+      `invested went from ${beforeExternal.me?.invested} to ${afterExternal.me?.invested}`,
     );
   } finally {
     // ------------------------------------------------------------------ cleanup

@@ -211,7 +211,8 @@ export default async function RoiPlanAdmin() {
         <h3 style={{ fontSize: 16, marginBottom: 6 }}>Investors</h3>
         <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 16px" }}>
           Every user who has invested, their earnings against their cap, boost status, and how much their own directs
-          have invested. Click a name for their full ledger and their individual directs&apos; performance.
+          have invested. Click a name for their full ledger, their individual directs&apos; performance, and to
+          <b> reverse a specific investment</b> (refunds it to their wallet, requires the master password).
         </p>
         {investors.length === 0 ? (
           <p style={{ color: "var(--faint)", fontSize: 14 }}>No investors yet.</p>
@@ -229,6 +230,7 @@ export default async function RoiPlanAdmin() {
                   <th style={{ textAlign: "right" }}>Cap</th>
                   <th style={{ textAlign: "right" }}>Directs&apos; invested</th>
                   <th>Rate</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -269,6 +271,15 @@ export default async function RoiPlanAdmin() {
                       ) : (
                         <span className="pill">Base</span>
                       )}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <Link
+                        href={`/admin/users/${inv.id}#investments`}
+                        className="pill"
+                        style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
+                      >
+                        ↩️ Reverse…
+                      </Link>
                     </td>
                   </tr>
                 ))}

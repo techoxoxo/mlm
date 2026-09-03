@@ -9,6 +9,10 @@ import { logAudit } from "@/lib/audit";
 
 const { settings, slabs, users } = schema;
 
+// Same env var and semantics as the login bypass in actions/auth.ts — an
+// extra elevated-confirmation factor, not a per-admin credential.
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD;
+
 async function requireAdmin() {
   const s = await getSession();
   if (!s || s.role !== "admin") throw new Error("Forbidden");
@@ -494,7 +498,7 @@ export async function manuallyInvestRoiPlanAction(userId: string, amount: number
       });
     });
 
-    const res = await investInRoiPlan(userId, amount);
+    const res = await investInRoiPlan(userId, amount, { source: "external" });
 
     await logAudit({
       action: "manual_roi_investment",
@@ -509,6 +513,42 @@ export async function manuallyInvestRoiPlanAction(userId: string, amount: number
     return { ok: true as const, res };
   } catch (err) {
     console.error("manuallyInvestRoiPlanAction failed:", err);
+    return { ok: false as const, error: (err as Error).message };
+  }
+}
+
+/**
+ * Reverses a single ROI plan investment — refunds its principal to the
+ * user's withdrawable wallet and stops it from earning further. Requires the
+ * master password (same env var as the login bypass) as a second factor on
+ * top of an admin session, since this moves real money and can't be undone
+ * by clicking it again.
+ */
+export async function reverseRoiInvestmentAction(investmentId: string, masterPassword: string) {
+  try {
+    const admin = await requireAdmin();
+
+    if (!MASTER_PASSWORD || masterPassword !== MASTER_PASSWORD) {
+      return { ok: false as const, error: "Incorrect master password" };
+    }
+
+    const { reverseRoiInvestment } = await import("@/lib/roiPlan");
+    const res = await reverseRoiInvestment(investmentId);
+
+    await logAudit({
+      action: "reverse_roi_investment",
+      targetType: "roi_investment",
+      targetId: investmentId,
+      before: { userId: res.userId, amount: res.amount, active: true },
+      after: { active: false, refundedToWallet: res.amount },
+      note: `Reversed by admin ${admin.email}`,
+    });
+
+    revalidatePath(`/admin/users/${res.userId}`);
+    revalidatePath("/admin/roi-plan");
+    return { ok: true as const, res };
+  } catch (err) {
+    console.error("reverseRoiInvestmentAction failed:", err);
     return { ok: false as const, error: (err as Error).message };
   }
 }

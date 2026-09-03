@@ -4,7 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { getUserJourney } from "@/lib/queries";
 import { memberCode } from "@/db/schema";
 import { toggleAutoUpgradeAction, manuallyActivateUserAction, reverseExitAction, manuallyInvestRoiPlanAction } from "@/app/actions/admin";
-import { getRoiSettings, getRoiDirectsPerformance } from "@/lib/roiPlan";
+import { getRoiSettings, getRoiDirectsPerformance, getRoiOverview } from "@/lib/roiPlan";
+import { RoiReverseButton } from "@/components/RoiReverseButton";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,8 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
     (_, i) => roiSettings.minInvest + i * roiSettings.investStep,
   );
   const roiDirects = await getRoiDirectsPerformance(user.id);
+  const roiOverview = await getRoiOverview(user.id);
+  const roiInvestments = roiOverview.me?.investments ?? [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -305,6 +308,47 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
           Credits a completed manual deposit for the chosen amount, then invests it — pays the sponsor&apos;s direct
           income and updates their boost status exactly like a real investment would.
         </p>
+
+        <div id="investments" style={{ marginTop: 22, scrollMarginTop: 20 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 10px", color: "var(--muted)" }}>
+            Investments ({roiInvestments.length})
+          </h4>
+          {roiInvestments.length === 0 ? (
+            <p style={{ color: "var(--faint)", fontSize: 13 }}>No investments yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {roiInvestments.map((inv) => (
+                <div
+                  key={inv.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 10,
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid var(--border)",
+                    opacity: inv.active ? 1 : 0.55,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span className="mono" style={{ fontWeight: 700, fontSize: 14 }}>${inv.amount.toLocaleString()}</span>
+                    <span style={{ fontSize: 12, color: "var(--faint)" }}>
+                      {new Date(inv.createdAt).toLocaleDateString()}
+                    </span>
+                    {!inv.active && (
+                      <span className="pill" style={{ fontSize: 10.5, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+                        Reversed
+                      </span>
+                    )}
+                  </div>
+                  {inv.active && <RoiReverseButton investmentId={inv.id} amount={inv.amount} />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div style={{ marginTop: 22 }}>
           <h4 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 10px", color: "var(--muted)" }}>

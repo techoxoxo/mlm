@@ -200,7 +200,7 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
             <tbody>
               {recentTxs.map((t) => (
                 <tr key={t.id}>
-                  <td style={{ color: "var(--faint)" }}>{new Date(t.createdAt).toLocaleString()}</td>
+                  <td style={{ color: "var(--faint)" }}>{new Date(t.createdAt).toLocaleString("en-US")}</td>
                   <td>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <span style={{ fontWeight: 600 }}>{t.userName}</span>

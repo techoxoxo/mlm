@@ -149,7 +149,7 @@ const paymentCreditWorker = new Worker<PaymentCreditJob>(
       // hits the ctx.status === "completed" early-return before ever
       // reaching here, so this can't double-invest.
       if (purpose === "roi_invest") {
-        return investInRoiPlanTx(tx, userId, amountPoints);
+        return investInRoiPlanTx(tx, userId, amountPoints, { source: "external" });
       }
       return null;
     });
