@@ -11,13 +11,11 @@ export function RoiInvestForm({
   maxInvest,
   investStep,
   balance,
-  investableFromWallet,
 }: {
   minInvest: number;
   maxInvest: number;
   investStep: number;
   balance: number;
-  investableFromWallet: number;
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState(minInvest);
@@ -87,8 +85,7 @@ export function RoiInvestForm({
   }, [awaitingPayment, amount, router]);
 
   const steps = Math.floor((maxInvest - minInvest) / investStep) + 1;
-  const shortfall = amount > investableFromWallet;
-  const dueToEarnedMoney = shortfall && amount <= balance;
+  const shortfall = amount > balance;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -138,11 +135,8 @@ export function RoiInvestForm({
             {awaitingPayment ? "Waiting for payment…" : `Pay $${amount} via USDT`}
           </button>
           <p style={{ color: "var(--faint)", fontSize: 13, margin: 0 }}>
-            {dueToEarnedMoney
-              ? `$${investableFromWallet} of your $${balance} wallet balance is eligible to fund an investment — the rest is money already earned from this plan, which can't be reinvested from your wallet.`
-              : `Wallet balance ($${balance}) is below this amount.`}{" "}
-            Pay the full ${amount} directly and it&apos;ll be invested automatically once confirmed. Your existing
-            balance stays untouched.
+            Wallet balance (${balance}) is below this amount — pay the full ${amount} directly and it&apos;ll be
+            invested automatically once confirmed. Your existing balance stays untouched.
           </p>
         </div>
       )}

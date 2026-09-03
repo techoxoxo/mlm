@@ -58,8 +58,12 @@ function headroom(
  * Records an exact-decimal earning event, splits it 50/50 USDT/Token (per
  * the plan's design — every direct/daily/level income stream pays half in
  * each), and settles whatever whole-dollar portion the USDT half newly
- * crosses into the user's real spendable wallet. The Token half accrues as a
- * tracked balance only — no withdrawal flow exists for it yet.
+ * crosses into the ROI plan's OWN isolated withdrawable balance —
+ * deliberately never pointsBalance. This plan's earnings are a separate
+ * wallet from the main plan's; the only ways money crosses between them are
+ * external (a direct USDT deposit, or a real bank/crypto withdrawal), never
+ * an internal transfer. The Token half accrues as a tracked balance only —
+ * no withdrawal flow exists for it yet.
  *
  * The roi_transactions insert records the FULL pre-split amount and is the
  * source of truth and idempotency boundary — it always happens, even for a
@@ -71,7 +75,6 @@ async function accrueAndSettle(
   userId: string,
   amount: number,
   roiType: RoiTxType,
-  settleType: "roi_direct_income" | "roi_daily_payout" | "roi_level_income",
   opts: {
     counterpartyId?: string | null;
     investmentId?: string | null;
@@ -112,15 +115,9 @@ async function accrueAndSettle(
       roiEarned: newEarned.toFixed(6),
       roiTokenEarned: newTokenEarned.toFixed(6),
       roiWalletCredited: u.roiWalletCredited + toSettle,
+      roiWithdrawableBalance: sql`${users.roiWithdrawableBalance} + ${toSettle}`,
     })
     .where(eq(users.id, userId));
-
-  if (toSettle > 0) {
-    await post(tx, userId, settleType, toSettle, {
-      counterpartyId: opts.counterpartyId,
-      note: `${opts.note} — settled to wallet (USDT half; matching Token half tracked separately)`,
-    });
-  }
 }
 
 export type InvestResult = { investmentId: string; amount: number; directPaid: number; sponsorId: string | null };
@@ -134,20 +131,20 @@ export type InvestResult = { investmentId: string; amount: number; directPaid: n
  * separate transactions would double-invest, since nothing here is keyed to
  * a specific payment.
  *
- * `source` controls whether the "can't reinvest already-earned money" rule
- * applies (see the wallet-eligibility check below): "wallet" is a user
- * spending their existing balance and IS subject to it; "external" is money
- * that just arrived this same transaction — a direct USDT payment, or an
- * admin's manual funding — and is exempt, since by definition it isn't money
- * this plan already paid out.
+ * `source` is accepted for compatibility with callers that fund the
+ * investment via a fresh deposit in the same transaction (direct USDT
+ * payment, admin manual funding) vs. an existing wallet balance — there's no
+ * behavioral difference anymore now that pointsBalance and the ROI plan's
+ * own wallet are fully isolated (see accrueAndSettle): pointsBalance can
+ * never contain ROI-plan-earned money in the first place, so there's
+ * nothing to guard against either way.
  */
 export async function investInRoiPlanTx(
   tx: Tx,
   userId: string,
   amount: number,
-  opts: { source?: "wallet" | "external" } = {},
+  _opts: { source?: "wallet" | "external" } = {},
 ): Promise<InvestResult> {
-  const source = opts.source ?? "wallet";
   const cfg = await getRoiSettings(tx);
   if (!cfg.enabled) {
     throw new Error("The ROI plan isn't open yet");
@@ -168,25 +165,10 @@ export async function investInRoiPlanTx(
     );
   }
 
-  if (source === "wallet") {
-    // Money this plan has already paid into the wallet can't fund a new
-    // investment in it — only pre-existing/other-source balance can. This is
-    // a conservative check (it doesn't trace which specific dollars are
-    // which, since the wallet is one fungible balance): it simply reserves
-    // an amount equal to lifetime ROI-plan wallet settlements as off-limits.
-    // If some of that's already been spent elsewhere, pointsBalance is
-    // already lower and this comes out the same either way.
-    const investableFromWallet = Math.max(0, user.pointsBalance - user.roiWalletCredited);
-    if (amount > investableFromWallet) {
-      throw new Error(
-        `You can invest up to $${investableFromWallet} from your wallet balance — money already earned from ` +
-          `this plan can't be reinvested from your wallet. Pay the rest directly via USDT instead.`,
-      );
-    }
-  }
-
-  // Debit from the existing points wallet — this plan reuses the same
-  // USDT-equivalent balance, it just tracks its own investment/earning caps.
+  // Debit from the main plan's points wallet — investing is funded from
+  // pointsBalance (or a direct/admin-credited deposit into it) only. It
+  // never touches roiWithdrawableBalance, which is a fully separate wallet
+  // for this plan's own earnings — see accrueAndSettle.
   await post(tx, userId, "roi_investment", -amount, {
     note: `ROI plan investment`,
     idempotencyKey: `roi_invest:${userId}:${Date.now()}`,
@@ -231,7 +213,7 @@ export async function investInRoiPlanTx(
       const room = headroom(sponsor, cfg.capMultiplier);
       directPaid = Math.min(wanted, room);
       if (directPaid > 0) {
-        await accrueAndSettle(tx, sponsor.id, directPaid, "direct_income", "roi_direct_income", {
+        await accrueAndSettle(tx, sponsor.id, directPaid, "direct_income", {
           counterpartyId: userId,
           investmentId: inv.id,
           note: `ROI plan direct income (${cfg.directIncomePercent}% of ${amount})`,
@@ -451,7 +433,7 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
             return null;
           }
 
-          await accrueAndSettle(tx, owner.id, credit, "daily_payout", "roi_daily_payout", {
+          await accrueAndSettle(tx, owner.id, credit, "daily_payout", {
             investmentId: inv.id,
             note: `ROI daily payout (${rate}% of ${inv.amount}) for ${dateKey}`,
             idempotencyKey: `roi_daily:${inv.id}:${dateKey}`,
@@ -473,7 +455,7 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
             const levelCredit = Math.min(levelWanted, levelRoom);
             if (levelCredit <= 0) continue;
 
-            await accrueAndSettle(tx, up.id, levelCredit, "level_income", "roi_level_income", {
+            await accrueAndSettle(tx, up.id, levelCredit, "level_income", {
               counterpartyId: owner.id,
               investmentId: inv.id,
               level,
@@ -521,7 +503,7 @@ export type RoiOverview = {
     invested: number;
     earned: number;
     tokenEarned: number;
-    walletCredited: number;
+    withdrawableBalance: number;
     cap: number;
     remaining: number;
     boosted: boolean;
@@ -550,7 +532,7 @@ export async function getRoiOverview(uid?: string): Promise<RoiOverview> {
         invested: user.roiInvested,
         earned,
         tokenEarned,
-        walletCredited: user.roiWalletCredited,
+        withdrawableBalance: user.roiWithdrawableBalance,
         cap,
         remaining: Math.max(0, cap - earned - tokenEarned),
         boosted: user.roiBoosted,
@@ -578,6 +560,7 @@ export type RoiInvestorRow = {
   investmentCount: number;
   sponsorId: string | null;
   sponsorName: string | null;
+  activeInvestments: { id: string; amount: number }[];
 };
 
 /** Every user who has ever invested, with their cap/boost standing — for the admin overview table. */
@@ -605,7 +588,27 @@ export async function getRoiInvestorsOverview(): Promise<RoiInvestorRow[]> {
     .where(sql`${users.roiInvested} > 0`)
     .orderBy(sql`${users.roiInvested} desc`);
 
-  return rows.map((r) => ({ ...r, earned: Number(r.earned), tokenEarned: Number(r.tokenEarned), cap: r.invested * settings.capMultiplier }));
+  if (rows.length === 0) return [];
+
+  const activeInvRows = await db
+    .select({ id: roiInvestments.id, userId: roiInvestments.userId, amount: roiInvestments.amount })
+    .from(roiInvestments)
+    .where(and(inArray(roiInvestments.userId, rows.map((r) => r.id)), eq(roiInvestments.active, true)))
+    .orderBy(asc(roiInvestments.createdAt));
+  const activeByUser = new Map<string, { id: string; amount: number }[]>();
+  for (const r of activeInvRows) {
+    const arr = activeByUser.get(r.userId) ?? [];
+    arr.push({ id: r.id, amount: r.amount });
+    activeByUser.set(r.userId, arr);
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    earned: Number(r.earned),
+    tokenEarned: Number(r.tokenEarned),
+    cap: r.invested * settings.capMultiplier,
+    activeInvestments: activeByUser.get(r.id) ?? [],
+  }));
 }
 
 /** A user's direct referrals with their own ROI plan standing — "which directs, and their performance". */

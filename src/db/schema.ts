@@ -194,18 +194,24 @@ export const users = pgTable(
     // full-precision lifetime earnings (direct + daily + level income combined),
     // used for cap math — daily/level rates on modest investments round to
     // literal $0/day as whole dollars, so this must stay fractional or the
-    // plan pays nothing. See roiWalletCredited for the whole-dollar portion
-    // that's actually been moved into the spendable points wallet.
+    // plan pays nothing. This is NOT spendable balance — see
+    // roiWithdrawableBalance for the whole-dollar portion actually available
+    // to withdraw. Kept isolated from pointsBalance entirely: the ROI plan's
+    // earnings are a separate wallet from the main plan's, on purpose.
     roiEarned: numeric("roi_earned", { precision: 18, scale: 6 }).notNull().default("0"),
-    // how many whole dollars of roiEarned have already been settled into
-    // pointsBalance via post() — the fractional remainder (roiEarned - this)
-    // stays parked here until it crosses another whole dollar.
+    // lifetime whole dollars ever settled out of roiEarned — monotonic,
+    // used only to compute the next whole-dollar threshold in accrueAndSettle.
+    // NOT the spendable balance (that's roiWithdrawableBalance, which
+    // decreases on withdrawal; this never does).
     roiWalletCredited: integer("roi_wallet_credited").notNull().default(0),
+    // the ROI plan's own isolated spendable USDT-equivalent balance — settled
+    // ROI earnings land here, never in pointsBalance. Withdrawn via a
+    // separate flow from the main plan's wallet (see requestRoiWithdrawal).
+    roiWithdrawableBalance: integer("roi_withdrawable_balance").notNull().default(0),
     // every direct/daily/level income event splits 50/50 — this half accrues
-    // here as Token (tracked/displayed only, no withdrawal yet, so no
-    // wallet-settlement counterpart like roiWalletCredited). Counts toward
-    // the same cap as roiEarned — the cap is on combined earnings, not just
-    // the USDT half.
+    // here as Token (tracked/displayed only, no withdrawal yet). Counts
+    // toward the same cap as roiEarned — the cap is on combined earnings,
+    // not just the USDT half.
     roiTokenEarned: numeric("roi_token_earned", { precision: 18, scale: 6 }).notNull().default("0"),
     // cumulative investment total of this user's DIRECT referrals in the ROI
     // plan — crossing roiSettings.boostThresholdUsdt permanently unlocks the
@@ -328,6 +334,11 @@ export const cryptoTransactions = pgTable("crypto_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull(),
   type: cryptoTxType("type").notNull(),
+  // which wallet a withdrawal was debited from ("roi" for roiWithdrawableBalance,
+  // "main" for pointsBalance) — the payout worker and reject-withdrawal admin
+  // action both need this to refund a failed/rejected withdrawal to the
+  // correct, isolated balance instead of always defaulting to the main one.
+  source: text("source").notNull().default("main"),
   status: cryptoTxStatus("status").notNull().default("pending"),
   amountUsdt: numeric("amount_usdt", { precision: 18, scale: 6 }).notNull(),
   amountPoints: integer("amount_points").notNull(),

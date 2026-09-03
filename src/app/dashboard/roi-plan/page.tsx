@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { getRoiOverview, getMyRoiTransactions } from "@/lib/roiPlan";
 import { RoiInvestForm } from "@/components/RoiInvestForm";
+import { RoiWithdrawCard } from "@/components/RoiWithdrawCard";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +36,7 @@ export default async function RoiPlanPage() {
   const cap = me?.cap ?? 0;
   const capProgress = cap > 0 ? Math.min(100, Math.round((combinedEarned / cap) * 100)) : 0;
   const directRemaining = Math.max(0, settings.boostThresholdUsdt - (me?.directTotal ?? 0));
-  // Money this plan has already paid into the wallet can't fund a new
-  // investment from the wallet — only the rest of the balance can.
-  const investableFromWallet = Math.max(0, pointsBalance - (me?.walletCredited ?? 0));
+  const withdrawableBalance = me?.withdrawableBalance ?? 0;
 
   // Feature is off and this user has no history with it — full coming-soon takeover.
   if (!settings.enabled && invested === 0) {
@@ -245,10 +244,11 @@ export default async function RoiPlanPage() {
       <div className="card" style={{ padding: 26 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 14, marginBottom: 22 }}>
           {[
-            { label: "Wallet balance", value: `$${pointsBalance.toLocaleString()}`, icon: Wallet, color: "#6fc3f7" },
+            { label: "Main wallet balance", value: `$${pointsBalance.toLocaleString()}`, icon: Wallet, color: "#6fc3f7" },
             { label: "Total invested", value: `$${invested.toLocaleString()}`, icon: TrendingUp, color: "var(--gold-bright)" },
-            { label: "USDT earned", value: `$${earned.toFixed(2)}`, icon: Target, color: "#10b981" },
+            { label: "USDT earned (lifetime)", value: `$${earned.toFixed(2)}`, icon: Target, color: "#10b981" },
             { label: "Token earned", value: tokenEarned.toFixed(2), icon: Target, color: "#f0b429" },
+            { label: "ROI wallet — withdrawable", value: `$${withdrawableBalance.toLocaleString()}`, icon: Wallet, color: "#10b981" },
             {
               label: "Daily rate",
               value: me ? `${me.dailyRatePercent}%/day` : "—",
@@ -315,11 +315,25 @@ export default async function RoiPlanPage() {
             maxInvest={settings.maxInvest}
             investStep={settings.investStep}
             balance={pointsBalance}
-            investableFromWallet={investableFromWallet}
           />
         ) : (
           <p style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--faint)", fontSize: 13, margin: 0 }}>
             <Clock size={14} /> New investments are paused right now — your existing investments and earnings above are unaffected.
+          </p>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 26 }}>
+        <h3 style={{ fontSize: 17, margin: "0 0 6px" }}>Withdraw</h3>
+        <p style={{ color: "var(--faint)", fontSize: 13, margin: "0 0 20px" }}>
+          Withdraws from this plan&apos;s own balance (${withdrawableBalance.toLocaleString()} available) — separate
+          from your main wallet. A 5% fee applies, same as regular withdrawals. $10 minimum.
+        </p>
+        {accountActive ? (
+          <RoiWithdrawCard withdrawableBalance={withdrawableBalance} />
+        ) : (
+          <p style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--faint)", fontSize: 13, margin: 0 }}>
+            <Clock size={14} /> Your account isn&apos;t active right now, so withdrawals are paused.
           </p>
         )}
       </div>

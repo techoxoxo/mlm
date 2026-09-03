@@ -85,6 +85,13 @@
       "when": 1788334814281,
       "tag": "0011_big_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788454158822,
+      "tag": "0012_bizarre_hellcat",
+      "breakpoints": true
     }
   ]
 }

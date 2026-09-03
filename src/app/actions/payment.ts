@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, and, or, gt } from "drizzle-orm";
+import { eq, and, or, gt, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSession } from "@/lib/auth";
 import { post } from "@/lib/distribution";
@@ -262,6 +262,110 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
     };
   } catch (error) {
     console.error("requestWithdrawalAction failed:", error);
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Withdraw from the ROI plan's OWN isolated balance (roiWithdrawableBalance)
+ * — deliberately separate from requestWithdrawalAction above, which debits
+ * pointsBalance and applies the main plan's tier-based withdrawal-limit
+ * rules. The ROI plan has no such rules; this only checks the ROI wallet
+ * itself. The actual payout mechanics (OTP, wallet validation, fee, queueing
+ * to the same payout worker) mirror the main withdrawal exactly — only the
+ * balance being debited, and the ledger recording it, are different.
+ */
+export async function requestRoiWithdrawalAction(
+  amountPoints: number,
+  walletAddress: string,
+  otp: string,
+): Promise<ActionState<{ cryptoTxId: string; status: string; amountUsdt: number }>> {
+  try {
+    const session = await requireUser();
+    const userId = session.uid;
+
+    const [caller] = await db.select({ status: users.status, email: users.email }).from(users).where(eq(users.id, userId));
+    if (caller?.status === "registered") {
+      return { ok: false, error: "Account not activated. Please complete activation payment first." };
+    }
+
+    const trimmedOtp = String(otp || "").trim();
+    if (!trimmedOtp) {
+      return { ok: false, error: "Verification code is required" };
+    }
+
+    const { connection } = await import("@/lib/redis");
+    const savedOtp = await connection.get(`otp:${caller.email.toLowerCase()}`);
+    if (!savedOtp || savedOtp !== trimmedOtp) {
+      return { ok: false, error: "Invalid or expired verification code" };
+    }
+    await connection.del(`otp:${caller.email.toLowerCase()}`);
+
+    const trimmedAddress = walletAddress.trim();
+    if (!trimmedAddress.startsWith("0x") || trimmedAddress.length !== 42) {
+      return { ok: false, error: "Invalid USDT BEP-20 wallet address" };
+    }
+
+    if (amountPoints < 10) {
+      return { ok: false, error: "Minimum withdrawal threshold is $10" };
+    }
+
+    const baseUsdt = amountPoints * 1;
+    const feeAmount = baseUsdt * 0.05;
+    const netUsdt = baseUsdt - feeAmount;
+    const status = "pending" as const;
+
+    const encryptedWalletAddress = encrypt(trimmedAddress);
+    const hashedWallet = hashWallet(trimmedAddress);
+    const ip = await safeClientIp();
+
+    const result = await db.transaction(async (tx) => {
+      const [u] = await tx
+        .select({ roiWithdrawableBalance: users.roiWithdrawableBalance })
+        .from(users)
+        .where(eq(users.id, userId))
+        .for("update");
+      if (!u) throw new Error("User not found");
+      if (u.roiWithdrawableBalance < amountPoints) {
+        throw new Error(`Insufficient ROI plan balance. You can only withdraw up to $${u.roiWithdrawableBalance}.`);
+      }
+
+      await tx
+        .update(users)
+        .set({ roiWithdrawableBalance: sql`${users.roiWithdrawableBalance} - ${amountPoints}` })
+        .where(eq(users.id, userId));
+
+      const [ctx] = await tx
+        .insert(cryptoTransactions)
+        .values({
+          userId,
+          type: "withdrawal",
+          source: "roi",
+          status,
+          amountUsdt: netUsdt.toFixed(6),
+          amountPoints,
+          feeUsdt: feeAmount.toFixed(6),
+          network: "bep20",
+          gateway: "razcrypto",
+          encryptedWalletAddress,
+          hashedWalletAddress: hashedWallet,
+          ipAddress: ip,
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      return ctx;
+    });
+
+    await enqueuePaymentPayout(result.id);
+    safeRevalidate("/dashboard/roi-plan");
+
+    return {
+      ok: true,
+      data: { cryptoTxId: result.id, status, amountUsdt: netUsdt },
+    };
+  } catch (error) {
+    console.error("requestRoiWithdrawalAction failed:", error);
     return { ok: false, error: (error as Error).message };
   }
 }
@@ -603,11 +707,20 @@ export async function rejectWithdrawalAction(
         })
         .where(eq(cryptoTransactions.id, cryptoTxId));
 
-      // 2) Refund points to the user
-      await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
-        note: `Refund: Withdrawal rejected${reason ? ` — ${reason}` : ""}`,
-        idempotencyKey: `refund:${cryptoTxId}`,
-      });
+      // 2) Refund to whichever wallet this was debited from — pointsBalance
+      // for a normal withdrawal, or the ROI plan's own isolated balance for
+      // one sourced from there. Never mix the two.
+      if (ctx.source === "roi") {
+        await tx
+          .update(users)
+          .set({ roiWithdrawableBalance: sql`${users.roiWithdrawableBalance} + ${ctx.amountPoints}` })
+          .where(eq(users.id, ctx.userId));
+      } else {
+        await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
+          note: `Refund: Withdrawal rejected${reason ? ` — ${reason}` : ""}`,
+          idempotencyKey: `refund:${cryptoTxId}`,
+        });
+      }
 
       return ctx;
     });

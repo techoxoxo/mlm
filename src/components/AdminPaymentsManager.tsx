@@ -10,6 +10,7 @@ type TxItem = {
   userName: string;
   userSerial: number;
   type: string;
+  source: string;
   status: string;
   amountUsdt: string;
   amountPoints: number;
@@ -123,6 +124,18 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{t.userName}</span>
                     <span className="pill pill-gold mono" style={{ fontSize: 11 }}>{`APX-${t.userSerial.toString().padStart(6, "0")}`}</span>
+                    <span
+                      className="pill"
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        background: t.source === "roi" ? "rgba(245, 198, 23, 0.1)" : "rgba(111, 195, 247, 0.1)",
+                        color: t.source === "roi" ? "var(--gold)" : "#6fc3f7",
+                      }}
+                    >
+                      {t.source === "roi" ? "ROI wallet" : "Main wallet"}
+                    </span>
                   </div>
                   <div style={{ color: "var(--muted)", fontSize: 12.5, marginBottom: 6 }}>
                     <span>Request: <strong style={{ color: "#ffffff" }}>{t.amountPoints} points (${(t.amountPoints * 1).toFixed(2)} USDT)</strong></span>
@@ -191,6 +204,7 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
                 <th>Date</th>
                 <th>Member</th>
                 <th>Type</th>
+                <th>Plan</th>
                 <th>Amount (USDT)</th>
                 <th>Equivalent Points</th>
                 <th>Status</th>
@@ -221,6 +235,20 @@ export function AdminPaymentsManager({ initialTransactions }: { initialTransacti
                     >
                       {t.type === "deposit" ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
                       {t.type}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className="pill"
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        background: t.source === "roi" ? "rgba(245, 198, 23, 0.1)" : "rgba(111, 195, 247, 0.1)",
+                        color: t.source === "roi" ? "var(--gold)" : "#6fc3f7",
+                      }}
+                    >
+                      {t.source === "roi" ? "ROI" : "Main"}
                     </span>
                   </td>
                   <td className="mono" style={{ fontWeight: 600 }}>{Number(t.amountUsdt).toFixed(2)}</td>

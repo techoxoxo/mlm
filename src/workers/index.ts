@@ -19,10 +19,41 @@ import { activate, decideChoice, post } from "@/lib/distribution";
 import { reconcileBalances } from "@/lib/reconciliation";
 import { runRoiDailyDistribution, investInRoiPlanTx, type InvestResult } from "@/lib/roiPlan";
 import { db, schema } from "@/db";
-import { eq } from "drizzle-orm";
+import type { DB } from "@/db";
+import { eq, sql } from "drizzle-orm";
 import { decrypt, hashWallet } from "@/lib/crypto";
 import { createPayout, getPaymentStatus } from "@/lib/razcrypto";
 import { publishEvent } from "@/lib/events";
+
+type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
+
+/**
+ * Refunds a failed/rejected withdrawal to whichever wallet it was originally
+ * debited from — pointsBalance for a normal withdrawal, or the ROI plan's
+ * own isolated roiWithdrawableBalance for one sourced from there. Keeping
+ * these two wallets fully separate cuts both ways: a failure must land the
+ * money back where it came from, not always default to pointsBalance.
+ */
+async function refundFailedWithdrawal(
+  tx: Tx,
+  ctx: { userId: string; amountPoints: number; source: string },
+  note: string,
+  idempotencyKey: string,
+) {
+  if (ctx.source === "roi") {
+    // The isolated ROI wallet isn't backed by the shared idempotency-keyed
+    // ledger, so its guard against double-refunding a retried job is the
+    // same transaction that flips cryptoTransactions.status to "failed" —
+    // the worker's outer status check (pending/pending_admin_approval only)
+    // already stops a second run of the same job from reaching here.
+    await tx
+      .update(schema.users)
+      .set({ roiWithdrawableBalance: sql`${schema.users.roiWithdrawableBalance} + ${ctx.amountPoints}` })
+      .where(eq(schema.users.id, ctx.userId));
+  } else {
+    await post(tx, ctx.userId, "adjustment", ctx.amountPoints, { note, idempotencyKey });
+  }
+}
 
 /**
  * The distribution worker. Concurrency > 1 is safe because slot assignment
@@ -203,10 +234,7 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
           .set({ status: "failed", updatedAt: new Date() })
           .where(eq(schema.cryptoTransactions.id, cryptoTxId));
 
-        await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
-          note: `Refund: Decryption failed for payout ${cryptoTxId}`,
-          idempotencyKey: `refund:${cryptoTxId}`,
-        });
+        await refundFailedWithdrawal(tx, ctx, `Refund: Decryption failed for payout ${cryptoTxId}`, `refund:${cryptoTxId}`);
       });
       await publishEvent(ctx.userId, { type: "payment_update", status: "failed" });
       return;
@@ -265,10 +293,7 @@ const paymentPayoutWorker = new Worker<PaymentPayoutJob>(
           })
           .where(eq(schema.cryptoTransactions.id, cryptoTxId));
 
-        await post(tx, ctx.userId, "adjustment", ctx.amountPoints, {
-          note: `Refund: Payout failed for transaction ${cryptoTxId}`,
-          idempotencyKey: `refund:${cryptoTxId}`,
-        });
+        await refundFailedWithdrawal(tx, ctx, `Refund: Payout failed for transaction ${cryptoTxId}`, `refund:${cryptoTxId}`);
       });
 
       await publishEvent(ctx.userId, { type: "payment_update", status: "failed" });

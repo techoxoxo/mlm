@@ -468,54 +468,50 @@ async function main() {
       `earned unchanged at ${earnedFinal}, run touched ${runAfterReverse.dailyRecipients} recipients`,
     );
 
-    // ---------------------------------------------------------------- Test 14: can't reinvest already-earned money from the wallet
-    log("Test 14: wallet-funded investments can't dip into money this plan already paid out");
-    const noReinvestUser = await makeUser("NoReinvestUser", chain[0].id);
-    createdUserIds.push(noReinvestUser.id);
-    await credit(noReinvestUser.id, 1000);
-    await investInRoiPlan(noReinvestUser.id, 100); // pointsBalance=900, roiInvested=100, roiWalletCredited=0
+    // ---------------------------------------------------------------- Test 14: ROI wallet is fully isolated from the main pointsBalance
+    log("Test 14: ROI plan wallet (roiWithdrawableBalance) never mixes with pointsBalance");
+    const isoUser = await makeUser("IsoUser", chain[0].id);
+    createdUserIds.push(isoUser.id);
+    await credit(isoUser.id, 1000);
 
-    // Simulate a large chunk of the wallet balance having come from this
-    // plan's own settlements, without touching pointsBalance itself — this
-    // isolates the check from needing real multi-day accrual.
-    await db.update(users).set({ roiWalletCredited: 800 }).where(eq(users.id, noReinvestUser.id));
-    // investableFromWallet = pointsBalance(900) - roiWalletCredited(800) = 100
+    const [beforeInvest] = await db.select({ pointsBalance: users.pointsBalance, roiWithdrawableBalance: users.roiWithdrawableBalance }).from(users).where(eq(users.id, isoUser.id));
+    await investInRoiPlan(isoUser.id, 100);
+    const [afterInvest] = await db.select({ pointsBalance: users.pointsBalance, roiWithdrawableBalance: users.roiWithdrawableBalance }).from(users).where(eq(users.id, isoUser.id));
 
-    try {
-      await investInRoiPlan(noReinvestUser.id, 200); // exceeds the 100 investable-from-wallet
-      record("wallet-funded investment exceeding investable amount is rejected", false, "did not throw");
-    } catch (e) {
-      const msg = (e as Error).message;
-      record(
-        "wallet-funded investment exceeding investable amount is rejected",
-        msg.includes("already earned") || msg.includes("reinvest"),
-        msg,
-      );
-    }
-
-    await investInRoiPlan(noReinvestUser.id, 100); // exactly at the investable boundary — should succeed
-    const afterBoundaryInvest = await getRoiOverview(noReinvestUser.id);
     record(
-      "wallet-funded investment exactly at the investable boundary succeeds",
-      afterBoundaryInvest.me?.invested === 200,
-      `roiInvested=${afterBoundaryInvest.me?.invested} (expected 200 = 100 initial + 100 just invested)`,
+      "investing debits pointsBalance by exactly the invested amount",
+      afterInvest.pointsBalance === beforeInvest.pointsBalance - 100,
+      `pointsBalance went from ${beforeInvest.pointsBalance} to ${afterInvest.pointsBalance}`,
+    );
+    record(
+      "investing never touches roiWithdrawableBalance",
+      afterInvest.roiWithdrawableBalance === beforeInvest.roiWithdrawableBalance,
+      `roiWithdrawableBalance before=${beforeInvest.roiWithdrawableBalance}, after=${afterInvest.roiWithdrawableBalance}`,
     );
 
-    await credit(noReinvestUser.id, 500); // fresh, non-ROI money — pointsBalance now 800+500=1300 (wait: after the 100 invest, balance was 800; +500 credit = 1300)
-    try {
-      await investInRoiPlan(noReinvestUser.id, 600); // still exceeds investable (1300-800=500 < 600) via default wallet source
-      record("wallet-funded investment still respects the limit after topping up balance", false, "did not throw");
-    } catch (e) {
-      record("wallet-funded investment still respects the limit after topping up balance", true, (e as Error).message);
-    }
+    // Force a large amount of accrued ROI earnings to cross whole-dollar boundaries
+    // and settle into roiWithdrawableBalance, then confirm pointsBalance never moved.
+    await db.update(users).set({ roiEarned: "50.000000" }).where(eq(users.id, isoUser.id));
+    const [beforeRun] = await db.select({ pointsBalance: users.pointsBalance }).from(users).where(eq(users.id, isoUser.id));
+    await runRoiDailyDistribution();
+    const [afterRun] = await db.select({ pointsBalance: users.pointsBalance, roiWithdrawableBalance: users.roiWithdrawableBalance }).from(users).where(eq(users.id, isoUser.id));
 
-    const beforeExternal = await getRoiOverview(noReinvestUser.id);
-    await investInRoiPlan(noReinvestUser.id, 600, { source: "external" }); // bypasses the check — simulates a direct/admin-funded investment
-    const afterExternal = await getRoiOverview(noReinvestUser.id);
     record(
-      "source:'external' bypasses the wallet-eligibility restriction",
-      (afterExternal.me?.invested ?? 0) === (beforeExternal.me?.invested ?? 0) + 600,
-      `invested went from ${beforeExternal.me?.invested} to ${afterExternal.me?.invested}`,
+      "ROI earnings settling into roiWithdrawableBalance never touch pointsBalance",
+      afterRun.pointsBalance === beforeRun.pointsBalance,
+      `pointsBalance before=${beforeRun.pointsBalance}, after=${afterRun.pointsBalance}`,
+    );
+    record(
+      "roiWithdrawableBalance grew from settled ROI earnings",
+      afterRun.roiWithdrawableBalance > beforeInvest.roiWithdrawableBalance,
+      `roiWithdrawableBalance=${afterRun.roiWithdrawableBalance}`,
+    );
+
+    const isoOverview = await getRoiOverview(isoUser.id);
+    record(
+      "getRoiOverview exposes withdrawableBalance matching the DB column",
+      isoOverview.me?.withdrawableBalance === afterRun.roiWithdrawableBalance,
+      `overview.withdrawableBalance=${isoOverview.me?.withdrawableBalance}, db=${afterRun.roiWithdrawableBalance}`,
     );
   } finally {
     // ------------------------------------------------------------------ cleanup
@@ -537,6 +533,7 @@ async function main() {
   }
 
   await pool.end();
+  process.exit(failed.length ? 1 : 0);
 }
 
 main().catch(async (e) => {

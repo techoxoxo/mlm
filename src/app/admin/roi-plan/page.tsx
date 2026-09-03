@@ -5,6 +5,7 @@ import { memberCode } from "@/db/schema";
 import { getRoiOverview, getRoiInvestorsOverview } from "@/lib/roiPlan";
 import { RoiRunButton } from "@/components/RoiRunButton";
 import { RoiToggleButton } from "@/components/RoiToggleButton";
+import { RoiReverseButton } from "@/components/RoiReverseButton";
 import { updateRoiSettingsAction, updateRoiLevelTierAction } from "@/app/actions/admin";
 import { SettingsLockWrapper } from "@/components/SettingsLockWrapper";
 
@@ -273,13 +274,20 @@ export default async function RoiPlanAdmin() {
                       )}
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <Link
-                        href={`/admin/users/${inv.id}#investments`}
-                        className="pill"
-                        style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
-                      >
-                        ↩️ Reverse…
-                      </Link>
+                      {inv.activeInvestments.length === 1 ? (
+                        <RoiReverseButton investmentId={inv.activeInvestments[0].id} amount={inv.activeInvestments[0].amount} />
+                      ) : inv.activeInvestments.length > 1 ? (
+                        <Link
+                          href={`/admin/users/${inv.id}#investments`}
+                          className="pill"
+                          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}
+                          title={`${inv.activeInvestments.length} separate investments — pick which one to reverse`}
+                        >
+                          ↩️ Reverse ({inv.activeInvestments.length})…
+                        </Link>
+                      ) : (
+                        <span style={{ color: "var(--faint)", fontSize: 11 }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
