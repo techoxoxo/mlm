@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { getRoiOverview, getMyRoiTransactions } from "@/lib/roiPlan";
+import { getUserWithdrawableDetails } from "@/lib/queries";
 import { RoiInvestForm } from "@/components/RoiInvestForm";
 import { RoiWithdrawCard } from "@/components/RoiWithdrawCard";
 
@@ -25,6 +26,7 @@ export default async function RoiPlanPage() {
     .from(schema.users)
     .where(eq(schema.users.id, session.uid));
   const accountActive = accountStatus === "active";
+  const { withdrawablePoints: mainWithdrawablePoints } = await getUserWithdrawableDetails(session.uid);
 
   const { settings, tiers, me } = await getRoiOverview(session.uid);
   const txs = await getMyRoiTransactions(session.uid);
@@ -314,7 +316,7 @@ export default async function RoiPlanPage() {
             minInvest={settings.minInvest}
             maxInvest={settings.maxInvest}
             investStep={settings.investStep}
-            balance={pointsBalance}
+            balance={mainWithdrawablePoints}
           />
         ) : (
           <p style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--faint)", fontSize: 13, margin: 0 }}>

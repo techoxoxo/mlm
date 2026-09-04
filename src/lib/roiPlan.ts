@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import type { DB } from "@/db";
 import { post, withTxRetry } from "./distribution";
 import { publishEvent } from "./events";
+import { getUserWithdrawableDetailsTx } from "./queries";
 
 const { users, roiSettings, roiLevelTiers, roiInvestments, roiTransactions, transactions } = schema;
 
@@ -131,19 +132,23 @@ export type InvestResult = { investmentId: string; amount: number; directPaid: n
  * separate transactions would double-invest, since nothing here is keyed to
  * a specific payment.
  *
- * `source` is accepted for compatibility with callers that fund the
- * investment via a fresh deposit in the same transaction (direct USDT
- * payment, admin manual funding) vs. an existing wallet balance — there's no
- * behavioral difference anymore now that pointsBalance and the ROI plan's
- * own wallet are fully isolated (see accrueAndSettle): pointsBalance can
- * never contain ROI-plan-earned money in the first place, so there's
- * nothing to guard against either way.
+ * `source` distinguishes how the investment is funded:
+ *  - "external" (default caller: payment webhook after a real USDT deposit,
+ *    or admin manual funding) — the money just arrived from outside the
+ *    system, so it's fine to draw on the full pointsBalance.
+ *  - "wallet" (default) — the user is paying out of their EXISTING main-plan
+ *    balance. That balance isn't all spendable: `getUserWithdrawableDetailsTx`
+ *    locks 70% of certain tier earnings, so a user can show $120 pointsBalance
+ *    while only $15 of it is actually withdrawable. Wallet-funded investments
+ *    must be capped at that withdrawable amount — otherwise a user could
+ *    invest money the main plan wouldn't even let them withdraw. Anything
+ *    beyond that has to be paid on the spot instead (source: "external").
  */
 export async function investInRoiPlanTx(
   tx: Tx,
   userId: string,
   amount: number,
-  _opts: { source?: "wallet" | "external" } = {},
+  opts: { source?: "wallet" | "external" } = {},
 ): Promise<InvestResult> {
   const cfg = await getRoiSettings(tx);
   if (!cfg.enabled) {
@@ -163,6 +168,15 @@ export async function investInRoiPlanTx(
         ? "Complete your account activation before investing in the ROI plan"
         : "Your account is not active, so you can't invest in the ROI plan",
     );
+  }
+
+  if (opts.source !== "external") {
+    const { withdrawablePoints } = await getUserWithdrawableDetailsTx(tx, userId);
+    if (amount > withdrawablePoints) {
+      throw new Error(
+        `Only $${withdrawablePoints} of your wallet balance is withdrawable and eligible to invest — pay the remaining amount directly instead.`,
+      );
+    }
   }
 
   // Debit from the main plan's points wallet — investing is funded from

@@ -513,6 +513,53 @@ async function main() {
       isoOverview.me?.withdrawableBalance === afterRun.roiWithdrawableBalance,
       `overview.withdrawableBalance=${isoOverview.me?.withdrawableBalance}, db=${afterRun.roiWithdrawableBalance}`,
     );
+
+    // ---------------------------------------------------------------- Test 15: wallet-funded investments can't dip into LOCKED main-plan balance
+    log("Test 15: wallet-funded investing is capped at the main plan's actual withdrawable balance, not raw pointsBalance");
+    const lockedUser = await makeUser("LockedUser", chain[0].id);
+    createdUserIds.push(lockedUser.id);
+    // Simulate a mid-tier user (slab 2) whose pointsBalance is inflated by
+    // tier earnings that are 70% locked — mirrors getUserWithdrawableDetailsTx.
+    await db.update(users).set({ currentSlab: 2 }).where(eq(users.id, lockedUser.id));
+    await credit(lockedUser.id, 20); // ordinary funding, no slabLevel — fully withdrawable
+    await db.transaction((tx) =>
+      post(tx, lockedUser.id, "slot_credit", 600, { slabLevel: 2, note: "test tier earning", idempotencyKey: `testtier:${lockedUser.id}:${Date.now()}` }),
+    );
+    // pointsBalance = 20 + 600 = 620; restTiersEarned = 600; withdrawableRest = floor(600*0.3) = 180;
+    // locked = 600 - 180 = 420; withdrawable = 620 - 420 = 200
+
+    try {
+      await investInRoiPlan(lockedUser.id, 300); // exceeds the $200 actually withdrawable (still a valid $100-step amount)
+      record("wallet-funded investment exceeding withdrawable (locked) balance is rejected", false, "did not throw");
+    } catch (e) {
+      const msg = (e as Error).message;
+      record(
+        "wallet-funded investment exceeding withdrawable (locked) balance is rejected",
+        msg.includes("withdrawable"),
+        msg,
+      );
+    }
+
+    await investInRoiPlan(lockedUser.id, 200); // exactly at the withdrawable boundary — should succeed
+    const lockedOverview = await getRoiOverview(lockedUser.id);
+    record(
+      "wallet-funded investment exactly at the withdrawable boundary succeeds",
+      lockedOverview.me?.invested === 200,
+      `roiInvested=${lockedOverview.me?.invested} (expected 200)`,
+    );
+
+    // Simulate an on-the-spot USDT payment: a fresh deposit lands in the wallet,
+    // then the investment debits it right back out in the same flow — the
+    // withdrawable-balance check must not apply here even though the user's
+    // remaining balance is still mostly locked.
+    await credit(lockedUser.id, 100);
+    await investInRoiPlan(lockedUser.id, 100, { source: "external" });
+    const lockedOverviewExternal = await getRoiOverview(lockedUser.id);
+    record(
+      "source:'external' bypasses the withdrawable-balance restriction",
+      lockedOverviewExternal.me?.invested === 300,
+      `invested=${lockedOverviewExternal.me?.invested} (expected 300 = 200 wallet-funded + 100 external)`,
+    );
   } finally {
     // ------------------------------------------------------------------ cleanup
     log("Cleaning up test data");

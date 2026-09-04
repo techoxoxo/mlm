@@ -135,8 +135,9 @@ export function RoiInvestForm({
             {awaitingPayment ? "Waiting for payment…" : `Pay $${amount} via USDT`}
           </button>
           <p style={{ color: "var(--faint)", fontSize: 13, margin: 0 }}>
-            Wallet balance (${balance}) is below this amount — pay the full ${amount} directly and it&apos;ll be
-            invested automatically once confirmed. Your existing balance stays untouched.
+            Your withdrawable wallet balance (${balance}) is below this amount — some of your balance is locked and
+            can&apos;t fund an investment. Pay the full ${amount} directly and it&apos;ll be invested automatically
+            once confirmed. Your existing balance stays untouched.
           </p>
         </div>
       )}
