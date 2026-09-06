@@ -646,6 +646,110 @@ export async function getRoiDirectsPerformance(uid: string) {
   return rows.map((r) => ({ ...r, earned: Number(r.earned), tokenEarned: Number(r.tokenEarned), cap: r.invested * settings.capMultiplier }));
 }
 
+export type RoiLevelRow = {
+  level: number;
+  percent: number;
+  memberCount: number;
+  investedCount: number;
+  totalInvested: number;
+  earnedFromLevel: number;
+  payoutCount: number;
+};
+
+/**
+ * A user's full 20-level ROI downline, one row per level — how many people
+ * are at that level, how many of them have actually invested, how much
+ * they've invested combined, and how much level income this user has
+ * personally earned FROM that level so far. Always returns one row per
+ * configured tier (even levels with zero downline), so the UI can render a
+ * complete 1-20 table without gaps.
+ */
+export async function getRoiLevelBreakdown(uid: string): Promise<RoiLevelRow[]> {
+  const tiers = await getRoiLevelTiers();
+  if (tiers.length === 0) return [];
+  const maxLevels = tiers[tiers.length - 1].level;
+
+  const downlineRes = await db.execute(sql`
+    WITH RECURSIVE downline AS (
+      SELECT id, roi_invested, 1 AS depth
+      FROM users WHERE sponsor_id = ${uid}
+      UNION ALL
+      SELECT u.id, u.roi_invested, d.depth + 1
+      FROM users u
+      JOIN downline d ON u.sponsor_id = d.id
+      WHERE d.depth < ${maxLevels}
+    )
+    SELECT depth,
+           count(*)::int AS member_count,
+           count(*) FILTER (WHERE roi_invested > 0)::int AS invested_count,
+           coalesce(sum(roi_invested), 0)::int AS total_invested
+    FROM downline
+    GROUP BY depth
+  `);
+  const downlineByLevel = new Map(
+    (downlineRes.rows as { depth: number; member_count: number; invested_count: number; total_invested: number }[]).map((r) => [
+      r.depth,
+      r,
+    ]),
+  );
+
+  const earnedRows = await db
+    .select({
+      level: roiTransactions.level,
+      total: sql<string>`coalesce(sum(${roiTransactions.points}), 0)`,
+      payoutCount: sql<number>`count(*)::int`,
+    })
+    .from(roiTransactions)
+    .where(and(eq(roiTransactions.userId, uid), eq(roiTransactions.type, "level_income")))
+    .groupBy(roiTransactions.level);
+  const earnedByLevel = new Map(earnedRows.map((r) => [r.level, r]));
+
+  return tiers.map((t) => {
+    const d = downlineByLevel.get(t.level);
+    const e = earnedByLevel.get(t.level);
+    return {
+      level: t.level,
+      percent: Number(t.percent),
+      memberCount: d?.member_count ?? 0,
+      investedCount: d?.invested_count ?? 0,
+      totalInvested: d?.total_invested ?? 0,
+      earnedFromLevel: e ? Number(e.total) : 0,
+      payoutCount: e?.payoutCount ?? 0,
+    };
+  });
+}
+
+export type RoiIncomeBreakdown = {
+  directIncome: { total: number; count: number };
+  dailyPayout: { total: number; count: number };
+  levelIncome: { total: number; count: number };
+};
+
+/** Lifetime earnings split by income stream — "how much from what". */
+export async function getRoiIncomeBreakdown(uid: string): Promise<RoiIncomeBreakdown> {
+  const rows = await db
+    .select({
+      type: roiTransactions.type,
+      total: sql<string>`coalesce(sum(${roiTransactions.points}), 0)`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(roiTransactions)
+    .where(eq(roiTransactions.userId, uid))
+    .groupBy(roiTransactions.type);
+
+  const byType = new Map(rows.map((r) => [r.type, r]));
+  const pick = (type: RoiTxType) => {
+    const r = byType.get(type);
+    return { total: r ? Number(r.total) : 0, count: r?.count ?? 0 };
+  };
+
+  return {
+    directIncome: pick("direct_income"),
+    dailyPayout: pick("daily_payout"),
+    levelIncome: pick("level_income"),
+  };
+}
+
 export type RoiActivityRow = { id: string; type: string; points: number; createdAt: Date };
 
 /**

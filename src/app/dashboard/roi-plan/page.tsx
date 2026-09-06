@@ -3,7 +3,7 @@ import { TrendingUp, Wallet, Users, Target, Clock, Coins, Layers, Percent } from
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
-import { getRoiOverview, getMyRoiTransactions } from "@/lib/roiPlan";
+import { getRoiOverview, getMyRoiTransactions, getRoiLevelBreakdown, getRoiIncomeBreakdown } from "@/lib/roiPlan";
 import { getUserWithdrawableDetails } from "@/lib/queries";
 import { RoiInvestForm } from "@/components/RoiInvestForm";
 import { RoiWithdrawCard } from "@/components/RoiWithdrawCard";
@@ -28,8 +28,10 @@ export default async function RoiPlanPage() {
   const accountActive = accountStatus === "active";
   const { withdrawablePoints: mainWithdrawablePoints } = await getUserWithdrawableDetails(session.uid);
 
-  const { settings, tiers, me } = await getRoiOverview(session.uid);
+  const { settings, me } = await getRoiOverview(session.uid);
   const txs = await getMyRoiTransactions(session.uid);
+  const levelBreakdown = await getRoiLevelBreakdown(session.uid);
+  const incomeBreakdown = await getRoiIncomeBreakdown(session.uid);
 
   const invested = me?.invested ?? 0;
   const earned = me?.earned ?? 0;
@@ -356,20 +358,75 @@ export default async function RoiPlanPage() {
       )}
 
       <div className="card" style={{ padding: 26 }}>
-        <h3 style={{ fontSize: 17, margin: "0 0 8px" }}>Level income — 20 levels deep</h3>
+        <h3 style={{ fontSize: 17, margin: "0 0 8px" }}>Where your earnings come from</h3>
         <p style={{ color: "var(--faint)", fontSize: 13, margin: "0 0 20px" }}>
-          A share of your downline&apos;s daily ROI, paid up through your sponsor chain.
+          Every income stream splits 50% USDT / 50% Token — totals below are combined (both currencies).
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(90px,1fr))", gap: 8 }}>
-          {tiers.map((t) => (
-            <div
-              key={t.level}
-              style={{ padding: "10px 8px", borderRadius: 10, border: "1px solid var(--border)", textAlign: "center" }}
-            >
-              <div style={{ fontSize: 11, color: "var(--faint)" }}>Lv {t.level}</div>
-              <div className="mono" style={{ fontSize: 14, fontWeight: 700 }}>{Number(t.percent)}%</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}>
+          {[
+            { label: "Direct income", desc: "10% of a direct's investment", d: incomeBreakdown.directIncome },
+            { label: "Daily ROI", desc: "your own investments' daily payout", d: incomeBreakdown.dailyPayout },
+            { label: "Level income", desc: "20-level share of downline's daily ROI", d: incomeBreakdown.levelIncome },
+          ].map((row) => (
+            <div key={row.label} style={{ padding: 14, borderRadius: 10, border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 12, color: "var(--faint)", marginBottom: 4 }}>{row.label}</div>
+              <div className="mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--gold-bright)" }}>
+                ${row.d.total.toFixed(2)}
+              </div>
+              <div style={{ fontSize: 10.5, color: "var(--faint)", marginTop: 4 }}>
+                {row.d.count} payout{row.d.count === 1 ? "" : "s"} · {row.desc}
+              </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 26 }}>
+        <h3 style={{ fontSize: 17, margin: "0 0 8px" }}>Your 20-level ROI network</h3>
+        <p style={{ color: "var(--faint)", fontSize: 13, margin: "0 0 20px" }}>
+          Everyone below you in the sponsor chain, level by level, and what you&apos;ve earned from each level so far
+          (a share of that level&apos;s daily ROI).
+        </p>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                {["Level", "Rate", "Members", "Invested (members)", "Total invested", "Your earnings"].map((h, i) => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: "10px 8px",
+                      textAlign: i === 0 ? "left" : "right",
+                      fontSize: 10.5,
+                      fontWeight: 800,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--faint)",
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {levelBreakdown.map((row) => (
+                <tr key={row.level} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "9px 8px" }}>Lv {row.level}</td>
+                  <td className="mono" style={{ padding: "9px 8px", textAlign: "right" }}>{row.percent}%</td>
+                  <td className="mono" style={{ padding: "9px 8px", textAlign: "right" }}>{row.memberCount}</td>
+                  <td className="mono" style={{ padding: "9px 8px", textAlign: "right" }}>{row.investedCount}</td>
+                  <td className="mono" style={{ padding: "9px 8px", textAlign: "right" }}>${row.totalInvested.toLocaleString()}</td>
+                  <td
+                    className="mono"
+                    style={{ padding: "9px 8px", textAlign: "right", fontWeight: 700, color: row.earnedFromLevel > 0 ? "#10b981" : "var(--faint)" }}
+                  >
+                    ${row.earnedFromLevel.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
