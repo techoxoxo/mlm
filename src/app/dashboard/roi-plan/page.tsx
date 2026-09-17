@@ -94,8 +94,8 @@ export default async function RoiPlanPage() {
               },
               {
                 icon: Coins,
-                title: "5. Split 50/50",
-                text: "Every payout splits 50% USDT and 50% Token.",
+                title: "5. 100% USDT",
+                text: "Every payout — direct, daily, and level income — is paid entirely in USDT.",
               },
               {
                 icon: Percent,
@@ -211,13 +211,13 @@ export default async function RoiPlanPage() {
             },
             {
               icon: Coins,
-              title: "5. Split 50/50",
-              text: "Every payout — direct, daily, and level income — is split 50% USDT and 50% Token. Both count toward the same cap below.",
+              title: "5. 100% USDT",
+              text: "Every payout — direct, daily, and level income — is paid entirely in USDT, counting toward the cap below.",
             },
             {
               icon: Percent,
               title: `6. ${settings.capMultiplier}× lifetime cap`,
-              text: `All income combined (direct + daily + level, both currencies) stops once it reaches ${settings.capMultiplier}× what you invested. After that, that investment has paid out in full.`,
+              text: `All income combined (direct + daily + level) stops once it reaches ${settings.capMultiplier}× what you invested. After that, that investment has paid out in full.`,
             },
           ].map((step) => (
             <div key={step.title} style={{ display: "flex", gap: 12 }}>
@@ -250,8 +250,7 @@ export default async function RoiPlanPage() {
           {[
             { label: "Main wallet balance", value: `$${pointsBalance.toLocaleString()}`, icon: Wallet, color: "#6fc3f7" },
             { label: "Total invested", value: `$${invested.toLocaleString()}`, icon: TrendingUp, color: "var(--gold-bright)" },
-            { label: "USDT earned (lifetime)", value: `$${earned.toFixed(2)}`, icon: Target, color: "#10b981" },
-            { label: "Token earned", value: tokenEarned.toFixed(2), icon: Target, color: "#f0b429" },
+            { label: "USDT earned (lifetime)", value: `$${combinedEarned.toFixed(2)}`, icon: Target, color: "#10b981" },
             { label: "ROI wallet — withdrawable", value: `$${withdrawableBalance.toLocaleString()}`, icon: Wallet, color: "#10b981" },
             {
               label: "Daily rate",
@@ -278,7 +277,7 @@ export default async function RoiPlanPage() {
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 8 }}>
               <span style={{ color: "var(--muted)" }}>
                 <Target size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} />
-                {settings.capMultiplier}× cap progress (${combinedEarned.toFixed(2)} of ${cap.toLocaleString()}, USDT + Token combined)
+                {settings.capMultiplier}× cap progress (${combinedEarned.toFixed(2)} of ${cap.toLocaleString()})
               </span>
               <span className="mono" style={{ color: "var(--gold-bright)", fontWeight: 700 }}>
                 {capProgress}%
@@ -305,8 +304,7 @@ export default async function RoiPlanPage() {
           ${settings.minInvest}–${settings.maxInvest}, in multiples of ${settings.investStep}. Paid daily at{" "}
           {Number(settings.baseDailyRoiPercent)}% (boosted to {Number(settings.boostedDailyRoiPercent)}% once your
           directs&apos; investments reach ${settings.boostThresholdUsdt} total) — every direct, daily, and level
-          income payout splits 50% USDT / 50% Token. All income combined (both currencies) caps at{" "}
-          {settings.capMultiplier}× what you invest.
+          income payout is paid 100% in USDT, and caps at {settings.capMultiplier}× what you invest.
         </p>
         {!accountActive ? (
           <p style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--faint)", fontSize: 13, margin: 0 }}>
@@ -360,7 +358,7 @@ export default async function RoiPlanPage() {
       <div className="card" style={{ padding: 26 }}>
         <h3 style={{ fontSize: 17, margin: "0 0 8px" }}>Where your earnings come from</h3>
         <p style={{ color: "var(--faint)", fontSize: 13, margin: "0 0 20px" }}>
-          Every income stream splits 50% USDT / 50% Token — totals below are combined (both currencies).
+          Every income stream is paid 100% in USDT.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}>
           {[
@@ -473,7 +471,7 @@ export default async function RoiPlanPage() {
                       {Number.isInteger(t.points) ? t.points : t.points.toFixed(4)}
                       {isIncome && (
                         <div style={{ fontSize: 10.5, fontWeight: 400, color: "var(--faint)", marginTop: 2 }}>
-                          {(t.points / 2).toFixed(4)} USDT + {(t.points / 2).toFixed(4)} Token
+                          USDT
                         </div>
                       )}
                     </td>

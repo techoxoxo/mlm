@@ -208,10 +208,12 @@ export const users = pgTable(
     // ROI earnings land here, never in pointsBalance. Withdrawn via a
     // separate flow from the main plan's wallet (see requestRoiWithdrawal).
     roiWithdrawableBalance: integer("roi_withdrawable_balance").notNull().default(0),
-    // every direct/daily/level income event splits 50/50 — this half accrues
-    // here as Token (tracked/displayed only, no withdrawal yet). Counts
-    // toward the same cap as roiEarned — the cap is on combined earnings,
-    // not just the USDT half.
+    // FROZEN/legacy field — the plan originally split every direct/daily/
+    // level income event 50/50 USDT/Token; Token has since been retired and
+    // no new income is ever added here (see accrueAndSettle in roiPlan.ts).
+    // Still read for cap math (headroom()) and admin display, since some
+    // users' historical earnings may still be recorded here if the one-time
+    // conversion migration hasn't been run.
     roiTokenEarned: numeric("roi_token_earned", { precision: 18, scale: 6 }).notNull().default("0"),
     // cumulative investment total of this user's DIRECT referrals in the ROI
     // plan — crossing roiSettings.boostThresholdUsdt permanently unlocks the

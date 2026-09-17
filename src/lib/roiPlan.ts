@@ -29,8 +29,10 @@ type RoiTxType = (typeof schema.roiTxType.enumValues)[number];
  * Earnings accrue with full decimal precision (users.roiEarned) — daily/level
  * percentages on modest investments are routinely worth less than $1, and
  * flooring each one to a whole dollar would mean most investors earn exactly
- * $0 forever. The spendable wallet (points_balance, integer) only receives
- * whole-dollar transfers as they accrue — see accrueAndSettle below.
+ * $0 forever. The plan's own isolated spendable wallet (roiWithdrawableBalance,
+ * integer) only receives whole-dollar transfers as they accrue — see
+ * accrueAndSettle below. Every income stream is paid 100% USDT; an earlier
+ * 50/50 USDT/Token split was retired (see roiTokenEarned in schema.ts).
  */
 
 export async function getRoiSettings(tx: Tx | DB = db) {
@@ -45,8 +47,9 @@ export async function getRoiLevelTiers(tx: Tx | DB = db) {
 
 /**
  * Remaining headroom a user can still earn from this plan before hitting
- * their cap — combined across both currencies, since the cap is on total
- * earnings (USDT + Token), not either half alone.
+ * their cap. Still subtracts roiTokenEarned even though it's frozen — any
+ * legacy Token balance still counts against the cap unless/until the
+ * conversion migration merges it into roiEarned.
  */
 function headroom(
   u: { roiInvested: number; roiEarned: string | number; roiTokenEarned: string | number },
@@ -56,20 +59,19 @@ function headroom(
 }
 
 /**
- * Records an exact-decimal earning event, splits it 50/50 USDT/Token (per
- * the plan's design — every direct/daily/level income stream pays half in
- * each), and settles whatever whole-dollar portion the USDT half newly
- * crosses into the ROI plan's OWN isolated withdrawable balance —
+ * Records an exact-decimal earning event (100% USDT — the old 50/50
+ * USDT/Token split was retired; roiTokenEarned is now a frozen historical
+ * field only, never added to) and settles whatever whole-dollar portion
+ * newly crosses into the ROI plan's OWN isolated withdrawable balance —
  * deliberately never pointsBalance. This plan's earnings are a separate
  * wallet from the main plan's; the only ways money crosses between them are
  * external (a direct USDT deposit, or a real bank/crypto withdrawal), never
- * an internal transfer. The Token half accrues as a tracked balance only —
- * no withdrawal flow exists for it yet.
+ * an internal transfer.
  *
- * The roi_transactions insert records the FULL pre-split amount and is the
- * source of truth and idempotency boundary — it always happens, even for a
- * $0.003 accrual, which is what lets daily distribution detect "already
- * processed today" reliably.
+ * The roi_transactions insert records the full amount and is the source of
+ * truth and idempotency boundary — it always happens, even for a $0.003
+ * accrual, which is what lets daily distribution detect "already processed
+ * today" reliably.
  */
 async function accrueAndSettle(
   tx: Tx,
@@ -85,7 +87,7 @@ async function accrueAndSettle(
   },
 ): Promise<void> {
   const [u] = await tx
-    .select({ roiEarned: users.roiEarned, roiTokenEarned: users.roiTokenEarned, roiWalletCredited: users.roiWalletCredited })
+    .select({ roiEarned: users.roiEarned, roiWalletCredited: users.roiWalletCredited })
     .from(users)
     .where(eq(users.id, userId))
     .for("update");
@@ -102,11 +104,7 @@ async function accrueAndSettle(
     idempotencyKey: opts.idempotencyKey,
   });
 
-  const usdtHalf = amount / 2;
-  const tokenHalf = amount - usdtHalf; // avoids losing a fraction of a cent to rounding vs amount/2 twice
-
-  const newEarned = Number(u.roiEarned) + usdtHalf;
-  const newTokenEarned = Number(u.roiTokenEarned) + tokenHalf;
+  const newEarned = Number(u.roiEarned) + amount;
   const newWhole = Math.floor(newEarned);
   const toSettle = Math.max(0, newWhole - u.roiWalletCredited);
 
@@ -114,7 +112,6 @@ async function accrueAndSettle(
     .update(users)
     .set({
       roiEarned: newEarned.toFixed(6),
-      roiTokenEarned: newTokenEarned.toFixed(6),
       roiWalletCredited: u.roiWalletCredited + toSettle,
       roiWithdrawableBalance: sql`${users.roiWithdrawableBalance} + ${toSettle}`,
     })

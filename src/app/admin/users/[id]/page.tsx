@@ -248,7 +248,7 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 18 }}>
           <Stat label="Invested" value={`$${user.roiInvested.toLocaleString()}`} />
           <Stat label="USDT earned" value={`$${Number(user.roiEarned).toFixed(2)}`} accent />
-          <Stat label="Token earned" value={Number(user.roiTokenEarned).toFixed(2)} accent />
+          <Stat label="Token (legacy)" value={Number(user.roiTokenEarned).toFixed(2)} />
           <Stat label={`Cap (${roiSettings.capMultiplier}×)`} value={`$${roiCap.toLocaleString()}`} />
           <Stat label="Directs' investment" value={`$${user.roiDirectTotal.toLocaleString()}`} />
           <Stat label="Rate" value={user.roiBoosted ? "Boosted" : "Base"} accent={user.roiBoosted} />
@@ -363,7 +363,7 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
                   <th>Member</th>
                   <th style={{ textAlign: "right" }}>Invested</th>
                   <th style={{ textAlign: "right" }}>USDT earned</th>
-                  <th style={{ textAlign: "right" }}>Token earned</th>
+                  <th style={{ textAlign: "right" }}>Token (legacy)</th>
                   <th style={{ textAlign: "right" }}>Cap</th>
                   <th>Rate</th>
                 </tr>

@@ -338,7 +338,7 @@ export default async function RoiPlanAdmin() {
                   <th>Sponsor</th>
                   <th style={{ textAlign: "right" }}>Invested</th>
                   <th style={{ textAlign: "right" }}>USDT earned</th>
-                  <th style={{ textAlign: "right" }}>Token earned</th>
+                  <th style={{ textAlign: "right" }}>Token (legacy)</th>
                   <th style={{ textAlign: "right" }}>Cap</th>
                   <th style={{ textAlign: "right" }}>Directs&apos; invested</th>
                   <th>Rate</th>

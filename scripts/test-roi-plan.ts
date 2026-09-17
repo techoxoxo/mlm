@@ -137,7 +137,7 @@ async function main() {
     const sponsorOverview = await getRoiOverview(chain[chain.length - 2].id);
     const sponsorCombined = (sponsorOverview.me?.earned ?? -1) + (sponsorOverview.me?.tokenEarned ?? 0);
     record(
-      "direct income paid correctly (combined USDT+Token, split 50/50)",
+      "direct income paid correctly (combined USDT+Token)",
       Math.abs(sponsorCombined - expectedDirectIncome) < 1e-6,
       `expected ${expectedDirectIncome}, sponsor combined=${sponsorCombined} (usdt=${sponsorOverview.me?.earned}, token=${sponsorOverview.me?.tokenEarned})`,
     );
@@ -189,7 +189,7 @@ async function main() {
     const expectedLevel1Income = (l1DailyCredit * Number(l1Tier.percent)) / 100;
     // sponsor's own daily ROI on their own $2000 also accrues in this same run
     const sponsorOwnDaily = (2000 * Number(settings.baseDailyRoiPercent)) / 100;
-    const expectedSponsorDelta = sponsorOwnDaily + expectedLevel1Income; // combined, before the 50/50 split
+    const expectedSponsorDelta = sponsorOwnDaily + expectedLevel1Income;
     const beforeCombined = (beforeL1.me?.earned ?? 0) + (beforeL1.me?.tokenEarned ?? 0);
     const afterCombined = (afterL1.me?.earned ?? 0) + (afterL1.me?.tokenEarned ?? 0);
     const actualSponsorDelta = afterCombined - beforeCombined;
@@ -202,9 +202,9 @@ async function main() {
     const usdtDelta = (afterL1.me?.earned ?? 0) - (beforeL1.me?.earned ?? 0);
     const tokenDelta = (afterL1.me?.tokenEarned ?? 0) - (beforeL1.me?.tokenEarned ?? 0);
     record(
-      "every income event splits exactly 50/50 USDT/Token",
-      close(usdtDelta, actualSponsorDelta / 2) && close(tokenDelta, actualSponsorDelta / 2) && close(usdtDelta, tokenDelta),
-      `usdtDelta=${usdtDelta}, tokenDelta=${tokenDelta} (expected equal halves of ${actualSponsorDelta})`,
+      "every income event pays 100% USDT — no Token accrues",
+      close(usdtDelta, actualSponsorDelta) && close(tokenDelta, 0),
+      `usdtDelta=${usdtDelta} (expected full ${actualSponsorDelta}), tokenDelta=${tokenDelta} (expected 0)`,
     );
 
     // ---------------------------------------------------------------- Test 5: re-running distribution same day (claimed safe/idempotent in the admin UI copy)

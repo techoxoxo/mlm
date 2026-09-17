@@ -112,8 +112,8 @@ export function RoiPlanExplorer({ settings, tiers }: { settings: RoiSettings; ti
           </span>
           <h3 style={{ fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>ROI Plan</h3>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, margin: "6px 0 0", lineHeight: 1.5, maxWidth: 420 }}>
-            A second, independent income stream — daily ROI, direct income, and 20-level income, split 50% USDT /
-            50% Token. Try the calculator below.
+            A second, independent income stream — daily ROI, direct income, and 20-level income, paid 100% in USDT.
+            Try the calculator below.
           </p>
         </div>
 
@@ -192,9 +192,7 @@ export function RoiPlanExplorer({ settings, tiers }: { settings: RoiSettings; ti
                 </div>
                 <div style={{ fontSize: 26, fontWeight: 900, color: "#10b981", fontFamily: "var(--font-num)" }}>
                   ${fmt(row.value)}
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginLeft: 8 }}>
-                    (${fmt(row.value / 2)} USDT + {fmt(row.value / 2)} Token)
-                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginLeft: 8 }}>USDT</span>
                 </div>
               </div>
             ))}
