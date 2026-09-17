@@ -327,6 +327,10 @@ export type DailyRoiResult = {
   levelPaid: number;
   dailyRecipients: number;
   levelPayouts: number;
+  // Set when the run did nothing because a precondition wasn't met (e.g. the
+  // plan is currently disabled) — distinguishes "ran, nothing was due" from
+  // "didn't actually run" so the admin UI doesn't show a misleading success.
+  skippedReason?: string;
 };
 
 function toDateKey(d: Date): string {
@@ -401,7 +405,15 @@ export async function runRoiDailyDistribution(
   const todayKey = upToDateKey ?? toDateKey(new Date());
   const cfg = await getRoiSettings();
   if (!cfg.enabled) {
-    return { investmentsProcessed: 0, daysProcessed: 0, dailyPaid: 0, levelPaid: 0, dailyRecipients: 0, levelPayouts: 0 };
+    return {
+      investmentsProcessed: 0,
+      daysProcessed: 0,
+      dailyPaid: 0,
+      levelPaid: 0,
+      dailyRecipients: 0,
+      levelPayouts: 0,
+      skippedReason: "The ROI plan is currently disabled — enable it above before running distribution.",
+    };
   }
   const tiers = await getRoiLevelTiers();
 

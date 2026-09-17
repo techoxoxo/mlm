@@ -9,16 +9,24 @@ export function RoiRunButton({ upToDate, label }: { upToDate?: string; label?: s
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [isWarning, setIsWarning] = useState(false);
 
   const run = () =>
     startTransition(async () => {
       setMsg(null);
+      setIsWarning(false);
       const r = await runRoiDistributionAction(upToDate);
-      if (!r.ok) setMsg(r.error);
-      else
+      if (!r.ok) {
+        setMsg(r.error);
+        setIsWarning(true);
+      } else if (r.res.skippedReason) {
+        setMsg(`⚠️ Nothing ran — ${r.res.skippedReason}`);
+        setIsWarning(true);
+      } else {
         setMsg(
           `✓ ${r.res.investmentsProcessed} investments, ${r.res.daysProcessed} investment-days checked (catches up on any missed days) · ${r.res.dailyRecipients} daily payouts ($${r.res.dailyPaid.toFixed(2)}) · ${r.res.levelPayouts} level payouts ($${r.res.levelPaid.toFixed(2)})`,
         );
+      }
       router.refresh();
     });
 
@@ -33,7 +41,7 @@ export function RoiRunButton({ upToDate, label }: { upToDate?: string; label?: s
         {pending ? <Loader2 size={upToDate ? 12 : 16} className="spin" /> : <TrendingUp size={upToDate ? 12 : 16} />}
         {label ?? "Run today's ROI distribution"}
       </button>
-      {msg && <p style={{ color: "var(--gold-bright)", fontSize: 13, margin: 0 }}>{msg}</p>}
+      {msg && <p style={{ color: isWarning ? "#ef4444" : "var(--gold-bright)", fontSize: 13, margin: 0 }}>{msg}</p>}
     </div>
   );
 }
