@@ -644,11 +644,11 @@ export async function updateRoiLevelTierAction(form: FormData) {
   revalidatePath("/admin/roi-plan");
 }
 
-export async function runRoiDistributionAction() {
+export async function runRoiDistributionAction(upToDateKey?: string) {
   await requireAdmin();
   const { runRoiDailyDistribution } = await import("@/lib/roiPlan");
   try {
-    const res = await runRoiDailyDistribution();
+    const res = await runRoiDailyDistribution("admin", upToDateKey || undefined);
 
     await logAudit({
       action: "run_roi_distribution",

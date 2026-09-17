@@ -92,6 +92,13 @@
       "when": 1788454158822,
       "tag": "0012_bizarre_hellcat",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789625943716,
+      "tag": "0013_real_goliath",
+      "breakpoints": true
     }
   ]
 }

@@ -320,7 +320,7 @@ reconciliationWorker.on("failed", (job, err) => console.error(`✗ reconciliatio
 const roiWorker = new Worker(
   ROI_QUEUE,
   async () => {
-    const res = await runRoiDailyDistribution();
+    const res = await runRoiDailyDistribution("cron");
     console.log(
       `✓ roi-plan: ${res.investmentsProcessed} investments, ${res.dailyRecipients} daily paid (${res.dailyPaid}), ${res.levelPayouts} level payouts (${res.levelPaid})`,
     );

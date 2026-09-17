@@ -4,8 +4,13 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "../src/db/schema";
 
-// Live DB Connection string
-const LIVE_DATABASE_URL = "postgresql://mlm_user:mlm@369@31.97.78.225:5432/mlm";
+// Live DB connection string — set LIVE_DATABASE_URL in .env (gitignored),
+// never hardcode production credentials here.
+const LIVE_DATABASE_URL = process.env.LIVE_DATABASE_URL;
+if (!LIVE_DATABASE_URL) {
+  console.error("❌ LIVE_DATABASE_URL is not set. Add it to your .env file before running this script.");
+  process.exit(1);
+}
 
 async function run() {
   console.log("=========================================");

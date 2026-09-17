@@ -481,6 +481,23 @@ export const roiTransactions = pgTable(
   }),
 );
 
+// One row per runRoiDailyDistribution() call (cron or manual) — audit trail
+// of what actually ran, so admins can see whether/when a gap got caught up
+// instead of only inferring it from the ledger.
+export const roiDistributionRuns = pgTable("roi_distribution_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  triggeredBy: text("triggered_by").notNull(), // 'cron' | 'admin'
+  fromDateKey: text("from_date_key"), // earliest calendar day (YYYY-MM-DD) this run evaluated, null if nothing was pending
+  toDateKey: text("to_date_key"), // latest calendar day this run evaluated
+  investmentsProcessed: integer("investments_processed").notNull().default(0),
+  daysProcessed: integer("days_processed").notNull().default(0),
+  dailyPaid: numeric("daily_paid", { precision: 18, scale: 6 }).notNull().default("0"),
+  levelPaid: numeric("level_paid", { precision: 18, scale: 6 }).notNull().default("0"),
+  dailyRecipients: integer("daily_recipients").notNull().default(0),
+  levelPayouts: integer("level_payouts").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ------------------------------------------------------------------ support tickets */
 
 export const supportTickets = pgTable("support_tickets", {

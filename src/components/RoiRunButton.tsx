@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, TrendingUp } from "lucide-react";
 import { runRoiDistributionAction } from "@/app/actions/admin";
 
-export function RoiRunButton() {
+export function RoiRunButton({ upToDate, label }: { upToDate?: string; label?: string } = {}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export function RoiRunButton() {
   const run = () =>
     startTransition(async () => {
       setMsg(null);
-      const r = await runRoiDistributionAction();
+      const r = await runRoiDistributionAction(upToDate);
       if (!r.ok) setMsg(r.error);
       else
         setMsg(
@@ -24,9 +24,14 @@ export function RoiRunButton() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <button className="btn btn-primary" onClick={run} disabled={pending} style={{ alignSelf: "flex-start" }}>
-        {pending ? <Loader2 size={16} className="spin" /> : <TrendingUp size={16} />}
-        Run today&apos;s ROI distribution
+      <button
+        className={upToDate ? "btn btn-outline" : "btn btn-primary"}
+        onClick={run}
+        disabled={pending}
+        style={{ alignSelf: "flex-start", fontSize: upToDate ? 12.5 : undefined, padding: upToDate ? "6px 12px" : undefined }}
+      >
+        {pending ? <Loader2 size={upToDate ? 12 : 16} className="spin" /> : <TrendingUp size={upToDate ? 12 : 16} />}
+        {label ?? "Run today's ROI distribution"}
       </button>
       {msg && <p style={{ color: "var(--gold-bright)", fontSize: 13, margin: 0 }}>{msg}</p>}
     </div>

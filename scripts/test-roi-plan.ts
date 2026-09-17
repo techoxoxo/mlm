@@ -9,6 +9,8 @@ import {
   getRoiOverview,
   getRoiSettings,
   reverseRoiInvestment,
+  getRoiDistributionGaps,
+  getRoiDistributionRunLog,
 } from "@/lib/roiPlan";
 
 const { users } = schema;
@@ -559,6 +561,66 @@ async function main() {
       "source:'external' bypasses the withdrawable-balance restriction",
       lockedOverviewExternal.me?.invested === 300,
       `invested=${lockedOverviewExternal.me?.invested} (expected 300 = 200 wallet-funded + 100 external)`,
+    );
+
+    // ---------------------------------------------------------------- Test 16: distribution gap visibility (admin panel) + run log
+    log("Test 16: getRoiDistributionGaps reports missing dates before a catch-up, and clears after one; runs are logged");
+    const gapUser = await makeUser("GapUser", chain[0].id);
+    createdUserIds.push(gapUser.id);
+    await credit(gapUser.id, 1000);
+    const gapInv = await investInRoiPlan(gapUser.id, 100);
+    // Same "3-day outage" simulation as Test 12, but this time we check the
+    // read-only gap report BEFORE running distribution.
+    const gapThreeDaysAgo = new Date();
+    gapThreeDaysAgo.setUTCDate(gapThreeDaysAgo.getUTCDate() - 3);
+    const gapThreeDaysAgoKey = gapThreeDaysAgo.toISOString().slice(0, 10);
+    // Backdate the investment itself too, so it "existed" on the gap dates —
+    // matches how a real gap would look (evaluated marker can't predate the
+    // investment), which the expected-count math in getRoiDistributionGaps relies on.
+    await db.update(schema.roiInvestments).set({ createdAt: gapThreeDaysAgo }).where(eq(schema.roiInvestments.id, gapInv.investmentId));
+    await db.insert(schema.roiTransactions).values({
+      userId: gapUser.id,
+      type: "daily_payout",
+      points: "0",
+      investmentId: gapInv.investmentId,
+      note: "synthetic marker for test",
+      idempotencyKey: `roi_daily:${gapInv.investmentId}:${gapThreeDaysAgoKey}`,
+    });
+
+    const gapsBefore = await getRoiDistributionGaps();
+    record(
+      "gap report shows missing dates before catch-up runs",
+      gapsBefore.length === 2, // the 2 full days strictly before today that are still pending (today itself isn't counted as a gap)
+      `gapsBefore=${JSON.stringify(gapsBefore)}`,
+    );
+    record(
+      "each gap row correctly attributes at least this investment as pending",
+      gapsBefore.every((g) => g.investmentsPending >= 1 && g.investmentsExpected >= g.investmentsPending),
+      `gapsBefore=${JSON.stringify(gapsBefore)}`,
+    );
+
+    const lastRunIdBefore = (await getRoiDistributionRunLog(1))[0]?.id;
+    const gapRun = await runRoiDailyDistribution("admin");
+    const gapsAfter = await getRoiDistributionGaps();
+    record(
+      "gap report clears once distribution catches up",
+      gapsAfter.every((g) => g.date !== gapThreeDaysAgoKey),
+      `gapsAfter=${JSON.stringify(gapsAfter)}, run=${JSON.stringify(gapRun)}`,
+    );
+
+    const runLogAfter = await getRoiDistributionRunLog();
+    // The run starts the day AFTER the last evaluated marker (that day was
+    // already marked done), so fromDateKey is gapThreeDaysAgoKey + 1, not
+    // gapThreeDaysAgoKey itself.
+    const expectedFromKey = new Date(gapThreeDaysAgo.getTime());
+    expectedFromKey.setUTCDate(expectedFromKey.getUTCDate() + 1);
+    const expectedFromKeyStr = expectedFromKey.toISOString().slice(0, 10);
+    record(
+      "a run log row is recorded for this manual run",
+      runLogAfter[0].id !== lastRunIdBefore &&
+        runLogAfter[0].triggeredBy === "admin" &&
+        runLogAfter[0].fromDateKey === expectedFromKeyStr,
+      `runLogAfter[0]=${JSON.stringify(runLogAfter[0])}, expectedFromKey=${expectedFromKeyStr}, lastRunIdBefore=${lastRunIdBefore}`,
     );
   } finally {
     // ------------------------------------------------------------------ cleanup

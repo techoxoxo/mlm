@@ -6,7 +6,7 @@ import { post, withTxRetry } from "./distribution";
 import { publishEvent } from "./events";
 import { getUserWithdrawableDetailsTx } from "./queries";
 
-const { users, roiSettings, roiLevelTiers, roiInvestments, roiTransactions, transactions } = schema;
+const { users, roiSettings, roiLevelTiers, roiInvestments, roiTransactions, roiDistributionRuns, transactions } = schema;
 
 type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
 type RoiTxType = (typeof schema.roiTxType.enumValues)[number];
@@ -339,6 +339,12 @@ function nextDateKey(dateKey: string): string {
   return toDateKey(d);
 }
 
+function prevDateKey(dateKey: string): string {
+  const d = new Date(`${dateKey}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return toDateKey(d);
+}
+
 /** Every calendar day from `startKey` through `endKey`, inclusive, in order. */
 function enumerateDateKeys(startKey: string, endKey: string): string[] {
   const keys: string[] = [];
@@ -348,6 +354,28 @@ function enumerateDateKeys(startKey: string, endKey: string): string[] {
     k = nextDateKey(k);
   }
   return keys;
+}
+
+/**
+ * The last calendar day each active investment was evaluated (paid or
+ * correctly skipped) — parsed from roi_transactions idempotency keys
+ * (`roi_daily:{investmentId}:{date}`). Shared between the real distribution
+ * run and the read-only gap report so both agree on what "caught up" means.
+ */
+async function getLastEvaluatedByInvestment(): Promise<Map<string, string>> {
+  const lastEvaluatedRows = await db
+    .select({ idempotencyKey: roiTransactions.idempotencyKey })
+    .from(roiTransactions)
+    .where(eq(roiTransactions.type, "daily_payout"));
+  const lastEvaluatedByInvestment = new Map<string, string>();
+  for (const row of lastEvaluatedRows) {
+    const parts = row.idempotencyKey?.split(":");
+    if (!parts || parts.length !== 3) continue;
+    const [, invId, dateKey] = parts;
+    const current = lastEvaluatedByInvestment.get(invId);
+    if (!current || dateKey > current) lastEvaluatedByInvestment.set(invId, dateKey);
+  }
+  return lastEvaluatedByInvestment;
 }
 
 /**
@@ -366,8 +394,11 @@ function enumerateDateKeys(startKey: string, endKey: string): string[] {
  * an account resumes earning going forward, it doesn't retroactively grant
  * everything missed while inactive.
  */
-export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
-  const todayKey = toDateKey(new Date());
+export async function runRoiDailyDistribution(
+  triggeredBy: "cron" | "admin" = "cron",
+  upToDateKey?: string,
+): Promise<DailyRoiResult> {
+  const todayKey = upToDateKey ?? toDateKey(new Date());
   const cfg = await getRoiSettings();
   if (!cfg.enabled) {
     return { investmentsProcessed: 0, daysProcessed: 0, dailyPaid: 0, levelPaid: 0, dailyRecipients: 0, levelPayouts: 0 };
@@ -380,26 +411,15 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
     .where(eq(roiInvestments.active, true))
     .orderBy(asc(roiInvestments.createdAt));
 
-  // Last calendar day each investment was evaluated (paid or correctly
-  // skipped) — the idempotencyKey format is roi_daily:{investmentId}:{date}.
-  const lastEvaluatedRows = await db
-    .select({ idempotencyKey: roiTransactions.idempotencyKey })
-    .from(roiTransactions)
-    .where(eq(roiTransactions.type, "daily_payout"));
-  const lastEvaluatedByInvestment = new Map<string, string>();
-  for (const row of lastEvaluatedRows) {
-    const parts = row.idempotencyKey?.split(":");
-    if (!parts || parts.length !== 3) continue;
-    const [, invId, dateKey] = parts;
-    const current = lastEvaluatedByInvestment.get(invId);
-    if (!current || dateKey > current) lastEvaluatedByInvestment.set(invId, dateKey);
-  }
+  const lastEvaluatedByInvestment = await getLastEvaluatedByInvestment();
 
   let dailyPaid = 0;
   let levelPaid = 0;
   let dailyRecipients = 0;
   let levelPayouts = 0;
   let daysProcessed = 0;
+  let minDateProcessed: string | null = null;
+  let maxDateProcessed: string | null = null;
   const notifyIds = new Set<string>();
 
   for (const inv of investments) {
@@ -409,6 +429,8 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
 
     for (const dateKey of enumerateDateKeys(startKey, todayKey)) {
       daysProcessed++;
+      if (!minDateProcessed || dateKey < minDateProcessed) minDateProcessed = dateKey;
+      if (!maxDateProcessed || dateKey > maxDateProcessed) maxDateProcessed = dateKey;
       const paid = await withTxRetry(() =>
         db.transaction(async (tx) => {
           const [owner] = await tx.select().from(users).where(eq(users.id, inv.userId)).for("update");
@@ -500,6 +522,18 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
     [...notifyIds].map((uid) => publishEvent(uid, { type: "royalty_payout" }).catch(() => {})),
   );
 
+  await db.insert(roiDistributionRuns).values({
+    triggeredBy,
+    fromDateKey: minDateProcessed,
+    toDateKey: maxDateProcessed,
+    investmentsProcessed: investments.length,
+    daysProcessed,
+    dailyPaid: dailyPaid.toFixed(6),
+    levelPaid: levelPaid.toFixed(6),
+    dailyRecipients,
+    levelPayouts,
+  });
+
   return {
     investmentsProcessed: investments.length,
     daysProcessed,
@@ -508,6 +542,77 @@ export async function runRoiDailyDistribution(): Promise<DailyRoiResult> {
     dailyRecipients,
     levelPayouts,
   };
+}
+
+export type RoiDistributionGap = { date: string; investmentsExpected: number; investmentsPending: number };
+
+/**
+ * Read-only preview of what a distribution run would still need to catch up
+ * on, WITHOUT running it — one row per calendar day (strictly before today,
+ * since today isn't "missing" until its own cron window has passed) that has
+ * at least one active investment not yet evaluated for that day. Lets the
+ * admin panel show exactly which dates are behind instead of only a vague
+ * "click to run" button.
+ */
+export async function getRoiDistributionGaps(): Promise<RoiDistributionGap[]> {
+  const todayKey = toDateKey(new Date());
+  const investments = await db
+    .select({ id: roiInvestments.id, createdAt: roiInvestments.createdAt })
+    .from(roiInvestments)
+    .where(eq(roiInvestments.active, true));
+  if (investments.length === 0) return [];
+
+  const lastEvaluatedByInvestment = await getLastEvaluatedByInvestment();
+  const pendingCountByDate = new Map<string, number>();
+  const expectedCountByDate = new Map<string, number>();
+
+  for (const inv of investments) {
+    const lastEvaluated = lastEvaluatedByInvestment.get(inv.id);
+    const startKey = lastEvaluated ? nextDateKey(lastEvaluated) : toDateKey(inv.createdAt);
+    if (startKey >= todayKey) continue; // fully caught up (or not old enough to owe a day yet)
+
+    for (const dateKey of enumerateDateKeys(startKey, prevDateKey(todayKey))) {
+      pendingCountByDate.set(dateKey, (pendingCountByDate.get(dateKey) ?? 0) + 1);
+    }
+  }
+  if (pendingCountByDate.size === 0) return [];
+
+  const investedByKey = investments.map((inv) => toDateKey(inv.createdAt));
+  for (const dateKey of pendingCountByDate.keys()) {
+    expectedCountByDate.set(dateKey, investedByKey.filter((createdKey) => createdKey <= dateKey).length);
+  }
+
+  return [...pendingCountByDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, investmentsPending]) => ({
+      date,
+      investmentsPending,
+      investmentsExpected: expectedCountByDate.get(date) ?? investmentsPending,
+    }));
+}
+
+export type RoiDistributionRunLog = {
+  id: string;
+  triggeredBy: string;
+  fromDateKey: string | null;
+  toDateKey: string | null;
+  investmentsProcessed: number;
+  daysProcessed: number;
+  dailyPaid: number;
+  levelPaid: number;
+  dailyRecipients: number;
+  levelPayouts: number;
+  createdAt: Date;
+};
+
+/** Recent distribution run history, newest first — the audit log for the admin panel. */
+export async function getRoiDistributionRunLog(limit = 20): Promise<RoiDistributionRunLog[]> {
+  const rows = await db
+    .select()
+    .from(roiDistributionRuns)
+    .orderBy(desc(roiDistributionRuns.createdAt))
+    .limit(limit);
+  return rows.map((r) => ({ ...r, dailyPaid: Number(r.dailyPaid), levelPaid: Number(r.levelPaid) }));
 }
 
 export type RoiOverview = {

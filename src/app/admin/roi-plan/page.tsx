@@ -2,7 +2,7 @@ import Link from "next/link";
 import { desc, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { memberCode } from "@/db/schema";
-import { getRoiOverview, getRoiInvestorsOverview } from "@/lib/roiPlan";
+import { getRoiOverview, getRoiInvestorsOverview, getRoiDistributionGaps, getRoiDistributionRunLog } from "@/lib/roiPlan";
 import { RoiRunButton } from "@/components/RoiRunButton";
 import { RoiToggleButton } from "@/components/RoiToggleButton";
 import { RoiReverseButton } from "@/components/RoiReverseButton";
@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 export default async function RoiPlanAdmin() {
   const { settings, tiers } = await getRoiOverview();
   const investors = await getRoiInvestorsOverview();
+  const gaps = await getRoiDistributionGaps();
+  const runLog = await getRoiDistributionRunLog();
 
   const [{ totalInvested }] = await db
     .select({ totalInvested: sql<number>`coalesce(sum(${schema.roiInvestments.amount}),0)::int` })
@@ -89,6 +91,115 @@ export default async function RoiPlanAdmin() {
           twice.
         </p>
         <RoiRunButton />
+      </div>
+
+      <div className="card" style={{ padding: 24 }}>
+        <h3 style={{ fontSize: 16, marginBottom: 6 }}>Distribution status</h3>
+        {gaps.length === 0 ? (
+          <p style={{ color: "#10b981", fontSize: 13, margin: 0 }}>
+            ✓ Up to date — every active investment has been evaluated through yesterday.
+          </p>
+        ) : (
+          <>
+            <p style={{ color: "#ef4444", fontSize: 13, margin: "0 0 16px", maxWidth: 620 }}>
+              {gaps.length} day{gaps.length === 1 ? "" : "s"} behind — the dates below haven&apos;t been fully
+              distributed yet (earliest missing: <b>{gaps[0].date}</b>). Running distribution catches up every
+              missing day in order, so you don&apos;t need to run each date separately — but you can target a
+              specific date below if you want to stop the catch-up there.
+            </p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                    {["Date", "Investments pending", "Investments expected", ""].map((h, i) => (
+                      <th
+                        key={h || i}
+                        style={{
+                          padding: "8px 8px",
+                          textAlign: i === 0 ? "left" : i === 3 ? "right" : "right",
+                          fontSize: 10.5,
+                          fontWeight: 800,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "var(--faint)",
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {gaps.map((g) => (
+                    <tr key={g.date} style={{ borderBottom: "1px solid var(--border)" }}>
+                      <td style={{ padding: "8px" }} className="mono">{g.date}</td>
+                      <td style={{ padding: "8px", textAlign: "right" }} className="mono">{g.investmentsPending}</td>
+                      <td style={{ padding: "8px", textAlign: "right" }} className="mono">{g.investmentsExpected}</td>
+                      <td style={{ padding: "8px", textAlign: "right" }}>
+                        <RoiRunButton upToDate={g.date} label={`Run through ${g.date}`} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 24 }}>
+        <h3 style={{ fontSize: 16, marginBottom: 6 }}>Distribution run log</h3>
+        <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 16px" }}>
+          History of every distribution run, cron or manual — what dates it covered and what it paid.
+        </p>
+        {runLog.length === 0 ? (
+          <p style={{ color: "var(--faint)", fontSize: 13, margin: 0 }}>No runs recorded yet.</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  {["Run at", "Triggered by", "Date range covered", "Investments", "Days", "Daily paid", "Level paid", "Recipients"].map((h, i) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "8px",
+                        textAlign: i === 0 ? "left" : "right",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "var(--faint)",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {runLog.map((r) => (
+                  <tr key={r.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td style={{ padding: "8px" }}>{new Date(r.createdAt).toLocaleString("en-US")}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }}>
+                      <span className={`pill ${r.triggeredBy === "cron" ? "pill-gold" : ""}`} style={{ fontSize: 10 }}>
+                        {r.triggeredBy}
+                      </span>
+                    </td>
+                    <td style={{ padding: "8px", textAlign: "right" }} className="mono">
+                      {r.fromDateKey && r.toDateKey ? `${r.fromDateKey} → ${r.toDateKey}` : "— (nothing pending)"}
+                    </td>
+                    <td style={{ padding: "8px", textAlign: "right" }} className="mono">{r.investmentsProcessed}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }} className="mono">{r.daysProcessed}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }} className="mono">${r.dailyPaid.toFixed(2)}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }} className="mono">${r.levelPaid.toFixed(2)}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }} className="mono">{r.dailyRecipients}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 22, alignItems: "start" }}>
