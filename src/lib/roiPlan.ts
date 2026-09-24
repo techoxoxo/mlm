@@ -159,6 +159,7 @@ export async function investInRoiPlanTx(
 
   const [user] = await tx.select().from(users).where(eq(users.id, userId)).for("update");
   if (!user) throw new Error("User not found");
+  if (user.frozen) throw new Error("Your account is frozen, so you can't invest in the ROI plan");
   if (user.status !== "active") {
     throw new Error(
       user.status === "registered"
@@ -208,7 +209,7 @@ export async function investInRoiPlanTx(
   let directPaid = 0;
   if (user.sponsorId) {
     const [sponsor] = await tx.select().from(users).where(eq(users.id, user.sponsorId)).for("update");
-    if (sponsor && sponsor.roiInvested > 0 && sponsor.status === "active") {
+    if (sponsor && sponsor.roiInvested > 0 && sponsor.status === "active" && !sponsor.frozen) {
       const newDirectTotal = sponsor.roiDirectTotal + amount;
       const justUnlocked = !sponsor.roiBoosted && newDirectTotal >= cfg.boostThresholdUsdt;
 
@@ -445,10 +446,11 @@ export async function runRoiDailyDistribution(
           const [owner] = await tx.select().from(users).where(eq(users.id, inv.userId)).for("update");
           if (!owner) return null;
 
-          // Ongoing check, evaluated per-day — if the account wasn't active on
-          // this specific day, record a $0 evaluated marker (so catch-up
-          // never retries it) but pay nothing for it, now or later.
-          if (owner.status !== "active") {
+          // Ongoing check, evaluated per-day — if the account wasn't active
+          // (or was frozen) on this specific day, record a $0 evaluated
+          // marker (so catch-up never retries it) but pay nothing for it,
+          // now or later.
+          if (owner.status !== "active" || owner.frozen) {
             await tx.insert(roiTransactions).values({
               userId: owner.id,
               type: "daily_payout",
@@ -493,7 +495,7 @@ export async function runRoiDailyDistribution(
             if (!tier) continue;
 
             const [up] = await tx.select().from(users).where(eq(users.id, upline[i])).for("update");
-            if (!up || up.status !== "active") continue;
+            if (!up || up.status !== "active" || up.frozen) continue;
 
             const levelWanted = (credit * Number(tier.percent)) / 100;
             const levelRoom = headroom(up, cfg.capMultiplier);

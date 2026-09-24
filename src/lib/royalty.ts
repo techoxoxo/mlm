@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { RoyaltyTier } from "@/db/schema";
 import { post, getSettings, withTxRetry } from "./distribution";
@@ -67,21 +67,30 @@ export async function distributeRankRoyalty(): Promise<RankRoyaltyResult> {
       const directRows = await tx
         .select({ sponsor: users.sponsorId, n: sql<number>`count(*)::int` })
         .from(users)
-        .where(sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active'`)
+        .where(sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active' and ${users.frozen} = false`)
         .groupBy(users.sponsorId);
 
       const recentOnboardRows = await tx
         .select({ sponsor: users.sponsorId })
         .from(users)
         .where(
-          sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active' and ${users.createdAt} >= now() - interval '15 days'`
+          sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active' and ${users.frozen} = false and ${users.createdAt} >= now() - interval '15 days'`
         )
         .groupBy(users.sponsorId);
       const recentOnboardSponsors = new Set(recentOnboardRows.map((r) => r.sponsor as string));
 
+      // A frozen sponsor forfeits rank rewards even if their directs still
+      // qualify them for a band — directRows/recentOnboardRows only check
+      // the DOWNLINE members' status, not the sponsor's own.
+      const candidateSponsorIds = [...new Set(directRows.map((r) => r.sponsor).filter((s): s is string => !!s))];
+      const frozenSponsorRows = candidateSponsorIds.length
+        ? await tx.select({ id: users.id }).from(users).where(and(inArray(users.id, candidateSponsorIds), eq(users.frozen, true)))
+        : [];
+      const frozenSponsorIds = new Set(frozenSponsorRows.map((r) => r.id));
+
       const bandMembers = new Map<number, string[]>();
       for (const r of directRows) {
-        if (!r.sponsor || !recentOnboardSponsors.has(r.sponsor)) continue;
+        if (!r.sponsor || !recentOnboardSponsors.has(r.sponsor) || frozenSponsorIds.has(r.sponsor)) continue;
         let band: (typeof tiers)[number] | null = null;
         for (const t of tiers) if (r.n >= t.minDirects) band = t;
         if (band) {
@@ -190,6 +199,7 @@ export async function distributeReserveRoyalty(): Promise<ReserveRoyaltyResult> 
           and(
             eq(users.role, "user"),
             sql`${users.status} not in ('exited','completed')`,
+            eq(users.frozen, false),
             lte(users.createdAt, cutoff),
             or(isNull(users.lastStageClearedAt), lte(users.lastStageClearedAt, cutoff)),
             or(isNull(users.lastReserveRewardAt), lte(users.lastReserveRewardAt, cutoff)),
@@ -260,7 +270,7 @@ export async function getRoyaltyOverview(uid?: string) {
     const [{ directs }] = await db
       .select({ directs: sql<number>`count(*)::int` })
       .from(users)
-      .where(and(eq(users.sponsorId, uid), eq(users.status, "active")));
+      .where(and(eq(users.sponsorId, uid), eq(users.status, "active"), eq(users.frozen, false)));
     const [{ earned }] = await db
       .select({ earned: sql<number>`coalesce(sum(${schema.transactions.points}),0)::int` })
       .from(schema.transactions)
@@ -278,13 +288,13 @@ export async function getRoyaltyEligibleUsers() {
   const activeUsers = await db
     .select()
     .from(users)
-    .where(and(eq(users.role, "user"), eq(users.status, "active")));
+    .where(and(eq(users.role, "user"), eq(users.status, "active"), eq(users.frozen, false)));
 
   const recentOnboardRows = await db
     .select({ sponsor: users.sponsorId })
     .from(users)
     .where(
-      sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active' and ${users.createdAt} >= now() - interval '15 days'`
+      sql`${users.sponsorId} is not null and ${users.role} = 'user' and ${users.status} = 'active' and ${users.frozen} = false and ${users.createdAt} >= now() - interval '15 days'`
     )
     .groupBy(users.sponsorId);
   const recentOnboardSponsors = new Set(recentOnboardRows.map((r) => r.sponsor as string));
@@ -297,7 +307,7 @@ export async function getRoyaltyEligibleUsers() {
       const [{ directsCount }] = await db
         .select({ directsCount: sql<number>`count(*)::int` })
         .from(users)
-        .where(and(eq(users.sponsorId, u.id), eq(users.status, "active")));
+        .where(and(eq(users.sponsorId, u.id), eq(users.status, "active"), eq(users.frozen, false)));
       return {
         id: u.id,
         name: u.name,

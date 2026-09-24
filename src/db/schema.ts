@@ -162,6 +162,17 @@ export const users = pgTable(
     role: userRole("role").notNull().default("user"),
     status: userStatus("status").notNull().default("registered"),
 
+    // Admin-initiated soft-delete/freeze — deliberately a separate boolean
+    // rather than a new `status` value, so it never collides with the
+    // lifecycle meaning of status (registered/active/exited/completed).
+    // While true: login is rejected outright, and the user is excluded from
+    // every earning/eligibility check across all plans (main plan slot
+    // credits + referral bonuses, royalty, ROI plan). Nothing is deleted —
+    // unfreezing restores normal behavior with all history intact.
+    frozen: boolean("frozen").notNull().default(false),
+    frozenAt: timestamp("frozen_at", { withTimezone: true }),
+    frozenReason: text("frozen_reason"),
+
     // who referred this user (drives the referral bonus). null = root signup.
     sponsorId: uuid("sponsor_id"),
     referralCode: text("referral_code").notNull(),

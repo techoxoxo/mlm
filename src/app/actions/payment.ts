@@ -169,7 +169,10 @@ export async function requestWithdrawalAction(amountPoints: number, walletAddres
     const userId = session.uid;
 
     // Block unactivated users from withdrawing
-    const [caller] = await db.select({ status: users.status, email: users.email }).from(users).where(eq(users.id, userId));
+    const [caller] = await db.select({ status: users.status, email: users.email, frozen: users.frozen }).from(users).where(eq(users.id, userId));
+    if (caller?.frozen) {
+      return { ok: false, error: "Your account is frozen. Contact support if you believe this is a mistake." };
+    }
     if (caller?.status === "registered") {
       return { ok: false, error: "Account not activated. Please complete activation payment first." };
     }
@@ -284,7 +287,10 @@ export async function requestRoiWithdrawalAction(
     const session = await requireUser();
     const userId = session.uid;
 
-    const [caller] = await db.select({ status: users.status, email: users.email }).from(users).where(eq(users.id, userId));
+    const [caller] = await db.select({ status: users.status, email: users.email, frozen: users.frozen }).from(users).where(eq(users.id, userId));
+    if (caller?.frozen) {
+      return { ok: false, error: "Your account is frozen. Contact support if you believe this is a mistake." };
+    }
     if (caller?.status === "registered") {
       return { ok: false, error: "Account not activated. Please complete activation payment first." };
     }

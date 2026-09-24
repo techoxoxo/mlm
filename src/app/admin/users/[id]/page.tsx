@@ -6,6 +6,7 @@ import { memberCode } from "@/db/schema";
 import { toggleAutoUpgradeAction, manuallyActivateUserAction, reverseExitAction, manuallyInvestRoiPlanAction } from "@/app/actions/admin";
 import { getRoiSettings, getRoiDirectsPerformance, getRoiOverview } from "@/lib/roiPlan";
 import { RoiReverseButton } from "@/components/RoiReverseButton";
+import { FreezeUserButton } from "@/components/FreezeUserButton";
 
 export const dynamic = "force-dynamic";
 
@@ -134,7 +135,15 @@ export default async function UserJourney({ params }: { params: Promise<{ id: st
                   {user.autoUpgrade ? "⚙️ Auto-Upgrade: ON" : "⚙️ Auto-Upgrade: OFF"}
                 </button>
               </form>
+
+              <FreezeUserButton userId={user.id} frozen={user.frozen} />
             </div>
+            {user.frozen && (
+              <p style={{ color: "#6fc3f7", fontSize: 12.5, margin: "8px 0 0" }}>
+                ❄ Frozen{user.frozenAt ? ` on ${new Date(user.frozenAt).toLocaleDateString()}` : ""}
+                {user.frozenReason ? ` — "${user.frozenReason}"` : ""}
+              </p>
+            )}
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "6px 0 0" }}>{user.email}</p>
             <p style={{ color: "var(--faint)", fontSize: 12.5, margin: "4px 0 0" }}>
               Referral code <b style={{ color: "var(--text)", letterSpacing: 1 }}>{user.referralCode}</b>

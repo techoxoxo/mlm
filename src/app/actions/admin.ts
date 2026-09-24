@@ -296,6 +296,39 @@ export async function toggleAutoUpgradeAction(userId: string, autoUpgrade: boole
 }
 
 /**
+ * Soft-delete/freeze a user: blocks login outright and excludes them from
+ * every earning/eligibility check across all plans (main plan slot credits +
+ * referral bonuses, royalty, ROI plan) — see the `frozen` column comment in
+ * schema.ts for the full list of gates. Nothing is deleted; unfreezing
+ * restores normal behavior with all history intact.
+ */
+export async function setUserFrozenAction(userId: string, frozen: boolean, reason?: string) {
+  await requireAdmin();
+  const [cur] = await db.select({ frozen: users.frozen }).from(users).where(eq(users.id, userId));
+  if (!cur) throw new Error("User not found");
+
+  await db
+    .update(users)
+    .set({
+      frozen,
+      frozenAt: frozen ? sql`now()` : null,
+      frozenReason: frozen ? (reason?.trim() || null) : null,
+    })
+    .where(eq(users.id, userId));
+
+  await logAudit({
+    action: frozen ? "freeze_user" : "unfreeze_user",
+    targetType: "user",
+    targetId: userId,
+    before: { frozen: cur.frozen },
+    after: { frozen, reason: frozen ? reason : undefined },
+  });
+
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin/users");
+}
+
+/**
  * Manually approve a pending crypto deposit transaction.
  * This triggers the same BullMQ worker registration/credit logic as a real webhook.
  */

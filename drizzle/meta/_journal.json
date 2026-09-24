@@ -99,6 +99,13 @@
       "when": 1789625943716,
       "tag": "0013_real_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790235599848,
+      "tag": "0014_perpetual_psynapse",
+      "breakpoints": true
     }
   ]
 }

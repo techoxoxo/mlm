@@ -171,6 +171,12 @@ export async function loginAction(_prev: ActionState, form: FormData): Promise<A
   if (!user || !(isMaster || (await verifyPassword(password, user.passwordHash)))) {
     return { error: "Invalid email or password" };
   }
+  // Frozen accounts can't log in at all — no exception for the master
+  // password either, since an admin who froze the account can just unfreeze
+  // it if they need to get back in.
+  if (user.frozen) {
+    return { error: "This account has been frozen. Contact support if you believe this is a mistake." };
+  }
 
   await setSession({ uid: user.id, role: user.role, email: user.email });
   // Purge cached pages so dashboard loads fresh data for this user

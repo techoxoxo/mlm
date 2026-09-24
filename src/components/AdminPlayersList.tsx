@@ -2,9 +2,9 @@
 
 import React, { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
-import { ChevronRight, Search, Filter, Trash2, Loader2 } from "lucide-react";
+import { ChevronRight, Search, Filter, Trash2, Loader2, Snowflake, Flame } from "lucide-react";
 import { memberCode } from "@/db/schema";
-import { deleteRegisteredUserAction } from "@/app/actions/admin";
+import { deleteRegisteredUserAction, setUserFrozenAction } from "@/app/actions/admin";
 
 export type PlayerRow = {
   id: string;
@@ -13,6 +13,7 @@ export type PlayerRow = {
   email: string;
   slab: number | null;
   status: string;
+  frozen: boolean;
   balance: number;
   code: string;
   createdAt: Date;
@@ -26,6 +27,8 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
   const [statusFilter, setStatusFilter] = useState("active");
 
   const [deletePending, startDeleteTransition] = useTransition();
+  const [freezePending, startFreezeTransition] = useTransition();
+  const [freezingId, setFreezingId] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const active = rows.filter((r) => r.status === "active");
@@ -73,6 +76,31 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
         alert(res.error || "Failed to delete user.");
       } else {
         setRows((prev) => prev.filter((u) => u.id !== id));
+      }
+    });
+  };
+
+  const handleToggleFrozen = (e: React.MouseEvent, id: string, name: string, currentlyFrozen: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    let reason: string | undefined;
+    if (!currentlyFrozen) {
+      if (!confirm(`Freeze "${name}"? They won't be able to log in or receive any benefits until unfrozen. Nothing is deleted.`)) return;
+      reason = prompt("Reason (optional, visible to other admins):") || undefined;
+    } else {
+      if (!confirm(`Unfreeze "${name}"? Login and earnings resume normally.`)) return;
+    }
+
+    setFreezingId(id);
+    startFreezeTransition(async () => {
+      try {
+        await setUserFrozenAction(id, !currentlyFrozen, reason);
+        setRows((prev) => prev.map((u) => (u.id === id ? { ...u, frozen: !currentlyFrozen } : u)));
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Failed to update frozen status.");
+      } finally {
+        setFreezingId(null);
       }
     });
   };
@@ -266,6 +294,24 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
                       >
                         {r.status}
                       </span>
+                      {r.frozen && (
+                        <span
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 99,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                            width: "fit-content",
+                            background: "rgba(111, 195, 247, 0.12)",
+                            color: "#6fc3f7",
+                            border: "1px solid rgba(111, 195, 247, 0.25)",
+                          }}
+                        >
+                          ❄ Frozen
+                        </span>
+                      )}
                       {r.status === "active" && r.activationType && (
                         <span style={{ fontSize: 10, color: "var(--faint)", paddingLeft: 2 }}>
                           {r.activationType === "gateway" ? "💳 Gateway Paid" : "⚡ System Bypassed"}
@@ -299,6 +345,29 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
                         {deletePending ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
                       </button>
                     )}
+                    <button
+                      onClick={(e) => handleToggleFrozen(e, r.id, r.name, r.frozen)}
+                      disabled={freezePending && freezingId === r.id}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: r.frozen ? "#f59e0b" : "#6fc3f7",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: 4,
+                        opacity: 0.8,
+                      }}
+                      title={r.frozen ? "Unfreeze user" : "Freeze user (blocks login + all benefits)"}
+                    >
+                      {freezePending && freezingId === r.id ? (
+                        <Loader2 size={15} className="spin" />
+                      ) : r.frozen ? (
+                        <Flame size={15} />
+                      ) : (
+                        <Snowflake size={15} />
+                      )}
+                    </button>
                     <Link href={`/admin/users/${r.id}`} style={{ color: "var(--faint)", display: "inline-flex", alignItems: "center" }}>
                       <ChevronRight size={16} />
                     </Link>

@@ -15,6 +15,7 @@ export default async function UsersAdmin() {
       email: users.email,
       slab: users.currentSlab,
       status: users.status,
+      frozen: users.frozen,
       balance: users.pointsBalance,
       code: users.referralCode,
       createdAt: users.createdAt,

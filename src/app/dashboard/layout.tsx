@@ -27,6 +27,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/login");
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, session.uid) });
   if (!user) redirect("/logout");
+  // Frozen mid-session — kick them out immediately rather than waiting for
+  // their session to expire naturally.
+  if (user.frozen) redirect("/logout");
 
   if (user.status === "registered") {
     return (

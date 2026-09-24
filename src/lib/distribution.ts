@@ -208,12 +208,13 @@ export async function enterSlab(
     ...(member.sponsorId && slab.referralBonus > 0 ? [member.sponsorId] : []),
   ];
   const ordered = [...new Set(participants)].sort();
-  await tx
-    .select({ id: users.id })
+  const participantRows = await tx
+    .select({ id: users.id, frozen: users.frozen })
     .from(users)
     .where(sql`${users.id} in ${ordered}`)
     .orderBy(users.id)
     .for("update");
+  const frozenById = new Map(participantRows.map((r) => [r.id, r.frozen]));
 
   // 3) Member pays the slab fee (debit).
   await post(tx, userId, level === 1 ? "activation_fee" : "upgrade_fee", -slab.fee, {
@@ -235,26 +236,32 @@ export async function enterSlab(
       .set({ status: "filled", occupantId: userId, filledAt: sql`now()` })
       .where(eq(slots.id, openSlot.id));
 
-    // Credit the slot owner with the fee, minus the house cut.
+    // Credit the slot owner with the fee, minus the house cut — unless the
+    // owner is frozen, in which case they forfeit this benefit entirely (no
+    // credit posted to anyone). The slot itself still fills normally above,
+    // so the entrant's own placement and the owner's slab-completion state
+    // stay structurally correct either way.
     const houseCut = Math.floor((slab.fee * cfg.companyPercent) / 100);
     const ownerCredit = slab.fee - houseCut;
     const slotTime = customCreatedAt ? new Date(customCreatedAt.getTime() + 1000) : new Date(Date.now() + 1000);
 
-    await post(tx, openSlot.ownerId, "slot_credit", ownerCredit, {
-      counterpartyId: userId,
-      slabLevel: level,
-      note: `Slot ${openSlot.position} filled at slab ${level}`,
-      idempotencyKey: `slot_credit:${openSlot.id}`,
-      createdAt: slotTime,
-    });
-    if (houseCut > 0) {
-      await post(tx, openSlot.ownerId, "company_fee", -houseCut, {
+    if (!frozenById.get(openSlot.ownerId)) {
+      await post(tx, openSlot.ownerId, "slot_credit", ownerCredit, {
         counterpartyId: userId,
         slabLevel: level,
-        note: `House cut on slot ${openSlot.position} at slab ${level}`,
-        idempotencyKey: `company_fee:${openSlot.id}`,
+        note: `Slot ${openSlot.position} filled at slab ${level}`,
+        idempotencyKey: `slot_credit:${openSlot.id}`,
         createdAt: slotTime,
       });
+      if (houseCut > 0) {
+        await post(tx, openSlot.ownerId, "company_fee", -houseCut, {
+          counterpartyId: userId,
+          slabLevel: level,
+          note: `House cut on slot ${openSlot.position} at slab ${level}`,
+          idempotencyKey: `company_fee:${openSlot.id}`,
+          createdAt: slotTime,
+        });
+      }
     }
 
     // Did this complete the owner's slab? (no more open slots they own here)
@@ -274,9 +281,10 @@ export async function enterSlab(
     }
   }
 
-  // 4) Referral bonus to the direct sponsor (system-funded).
+  // 4) Referral bonus to the direct sponsor (system-funded) — skipped if the
+  // sponsor is frozen, same reasoning as the slot credit above.
   let referralPaid = 0;
-  if (member.sponsorId && slab.referralBonus > 0) {
+  if (member.sponsorId && slab.referralBonus > 0 && !frozenById.get(member.sponsorId)) {
     referralPaid = slab.referralBonus;
     await post(tx, member.sponsorId, "referral_bonus", slab.referralBonus, {
       counterpartyId: userId,
@@ -518,7 +526,11 @@ export async function chargeRegistration(tx: Tx, userId: string, customCreatedAt
   }
   // …of which the sponsor reward is routed to the referrer (if any). With no
   // sponsor the whole id_pin_fee stays with the system. Not tied to a slab.
-  if (member?.sponsorId && cfg.sponsorReward > 0) {
+  // Skipped if the sponsor is frozen — same as the other referral payouts.
+  const sponsorFrozen = member?.sponsorId
+    ? (await tx.select({ frozen: users.frozen }).from(users).where(eq(users.id, member.sponsorId)))[0]?.frozen
+    : false;
+  if (member?.sponsorId && cfg.sponsorReward > 0 && !sponsorFrozen) {
     await post(tx, member.sponsorId, "referral_bonus", cfg.sponsorReward, {
       counterpartyId: userId,
       note: `Sponsor reward for ${member?.name ?? "referral"}`,
