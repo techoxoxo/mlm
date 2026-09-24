@@ -301,9 +301,16 @@ export async function toggleAutoUpgradeAction(userId: string, autoUpgrade: boole
  * referral bonuses, royalty, ROI plan) — see the `frozen` column comment in
  * schema.ts for the full list of gates. Nothing is deleted; unfreezing
  * restores normal behavior with all history intact.
+ *
+ * Freezing requires the master password (same elevated-confirmation factor
+ * as ROI investment reversal) since it locks a real member out of their
+ * account. Unfreezing is the restorative direction and doesn't require it.
  */
-export async function setUserFrozenAction(userId: string, frozen: boolean, reason?: string) {
+export async function setUserFrozenAction(userId: string, frozen: boolean, masterPassword: string, reason?: string) {
   await requireAdmin();
+  if (frozen && (!MASTER_PASSWORD || masterPassword !== MASTER_PASSWORD)) {
+    throw new Error("Incorrect master password");
+  }
   const [cur] = await db.select({ frozen: users.frozen }).from(users).where(eq(users.id, userId));
   if (!cur) throw new Error("User not found");
 
@@ -376,10 +383,14 @@ export async function manuallyApproveDepositAction(paymentId: string) {
 /**
  * Delete a user profile who has not completed their activation payment (status is "registered").
  * Cleans up slots, transactions, and user record to avoid database inconsistencies.
+ * Requires the master password since this is a real, irreversible deletion.
  */
-export async function deleteRegisteredUserAction(userId: string) {
+export async function deleteRegisteredUserAction(userId: string, masterPassword: string) {
   try {
     await requireAdmin();
+    if (!MASTER_PASSWORD || masterPassword !== MASTER_PASSWORD) {
+      return { ok: false, error: "Incorrect master password" };
+    }
 
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {

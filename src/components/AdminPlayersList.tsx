@@ -69,9 +69,11 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
     if (!confirm(`Are you sure you want to permanently delete user "${name}"? This will clean up their registration record.`)) {
       return;
     }
+    const masterPassword = prompt("Enter master password to confirm deletion:");
+    if (!masterPassword) return;
 
     startDeleteTransition(async () => {
-      const res = await deleteRegisteredUserAction(id);
+      const res = await deleteRegisteredUserAction(id, masterPassword);
       if (!res.ok) {
         alert(res.error || "Failed to delete user.");
       } else {
@@ -85,8 +87,12 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
     e.stopPropagation();
 
     let reason: string | undefined;
+    let masterPassword = "";
     if (!currentlyFrozen) {
       if (!confirm(`Freeze "${name}"? They won't be able to log in or receive any benefits until unfrozen. Nothing is deleted.`)) return;
+      const entered = prompt("Enter master password to confirm freezing this user:");
+      if (!entered) return;
+      masterPassword = entered;
       reason = prompt("Reason (optional, visible to other admins):") || undefined;
     } else {
       if (!confirm(`Unfreeze "${name}"? Login and earnings resume normally.`)) return;
@@ -95,7 +101,7 @@ export function AdminPlayersList({ initialRows }: { initialRows: PlayerRow[] }) 
     setFreezingId(id);
     startFreezeTransition(async () => {
       try {
-        await setUserFrozenAction(id, !currentlyFrozen, reason);
+        await setUserFrozenAction(id, !currentlyFrozen, masterPassword, reason);
         setRows((prev) => prev.map((u) => (u.id === id ? { ...u, frozen: !currentlyFrozen } : u)));
       } catch (err) {
         alert(err instanceof Error ? err.message : "Failed to update frozen status.");

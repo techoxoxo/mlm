@@ -9,16 +9,18 @@ export function FreezeUserButton({ userId, frozen }: { userId: string; frozen: b
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const submit = () => {
+  const submit = (masterPassword: string) => {
     setError(null);
     startTransition(async () => {
       try {
-        await setUserFrozenAction(userId, !frozen, reason || undefined);
+        await setUserFrozenAction(userId, !frozen, masterPassword, reason || undefined);
         setOpen(false);
         setReason("");
+        setPassword("");
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to update frozen status.");
@@ -26,12 +28,13 @@ export function FreezeUserButton({ userId, frozen }: { userId: string; frozen: b
     });
   };
 
-  // Unfreezing is reversible and low-risk — no confirmation panel needed.
+  // Unfreezing is reversible, low-risk, and doesn't require the master
+  // password — no confirmation panel needed.
   if (frozen) {
     return (
       <button
         type="button"
-        onClick={submit}
+        onClick={() => submit("")}
         disabled={pending}
         className="pill pill-gold"
         style={{ border: "1px solid var(--border)", cursor: "pointer", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}
@@ -85,6 +88,7 @@ export function FreezeUserButton({ userId, frozen }: { userId: string; frozen: b
             setOpen(false);
             setError(null);
             setReason("");
+            setPassword("");
           }}
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--faint)", padding: 2 }}
         >
@@ -104,11 +108,20 @@ export function FreezeUserButton({ userId, frozen }: { userId: string; frozen: b
         style={{ fontSize: 12.5 }}
         disabled={pending}
       />
+      <input
+        type="password"
+        placeholder="Master password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        className="input"
+        style={{ fontSize: 12.5 }}
+        disabled={pending}
+      />
       {error && <p style={{ fontSize: 11, color: "#ef4444", margin: 0 }}>{error}</p>}
       <button
         type="button"
-        onClick={submit}
-        disabled={pending}
+        onClick={() => submit(password)}
+        disabled={pending || !password}
         className="btn btn-primary"
         style={{ fontSize: 12, padding: "6px 12px" }}
       >
